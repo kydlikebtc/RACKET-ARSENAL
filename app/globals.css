@@ -10,6 +10,7 @@
   --acid: #dfff33;
   --acid-ink: #10120d;
   --copper: #b87855;
+  --sky: #67b7ef;
   --header: "Arial Narrow", "Aptos Narrow", "Helvetica Neue", "PingFang SC", sans-serif;
   --body: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
   --mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
@@ -543,6 +544,190 @@ a {
 
 .score-bars--condensed {
   align-self: center;
+}
+
+.racket-photo {
+  background:
+    linear-gradient(145deg, rgba(255,255,255,0.96), rgba(231,235,231,0.98)),
+    #eef1ed;
+  border: 1px solid color-mix(in srgb, var(--racket-accent) 35%, #bcc4bf);
+  isolation: isolate;
+  overflow: hidden;
+  position: relative;
+}
+
+.racket-photo::before {
+  background: color-mix(in srgb, var(--racket-accent) 14%, transparent);
+  content: "";
+  height: 180px;
+  position: absolute;
+  right: -82px;
+  top: -82px;
+  transform: rotate(45deg);
+  width: 180px;
+  z-index: -1;
+}
+
+.racket-photo img {
+  display: block;
+  filter: saturate(1.04) contrast(1.02);
+  height: 100%;
+  object-fit: contain;
+  padding: 14px;
+  width: 100%;
+}
+
+.racket-photo > span {
+  background: var(--ink);
+  bottom: 0;
+  color: #d7dcd8;
+  font-family: var(--mono);
+  font-size: 7px;
+  left: 0;
+  letter-spacing: 0.1em;
+  padding: 5px 8px;
+  position: absolute;
+}
+
+.racket-photo--hero {
+  grid-row: 2 / 6;
+  height: 502px;
+  margin: 20px 22px 0 0;
+}
+
+.racket-photo--compact {
+  height: 246px;
+  margin: 12px 0 18px;
+}
+
+.racket-photo--detail {
+  height: 520px;
+  margin-top: 62px;
+}
+
+.racket-photo--thumb {
+  height: 92px;
+  margin: 0 30px 12px 0;
+  width: 92px;
+}
+
+.racket-photo--thumb img {
+  padding: 7px;
+}
+
+.radar-chart {
+  margin: 0;
+  min-width: 0;
+  position: relative;
+}
+
+.radar-chart svg {
+  display: block;
+  height: auto;
+  margin: 0 auto;
+  max-width: 430px;
+  overflow: visible;
+  width: 100%;
+}
+
+.radar-chart__grid,
+.radar-chart__axis {
+  fill: none;
+  stroke: var(--line);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.radar-chart__grid--outer {
+  stroke: #505954;
+}
+
+.radar-chart__shape {
+  fill: var(--series-color);
+  fill-opacity: 0.09;
+  stroke: var(--series-color);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2.5;
+  vector-effect: non-scaling-stroke;
+}
+
+.radar-chart__point {
+  fill: var(--panel);
+  stroke: var(--series-color);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+}
+
+.radar-chart__label {
+  dominant-baseline: middle;
+  fill: var(--muted);
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.05em;
+}
+
+.radar-chart__label-value {
+  fill: var(--text);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.radar-chart__note {
+  color: #717a75;
+  font-family: var(--mono);
+  font-size: 8px;
+  letter-spacing: 0.08em;
+  margin: -5px 0 0;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.radar-chart--compact {
+  align-self: center;
+}
+
+.radar-chart--compact svg {
+  max-width: 236px;
+}
+
+.radar-chart--compact .radar-chart__label {
+  font-size: 11px;
+}
+
+.radar-chart--compact .radar-chart__note {
+  margin-top: -18px;
+}
+
+.radar-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  justify-content: center;
+  margin: 4px auto 8px;
+  max-width: 660px;
+}
+
+.radar-legend > span {
+  align-items: center;
+  color: var(--muted);
+  display: inline-flex;
+  font-family: var(--mono);
+  font-size: 9px;
+  gap: 6px;
+}
+
+.radar-legend b {
+  color: var(--text);
+  font-weight: 700;
+}
+
+.radar-legend i {
+  border-top-color: var(--series-color);
+  border-top-width: 3px;
+  display: inline-block;
+  width: 26px;
 }
 
 .text-link {
@@ -1219,6 +1404,65 @@ a {
   overflow-x: auto;
 }
 
+.compare-loaded {
+  display: grid;
+  gap: 18px;
+}
+
+.compare-radar-panel {
+  align-items: center;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  display: grid;
+  gap: clamp(24px, 5vw, 76px);
+  grid-template-columns: minmax(220px, 0.7fr) minmax(430px, 1.3fr);
+  overflow: hidden;
+  padding: clamp(24px, 4vw, 50px);
+  position: relative;
+}
+
+.compare-radar-panel::before {
+  background-image: linear-gradient(var(--line-soft) 1px, transparent 1px), linear-gradient(90deg, var(--line-soft) 1px, transparent 1px);
+  background-size: 42px 42px;
+  content: "";
+  inset: 0 58% 0 0;
+  mask-image: linear-gradient(to right, rgba(0,0,0,0.7), transparent);
+  opacity: 0.35;
+  position: absolute;
+}
+
+.compare-radar-copy {
+  position: relative;
+  z-index: 1;
+}
+
+.compare-radar-copy .eyebrow {
+  color: var(--acid);
+  margin-bottom: 12px;
+}
+
+.compare-radar-copy h3 {
+  font-family: var(--header);
+  font-size: clamp(34px, 4vw, 58px);
+  letter-spacing: -0.05em;
+  line-height: 0.95;
+  margin: 0 0 18px;
+}
+
+.compare-radar-copy > p:last-child {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.75;
+  margin: 0;
+  max-width: 360px;
+}
+
+.compare-radar-panel .radar-chart {
+  min-width: 0;
+  position: relative;
+  z-index: 1;
+}
+
 .compare-table {
   border-collapse: collapse;
   min-width: 760px;
@@ -1244,6 +1488,10 @@ a {
   font-size: 20px;
   padding: 22px 18px;
   position: relative;
+}
+
+.compare-table thead .racket-photo--thumb {
+  border-color: var(--line);
 }
 
 .compare-table thead th:first-child {
@@ -1383,8 +1631,9 @@ footer > div:last-child a {
   position: relative;
 }
 
-.detail-visual .racket-art {
-  margin-top: 76px;
+.detail-visual .racket-photo {
+  position: relative;
+  z-index: 1;
 }
 
 .detail-watermark {
@@ -1517,6 +1766,11 @@ footer > div:last-child a {
   .racket-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .compare-radar-panel {
+    gap: 30px;
+    grid-template-columns: minmax(210px, 0.65fr) minmax(390px, 1.35fr);
+  }
 }
 
 @media (max-width: 900px) {
@@ -1589,6 +1843,19 @@ footer > div:last-child a {
   .detail-modal {
     grid-template-columns: 0.72fr 1.28fr;
   }
+
+  .compare-radar-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .compare-radar-panel::before {
+    inset: 0;
+    mask-image: linear-gradient(to bottom, rgba(0,0,0,0.55), transparent 48%);
+  }
+
+  .compare-radar-copy > p:last-child {
+    max-width: 620px;
+  }
 }
 
 @media (max-width: 700px) {
@@ -1635,9 +1902,10 @@ footer > div:last-child a {
     min-height: 0;
   }
 
-  .hero-dossier > .racket-art {
+  .hero-dossier > .racket-photo {
     grid-row: auto;
-    height: 330px;
+    height: 390px;
+    margin-right: 0;
   }
 
   .dossier-title {
@@ -1786,11 +2054,14 @@ footer > div:last-child a {
     min-height: 330px;
   }
 
-  .detail-visual .racket-art {
-    height: 250px;
-    margin: 18px auto -120px;
-    transform: scale(0.72);
-    transform-origin: center top;
+  .detail-visual .racket-photo {
+    height: 270px;
+    margin: 18px auto 0;
+    max-width: 360px;
+  }
+
+  .radar-chart svg {
+    max-width: 380px;
   }
 
   .detail-watermark {

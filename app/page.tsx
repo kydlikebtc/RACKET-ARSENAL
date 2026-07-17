@@ -363,34 +363,128 @@ const brandOptions = ["全部", ...Array.from(new Set(rackets.map((racket) => ra
 const stageOptions = ["全部", "入门", "进阶", "高阶"] as const;
 const styleOptions = ["全部", "底线相持", "上旋进攻", "全场控制", "抢点快攻", "舒适护臂"] as const;
 
-function RacketArt({ racket, compact = false }: { racket: Racket; compact?: boolean }) {
+const racketImages: Record<string, string> = {
+  "wilson-pro-staff-97-v14": "/rackets/wilson-pro-staff-97-v14.webp",
+  "wilson-blade-98-v9": "/rackets/wilson-blade-98-v9.webp",
+  "wilson-clash-100-v3": "/rackets/wilson-clash-100-v3.jpg",
+  "yonex-ezone-98": "/rackets/yonex-ezone-98.webp",
+  "yonex-vcore-98": "/rackets/yonex-vcore-98.webp",
+  "yonex-percept-97": "/rackets/yonex-percept-97.webp",
+  "babolat-pure-aero-98": "/rackets/babolat-pure-aero-98.png",
+  "babolat-pure-drive-98": "/rackets/babolat-pure-drive-98.png",
+  "babolat-pure-strike-98": "/rackets/babolat-pure-strike-98.png",
+  "head-speed-mp-2026": "/rackets/head-speed-mp-2026.jpg",
+  "head-gravity-mp-2025": "/rackets/head-gravity-mp-2025.jpg",
+  "head-radical-mp-2025": "/rackets/head-radical-mp-2025.jpg",
+  "head-boom-mp-2024": "/rackets/head-boom-mp-2024.png",
+  "tecnifibre-tfight-305s": "/rackets/tecnifibre-tfight-305s.webp",
+  "dunlop-cx-200": "/rackets/dunlop-cx-200.webp",
+  "volkl-vostra-v1-mp": "/rackets/volkl-vostra-v1-mp.webp",
+};
+
+const radarKeys: ScoreKey[] = ["control", "power", "spin", "agility", "forgiveness", "feel"];
+const radarSeries = ["var(--acid)", "var(--copper)", "var(--sky)"];
+const radarDash = ["none", "10 5", "2 5"];
+
+function RacketPhoto({
+  racket,
+  variant = "compact",
+}: {
+  racket: Racket;
+  variant?: "hero" | "compact" | "detail" | "thumb";
+}) {
   return (
     <div
-      className={`racket-art${compact ? " racket-art--compact" : ""}`}
+      className={`racket-photo racket-photo--${variant}`}
       style={{ "--racket-accent": racket.accent } as CSSProperties}
-      aria-hidden="true"
     >
-      <div className="racket-art__halo" />
-      <div className="racket-art__head"><div className="racket-art__strings" /></div>
-      <div className="racket-art__throat" />
-      <div className="racket-art__handle" />
-      <span className="racket-art__code">{racket.id.slice(-5).toUpperCase()}</span>
+      <img
+        src={racketImages[racket.id]}
+        alt={`${racket.brand} ${racket.model} 球拍实物图`}
+        loading={variant === "hero" ? "eager" : "lazy"}
+      />
+      {variant !== "thumb" && <span>PRODUCT / {racket.year}</span>}
     </div>
   );
 }
 
-function ScoreBars({ racket, condensed = false }: { racket: Racket; condensed?: boolean }) {
-  const entries = Object.entries(racket.scores) as [ScoreKey, number][];
+function radarPoint(index: number, value: number, radius = 104) {
+  const angle = ((index * 60) - 90) * (Math.PI / 180);
+  const distance = radius * (value / 100);
+  return [180 + (Math.cos(angle) * distance), 155 + (Math.sin(angle) * distance)];
+}
+
+function RadarChart({ chartRackets, compact = false }: { chartRackets: Racket[]; compact?: boolean }) {
+  const gridLevels = [20, 40, 60, 80, 100];
+  const summary = chartRackets
+    .map((racket) => `${racket.brand} ${racket.model}：${radarKeys.map((key) => `${scoreLabels[key]} ${racket.scores[key]}`).join("，")}`)
+    .join("；");
+
   return (
-    <div className={`score-bars${condensed ? " score-bars--condensed" : ""}`}>
-      {entries.map(([key, value]) => (
-        <div className="score-row" key={key}>
-          <span>{scoreLabels[key]}</span>
-          <div className="score-track"><i style={{ width: `${value}%` }} /></div>
-          <b>{value}</b>
-        </div>
-      ))}
-    </div>
+    <figure className={`radar-chart${compact ? " radar-chart--compact" : ""}`}>
+      <svg viewBox="0 0 360 314" role="img">
+        <title>{chartRackets.length > 1 ? "球拍六维属性重叠对比雷达图" : `${chartRackets[0].model} 六维属性雷达图`}</title>
+        <desc>{summary}。各维度满分 100 分，用于拍库内部横向比较。</desc>
+
+        <g className="radar-chart__structure" aria-hidden="true">
+          {gridLevels.map((level) => (
+            <polygon
+              key={level}
+              points={radarKeys.map((_, index) => radarPoint(index, level).join(",")).join(" ")}
+              className={level === 100 ? "radar-chart__grid radar-chart__grid--outer" : "radar-chart__grid"}
+            />
+          ))}
+          {radarKeys.map((key, index) => {
+            const [x, y] = radarPoint(index, 100);
+            return <line key={key} x1="180" y1="155" x2={x} y2={y} className="radar-chart__axis" />;
+          })}
+        </g>
+
+        {chartRackets.map((racket, seriesIndex) => (
+          <g
+            className="radar-chart__series"
+            key={racket.id}
+            style={{ "--series-color": radarSeries[seriesIndex % radarSeries.length] } as CSSProperties}
+          >
+            <polygon
+              points={radarKeys.map((key, index) => radarPoint(index, racket.scores[key]).join(",")).join(" ")}
+              className="radar-chart__shape"
+              strokeDasharray={radarDash[seriesIndex % radarDash.length]}
+            />
+            {radarKeys.map((key, index) => {
+              const [x, y] = radarPoint(index, racket.scores[key]);
+              return <circle key={key} cx={x} cy={y} r={seriesIndex === 0 ? 3.5 : 3} className="radar-chart__point" />;
+            })}
+          </g>
+        ))}
+
+        <g className="radar-chart__labels" aria-hidden="true">
+          {radarKeys.map((key, index) => {
+            const [x, y] = radarPoint(index, 100, 132);
+            const textAnchor = Math.abs(x - 180) < 10 ? "middle" : x > 180 ? "start" : "end";
+            const singleValue = chartRackets.length === 1 && !compact ? chartRackets[0].scores[key] : null;
+            return (
+              <text key={key} x={x} y={y} textAnchor={textAnchor} className="radar-chart__label">
+                <tspan x={x}>{scoreLabels[key]}</tspan>
+                {singleValue !== null && <tspan x={x} dy="15" className="radar-chart__label-value">{singleValue}</tspan>}
+              </text>
+            );
+          })}
+        </g>
+      </svg>
+
+      {chartRackets.length > 1 && (
+        <figcaption className="radar-legend" aria-label="雷达图图例">
+          {chartRackets.map((racket, index) => (
+            <span key={racket.id} style={{ "--series-color": radarSeries[index % radarSeries.length] } as CSSProperties}>
+              <i style={{ borderTopStyle: index === 0 ? "solid" : "dashed" }} />
+              <b>{racket.brand}</b> {racket.model}
+            </span>
+          ))}
+        </figcaption>
+      )}
+      <p className="radar-chart__note">拍库相对评分 / 满分 100</p>
+    </figure>
   );
 }
 
@@ -504,7 +598,7 @@ export default function Home() {
 
         <article className="hero-dossier">
           <div className="dossier-topline"><span>FEATURED / 001</span><b>高阶 · 全场控制</b></div>
-          <RacketArt racket={rackets[0]} />
+          <RacketPhoto racket={rackets[0]} variant="hero" />
           <div className="dossier-title">
             <p>{rackets[0].brand} / {rackets[0].series}</p>
             <h2>{rackets[0].model}</h2>
@@ -514,7 +608,7 @@ export default function Home() {
             <div><b>{rackets[0].head}</b><span>in² / 拍面</span></div>
             <div><b>{rackets[0].pattern}</b><span>线床</span></div>
           </div>
-          <ScoreBars racket={rackets[0]} condensed />
+          <RadarChart chartRackets={[rackets[0]]} compact />
           <button className="text-link" onClick={() => setSelectedId(rackets[0].id)}>打开完整档案 <span aria-hidden="true">↗</span></button>
         </article>
       </section>
@@ -604,7 +698,7 @@ export default function Home() {
               return (
                 <article className="racket-card" key={racket.id} style={{ "--racket-accent": racket.accent } as CSSProperties}>
                   <div className="card-index">AR–{String(rackets.indexOf(racket) + 1).padStart(3, "0")} <span>{racket.year}</span></div>
-                  <RacketArt racket={racket} compact />
+                  <RacketPhoto racket={racket} variant="compact" />
                   <div className="card-brand">{racket.brand} / {racket.series}</div>
                   <h3>{racket.model}</h3>
                   <p>{racket.summary}</p>
@@ -636,19 +730,29 @@ export default function Home() {
         {compared.length === 0 ? (
           <div className="compare-empty"><div className="compare-crosshair" aria-hidden="true">＋</div><div><h3>对比位等待装载</h3><p>从球拍卡片点击“加入对比”，规格与六维属性会自动对齐。</p></div><a href="#armory">返回球拍库 ↑</a></div>
         ) : (
-          <div className="compare-table-wrap">
-            <table className="compare-table">
-              <thead><tr><th>对比维度</th>{compared.map((racket) => <th key={racket.id}><span>{racket.brand}</span>{racket.model}<button onClick={() => toggleCompare(racket.id)} aria-label={`移除 ${racket.model}`}>×</button></th>)}</tr></thead>
-              <tbody>
-                <tr><th>阶段</th>{compared.map((racket) => <td key={racket.id}>{racket.stages.join(" / ")}</td>)}</tr>
-                <tr><th>适合风格</th>{compared.map((racket) => <td key={racket.id}>{racket.styles.join(" / ")}</td>)}</tr>
-                <tr><th>裸拍重量</th>{compared.map((racket) => <td key={racket.id}><b>{racket.weight}</b> g</td>)}</tr>
-                <tr><th>拍面</th>{compared.map((racket) => <td key={racket.id}><b>{racket.head}</b> in²</td>)}</tr>
-                <tr><th>线床</th>{compared.map((racket) => <td key={racket.id}>{racket.pattern}</td>)}</tr>
-                {(Object.keys(scoreLabels) as ScoreKey[]).map((key) => <tr key={key}><th>{scoreLabels[key]}</th>{compared.map((racket) => <td key={racket.id}><div className="table-score"><i><b style={{ width: `${racket.scores[key]}%` }} /></i><span>{racket.scores[key]}</span></div></td>)}</tr>)}
-                <tr><th>购买</th>{compared.map((racket) => <td key={racket.id}><a href={racket.buyUrl} target="_blank" rel="noreferrer">前往 {racket.buyLabel} ↗</a></td>)}</tr>
-              </tbody>
-            </table>
+          <div className="compare-loaded">
+            <div className="compare-radar-panel">
+              <div className="compare-radar-copy">
+                <p className="eyebrow">OVERLAY / 6 AXES</p>
+                <h3>六维属性重叠雷达</h3>
+                <p>同一刻度上查看轮廓差异：实线、长虚线与点线分别对应三把球拍，不只依赖颜色识别。</p>
+              </div>
+              <RadarChart chartRackets={compared} />
+            </div>
+            <div className="compare-table-wrap">
+              <table className="compare-table">
+                <thead><tr><th>对比维度</th>{compared.map((racket) => <th key={racket.id}><RacketPhoto racket={racket} variant="thumb" /><span>{racket.brand}</span>{racket.model}<button onClick={() => toggleCompare(racket.id)} aria-label={`移除 ${racket.model}`}>×</button></th>)}</tr></thead>
+                <tbody>
+                  <tr><th>阶段</th>{compared.map((racket) => <td key={racket.id}>{racket.stages.join(" / ")}</td>)}</tr>
+                  <tr><th>适合风格</th>{compared.map((racket) => <td key={racket.id}>{racket.styles.join(" / ")}</td>)}</tr>
+                  <tr><th>裸拍重量</th>{compared.map((racket) => <td key={racket.id}><b>{racket.weight}</b> g</td>)}</tr>
+                  <tr><th>拍面</th>{compared.map((racket) => <td key={racket.id}><b>{racket.head}</b> in²</td>)}</tr>
+                  <tr><th>线床</th>{compared.map((racket) => <td key={racket.id}>{racket.pattern}</td>)}</tr>
+                  {(Object.keys(scoreLabels) as ScoreKey[]).map((key) => <tr key={key}><th>{scoreLabels[key]}</th>{compared.map((racket) => <td key={racket.id}><div className="table-score"><i><b style={{ width: `${racket.scores[key]}%` }} /></i><span>{racket.scores[key]}</span></div></td>)}</tr>)}
+                  <tr><th>购买</th>{compared.map((racket) => <td key={racket.id}><a href={racket.buyUrl} target="_blank" rel="noreferrer">前往 {racket.buyLabel} ↗</a></td>)}</tr>
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
       </section>
@@ -665,7 +769,7 @@ export default function Home() {
             <button className="modal-close" onClick={() => setSelectedId(null)} aria-label="关闭详情">×</button>
             <div className="detail-visual" style={{ "--racket-accent": selected.accent } as CSSProperties}>
               <div className="dossier-topline"><span>FULL DOSSIER</span><b>{selected.year}</b></div>
-              <RacketArt racket={selected} />
+              <RacketPhoto racket={selected} variant="detail" />
               <span className="detail-watermark">{selected.brand}</span>
             </div>
             <div className="detail-content">
@@ -682,7 +786,7 @@ export default function Home() {
                 <div><dt>阶段</dt><dd>{selected.stages.join(" / ")}</dd></div>
               </dl>
               <h3>六维属性</h3>
-              <ScoreBars racket={selected} />
+              <RadarChart chartRackets={[selected]} />
               <p className="score-note">属性分为拍库内部的相对定位，用于横向比较；最终手感会受到穿线、磅数与个体动作影响。</p>
               <div className="detail-actions">
                 <button className="button button--ghost" onClick={() => toggleCompare(selected.id)}>{compareIds.includes(selected.id) ? "移出对比" : compareIds.length >= 3 ? "对比位已满" : "+ 加入对比"}</button>
