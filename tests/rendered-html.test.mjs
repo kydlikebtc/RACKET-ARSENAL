@@ -27,6 +27,8 @@ test("server-renders the app experience", async () => {
   assert.match(html, />球星</);
   assert.match(html, />对比</);
   assert.match(html, /ATP \+ WTA 前 8/);
+  assert.match(html, /213(?:<!-- -->)? 款现行型号/);
+  assert.match(html, /213(?:<!-- -->)? 份六维深度档案/);
   assert.doesNotMatch(html, /Codex is working|Your site is taking shape|codex-preview/i);
 });
 
@@ -47,8 +49,12 @@ test("keeps racket imagery and app interactions wired", async () => {
   assert.match(page, /六维属性重叠对比雷达图/);
   assert.match(page, /className="mobile-tabbar"/);
   assert.match(page, /className="compare-tray"/);
-  assert.match(page, /className="filter-sheet"/);
   assert.match(page, /function ProductGallery/);
+  assert.match(page, /from "\.\/racket-profiles"/);
+  assert.match(page, /catalogRacketId\(selectedFamily, modelIndex\)/);
+  assert.match(page, />深度档案</);
+  assert.match(page, /非实验室测量/);
+  assert.doesNotMatch(page, /libraryMode|library-mode-switch/);
   assert.match(page, /className="catalog-family-grid"/);
   assert.match(page, /className="model-matrix__scroll"/);
   assert.match(page, /className="tour-player-grid"/);
@@ -67,8 +73,10 @@ test("keeps racket imagery and app interactions wired", async () => {
     assert.match(catalog, new RegExp(`brand: "${brand}"`));
   }
   const familyIds = catalog.match(/id: "[^"]+", brand:/g) ?? [];
+  const catalogModels = catalog.match(/\bspec\("/g) ?? [];
   const catalogImagePaths = [...catalog.matchAll(/^\s+image: "(\/rackets\/[^"]+)"/gm)].map((match) => match[1]);
   assert.equal(familyIds.length, 37);
+  assert.equal(catalogModels.length, 213);
   assert.equal(catalogImagePaths.length, familyIds.length);
   await Promise.all(catalogImagePaths.map((path) => access(new URL(`../public${path}`, import.meta.url))));
   assert.match(catalog, /export const catalogModelCount/);

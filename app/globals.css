@@ -1698,11 +1698,34 @@ a:active {
   font-size: 12px;
 }
 
+.racket-inspector__title > strong {
+  color: var(--text-faint);
+  display: block;
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 500;
+  margin: -2px 0 8px;
+}
+
+.inspector-image-note {
+  color: var(--text-faint);
+  font-size: 9px;
+  line-height: 1.55;
+  margin: 9px 2px 0;
+}
+
+.racket-inspector__summary {
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1.65;
+  margin: 18px 0 0;
+}
+
 .racket-inspector__verdict {
   color: var(--text-soft);
   font-size: 14px;
   line-height: 1.7;
-  margin: 22px 0;
+  margin: 9px 0 22px;
 }
 
 .inspector-specs {
@@ -2766,7 +2789,7 @@ a:active {
 
 .model-matrix table {
   border-collapse: collapse;
-  min-width: 1080px;
+  min-width: 1160px;
   width: 100%;
 }
 
@@ -2808,6 +2831,34 @@ a:active {
   color: var(--accent);
   font-family: var(--font);
   font-weight: 600;
+}
+
+.model-matrix__actions {
+  align-items: center;
+  display: flex;
+  gap: 7px;
+}
+
+.model-matrix__actions button,
+.model-matrix__actions a {
+  align-items: center;
+  border-radius: 9px;
+  display: inline-flex;
+  font-family: var(--font);
+  font-size: 9px;
+  font-weight: 600;
+  justify-content: center;
+  min-height: 30px;
+  padding: 0 9px;
+}
+
+.model-matrix__actions button {
+  background: var(--accent);
+  color: #ffffff;
+}
+
+.model-matrix__actions a {
+  background: var(--accent-soft);
 }
 
 .family-inspector__note {
