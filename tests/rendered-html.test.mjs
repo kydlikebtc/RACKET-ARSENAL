@@ -24,15 +24,19 @@ test("server-renders the app experience", async () => {
   assert.match(html, /今天，想怎么赢/);
   assert.match(html, />匹配</);
   assert.match(html, /球拍库/);
+  assert.match(html, />球星</);
   assert.match(html, />对比</);
+  assert.match(html, /ATP \+ WTA 前 8/);
   assert.doesNotMatch(html, /Codex is working|Your site is taking shape|codex-preview/i);
 });
 
 test("keeps racket imagery and app interactions wired", async () => {
-  const [page, css, layout] = await Promise.all([
+  const [page, css, layout, catalog, tour] = await Promise.all([
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
     readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/catalog-data.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/tour-data.ts", import.meta.url), "utf8"),
   ]);
 
   const imagePaths = [...page.matchAll(/^  "[^"]+": "(\/rackets\/[^"]+)"/gm)].map((match) => match[1]);
@@ -44,8 +48,33 @@ test("keeps racket imagery and app interactions wired", async () => {
   assert.match(page, /className="mobile-tabbar"/);
   assert.match(page, /className="compare-tray"/);
   assert.match(page, /className="filter-sheet"/);
+  assert.match(page, /function ProductGallery/);
+  assert.match(page, /className="catalog-family-grid"/);
+  assert.match(page, /className="model-matrix__scroll"/);
+  assert.match(page, /className="tour-player-grid"/);
   assert.match(page, /role="dialog"/);
   assert.match(page, /aria-live="polite"/);
+
+  const galleryPaths = [
+    "/rackets/gallery/wilson-blade-v10-02.png",
+    "/rackets/gallery/yonex-ezone-98-01.jpg",
+    "/rackets/gallery/babolat-pure-aero-98-gen9-01.png",
+    "/rackets/gallery/head-speed-01.webp",
+  ];
+  await Promise.all(galleryPaths.map((path) => access(new URL(`../public${path}`, import.meta.url))));
+
+  for (const brand of ["Wilson", "Yonex", "Babolat", "HEAD", "Tecnifibre", "Dunlop", "Völkl", "Prince"]) {
+    assert.match(catalog, new RegExp(`brand: "${brand}"`));
+  }
+  const familyIds = catalog.match(/id: "[^"]+", brand:/g) ?? [];
+  const catalogImagePaths = [...catalog.matchAll(/^\s+image: "(\/rackets\/[^"]+)"/gm)].map((match) => match[1]);
+  assert.equal(familyIds.length, 37);
+  assert.equal(catalogImagePaths.length, familyIds.length);
+  await Promise.all(catalogImagePaths.map((path) => access(new URL(`../public${path}`, import.meta.url))));
+  assert.match(catalog, /export const catalogModelCount/);
+  assert.match(catalog, /releaseDate/);
+  assert.equal((tour.match(/tour: "(?:ATP|WTA)"/g) ?? []).length, 16);
+  assert.match(tour, /export const tourRankAsOf = "2026-07-13"/);
 
   assert.match(css, /min-height:\s*44px/);
   assert.match(css, /env\(safe-area-inset-bottom\)/);

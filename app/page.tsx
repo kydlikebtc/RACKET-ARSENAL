@@ -1,6 +1,18 @@
 "use client";
 
+/* eslint-disable @next/next/no-img-element */
+
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import {
+  catalogBrands,
+  catalogFamilies,
+  catalogModelCount,
+  catalogTypes,
+  catalogVerifiedAt,
+  type CatalogFamily,
+  type RacketFamilyType,
+} from "./catalog-data";
+import { tourPlayers, tourRankAsOf, tourSources, type Tour, type TourPlayer } from "./tour-data";
 
 type Stage = "入门" | "进阶" | "高阶";
 type PlayStyle = "底线相持" | "上旋进攻" | "全场控制" | "抢点快攻" | "舒适护臂";
@@ -508,6 +520,8 @@ function recommendationScore(racket: Racket, stage: Stage, style: PlayStyle, pri
   return Math.min(98, Math.round(score));
 }
 
+// Kept as a reference for the original editorial layout while the app shell evolves.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function LegacyHome() {
   const [brand, setBrand] = useState("全部");
   const [stageFilter, setStageFilter] = useState<(typeof stageOptions)[number]>("全部");
@@ -692,7 +706,7 @@ function LegacyHome() {
 
         {filteredRackets.length > 0 ? (
           <div className="racket-grid">
-            {filteredRackets.map((racket, index) => {
+            {filteredRackets.map((racket) => {
               const isCompared = compareIds.includes(racket.id);
               const compareFull = compareIds.length >= 3 && !isCompared;
               return (
@@ -800,12 +814,13 @@ function LegacyHome() {
   );
 }
 
-type AppView = "discover" | "match" | "armory" | "compare";
+type AppView = "discover" | "match" | "armory" | "tour" | "compare";
 
 const appTabs: { id: AppView; label: string; icon: string }[] = [
   { id: "discover", label: "发现", icon: "◉" },
   { id: "match", label: "匹配", icon: "◇" },
   { id: "armory", label: "球拍库", icon: "▦" },
+  { id: "tour", label: "球星", icon: "★" },
   { id: "compare", label: "对比", icon: "⇄" },
 ];
 
@@ -893,19 +908,173 @@ function ViewTitle({ eyebrow, title, action }: { eyebrow: string; title: string;
   );
 }
 
+const familyTypeAccent: Record<RacketFamilyType, string> = {
+  控制: "#6c6df0",
+  旋转: "#ef5b45",
+  力量: "#1878e8",
+  全能: "#2e9b72",
+  舒适: "#a96a31",
+};
+
+const familyGalleries: Record<string, string[]> = {
+  "wilson-blade-v10": [
+    "/rackets/gallery/wilson-blade-v10-02.png",
+    "/rackets/gallery/wilson-blade-v10-03.jpg",
+    "/rackets/gallery/wilson-blade-v10-04.jpg",
+  ],
+  "yonex-ezone-8": [
+    "/rackets/gallery/yonex-ezone-98-01.jpg",
+    "/rackets/gallery/yonex-ezone-98-02.jpg",
+    "/rackets/gallery/yonex-ezone-98-03.jpg",
+    "/rackets/gallery/yonex-ezone-98-04.jpg",
+  ],
+  "babolat-pure-aero-gen9": [
+    "/rackets/gallery/babolat-pure-aero-98-gen9-01.png",
+    "/rackets/gallery/babolat-pure-aero-98-gen9-02.png",
+    "/rackets/gallery/babolat-pure-aero-98-gen9-03.png",
+    "/rackets/gallery/babolat-pure-aero-98-gen9-04.png",
+  ],
+  "head-speed-2026": Array.from({ length: 10 }, (_, index) => `/rackets/gallery/head-speed-${String(index + 1).padStart(2, "0")}.webp`),
+};
+
+const racketGalleries: Record<string, string[]> = {
+  "yonex-ezone-98": familyGalleries["yonex-ezone-8"],
+  "babolat-pure-aero-98": familyGalleries["babolat-pure-aero-gen9"],
+  "head-speed-mp-2026": familyGalleries["head-speed-2026"],
+};
+
+function familyReleaseLabel(family: CatalogFamily) {
+  if (family.releaseDate) return family.releaseDate;
+  if (family.releaseYear) return String(family.releaseYear);
+  return "官网未注明";
+}
+
+function ProductGallery({ images, alt, accent }: { images: string[]; alt: string; accent: string }) {
+  const [frame, setFrame] = useState(0);
+  const safeFrame = Math.min(frame, Math.max(images.length - 1, 0));
+
+  if (images.length === 0) {
+    return (
+      <div className="product-gallery product-gallery--empty" style={{ "--gallery-accent": accent } as CSSProperties}>
+        <span aria-hidden="true">拍</span><strong>{alt}</strong><small>官网产品图待同步</small>
+      </div>
+    );
+  }
+
+  const step = (direction: number) => setFrame((current) => (current + direction + images.length) % images.length);
+
+  return (
+    <figure className="product-gallery" style={{ "--gallery-accent": accent } as CSSProperties}>
+      <div className="product-gallery__stage">
+        <img src={images[safeFrame]} alt={`${alt} 官方产品图，第 ${safeFrame + 1} 张`} />
+        <span>{images.length > 1 ? `官方多角度图集 · ${safeFrame + 1}/${images.length}` : "官方产品图"}</span>
+        {images.length > 1 && (
+          <div className="product-gallery__arrows">
+            <button onClick={() => step(-1)} aria-label="上一张产品图">‹</button>
+            <button onClick={() => step(1)} aria-label="下一张产品图">›</button>
+          </div>
+        )}
+      </div>
+      {images.length > 1 && (
+        <>
+          <label className="product-gallery__scrubber">
+            <span>拖动查看视角</span><output>{safeFrame + 1} / {images.length}</output>
+            <input type="range" min="0" max={images.length - 1} step="1" value={safeFrame} onChange={(event) => setFrame(Number(event.target.value))} />
+          </label>
+          <div className="product-gallery__thumbs" aria-label="选择产品视角">
+            {images.map((image, index) => (
+              <button key={image} aria-pressed={safeFrame === index} onClick={() => setFrame(index)} aria-label={`查看第 ${index + 1} 张产品图`}>
+                <img src={image} alt="" />
+              </button>
+            ))}
+          </div>
+          <figcaption>多角度静态产品图，不等同于连续 360° 三维模型。</figcaption>
+        </>
+      )}
+    </figure>
+  );
+}
+
+function CatalogFamilyCard({ family, onOpen }: { family: CatalogFamily; onOpen: () => void }) {
+  const heads = family.models.map((model) => model.head).filter((value): value is number => value !== null);
+  const weights = family.models.map((model) => model.weight).filter((value): value is number => value !== null);
+  const accent = familyTypeAccent[family.type];
+  const gallery = familyGalleries[family.id] ?? (family.image ? [family.image] : []);
+
+  return (
+    <article className="catalog-family-card" style={{ "--family-accent": accent } as CSSProperties}>
+      <button className="catalog-family-card__visual" onClick={onOpen} aria-label={`查看 ${family.brand} ${family.family} ${family.generation} 全系参数`}>
+        {gallery.length > 0 ? <img src={gallery[0]} alt={`${family.brand} ${family.family} ${family.generation} 官方产品图`} /> : <span className="catalog-family-card__monogram"><b>{family.brand.slice(0, 2)}</b><small>{family.family}</small></span>}
+        <span className="catalog-family-card__release"><i />{family.status === "预告" ? "即将上市" : "发行"} {familyReleaseLabel(family)}</span>
+        {gallery.length > 1 && <span className="catalog-family-card__gallery">多角度 · {gallery.length}</span>}
+      </button>
+      <div className="catalog-family-card__body">
+        <div className="catalog-family-card__kicker"><span>{family.brand}</span><span>{family.type}</span></div>
+        <button className="catalog-family-card__title" onClick={onOpen}><h3>{family.family}</h3><b>{family.generation}</b></button>
+        <p>{family.summary}</p>
+        <dl>
+          <div><dt>型号</dt><dd>{family.models.length} 款</dd></div>
+          <div><dt>拍面</dt><dd>{heads.length ? `${Math.min(...heads)}–${Math.max(...heads)}` : "—"} in²</dd></div>
+          <div><dt>重量</dt><dd>{weights.length ? `${Math.min(...weights)}–${Math.max(...weights)}` : "—"} g</dd></div>
+        </dl>
+        <button className="catalog-family-card__open" onClick={onOpen}>查看完整参数矩阵 <span aria-hidden="true">›</span></button>
+      </div>
+    </article>
+  );
+}
+
+function TourRacketVisual({ player }: { player: TourPlayer }) {
+  const image = player.marketedFamily.includes("Blade V10")
+    ? "/rackets/gallery/wilson-blade-v10-02.png"
+    : player.marketedFamily.includes("Ultra V5")
+      ? "/rackets/catalog/wilson-ultra-v5.jpg"
+      : player.marketedFamily.includes("Boom 2026")
+        ? "/rackets/catalog/head-boom-2026.webp"
+    : player.racketImageId
+      ? racketImages[player.racketImageId]
+      : undefined;
+  return image ? <img src={image} alt={`${player.nameZh} 官网公开用拍 ${player.marketedModel ?? player.marketedFamily}`} /> : <span><b>{player.brand}</b><small>{player.marketedFamily}</small></span>;
+}
+
+function TourPlayerCard({ player, leader = false }: { player: TourPlayer; leader?: boolean }) {
+  return (
+    <article className={`tour-player-card${leader ? " tour-player-card--leader" : ""}`}>
+      <div className="tour-player-card__rank"><span>{player.tour}</span><b>#{player.rank}</b></div>
+      <div className="tour-player-card__visual"><TourRacketVisual player={player} /></div>
+      <div className="tour-player-card__body">
+        <div className="tour-player-card__country"><span>{player.countryCode}</span><span>{player.brand}</span></div>
+        <h2>{player.nameZh}</h2><p className="tour-player-card__latin">{player.name}</p>
+        <div className="tour-player-card__racket"><small>官网公开用拍</small><strong>{player.marketedModel ?? player.marketedFamily}</strong><span>{player.mapping}</span></div>
+        <p className="tour-player-card__note">{player.note}</p>
+        <div className="tour-player-card__actions">
+          <a href={player.profileUrl} target="_blank" rel="noreferrer">官方选手页 <span aria-hidden="true">↗</span></a>
+          <a href={player.gearUrl} target="_blank" rel="noreferrer">查看零售拍 <span aria-hidden="true">↗</span></a>
+        </div>
+      </div>
+    </article>
+  );
+}
+
 export default function RacketApp() {
   const [activeView, setActiveView] = useState<AppView>("discover");
+  const [libraryMode, setLibraryMode] = useState<"catalog" | "dossiers">("catalog");
   const [brand, setBrand] = useState("全部");
   const [stageFilter, setStageFilter] = useState<(typeof stageOptions)[number]>("全部");
   const [styleFilter, setStyleFilter] = useState<(typeof styleOptions)[number]>("全部");
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState("推荐排序");
+  const [catalogBrand, setCatalogBrand] = useState("全部");
+  const [catalogType, setCatalogType] = useState<(typeof catalogTypes)[number]>("全部");
+  const [catalogSearch, setCatalogSearch] = useState("");
+  const [catalogSort, setCatalogSort] = useState("最新发行");
   const [matchStage, setMatchStage] = useState<Stage>("进阶");
   const [matchStyle, setMatchStyle] = useState<PlayStyle>("底线相持");
   const [priority, setPriority] = useState("均衡");
   const [matchStep, setMatchStep] = useState(0);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedFamilyId, setSelectedFamilyId] = useState<string | null>(null);
   const [compareIds, setCompareIds] = useState<string[]>([]);
+  const [tourFilter, setTourFilter] = useState<Tour>("ATP");
   const [filterOpen, setFilterOpen] = useState(false);
   const [liveMessage, setLiveMessage] = useState("");
   const lastFocusRef = useRef<HTMLElement | null>(null);
@@ -937,10 +1106,43 @@ export default function RacketApp() {
       });
   }, [brand, stageFilter, styleFilter, search, sort]);
 
+  const filteredFamilies = useMemo(() => {
+    const term = catalogSearch.trim().toLowerCase();
+    return catalogFamilies
+      .filter((family) => {
+        const matchesBrand = catalogBrand === "全部" || family.brand === catalogBrand;
+        const matchesType = catalogType === "全部" || family.type === catalogType;
+        const haystack = `${family.brand} ${family.family} ${family.generation} ${family.type} ${family.models.map((model) => model.name).join(" ")}`.toLowerCase();
+        return matchesBrand && matchesType && (!term || haystack.includes(term));
+      })
+      .sort((a, b) => {
+        if (catalogSort === "品牌顺序") return a.brand.localeCompare(b.brand, "en") || a.family.localeCompare(b.family, "en");
+        if (catalogSort === "型号数量") return b.models.length - a.models.length;
+        return (b.releaseYear ?? 0) - (a.releaseYear ?? 0) || a.brand.localeCompare(b.brand, "en");
+      });
+  }, [catalogBrand, catalogType, catalogSearch, catalogSort]);
+
+  const catalogBrandStats = useMemo(
+    () => catalogBrands.map((item) => {
+      const families = catalogFamilies.filter((family) => family.brand === item);
+      return {
+        brand: item,
+        families: families.length,
+        models: families.reduce((total, family) => total + family.models.length, 0),
+        newest: Math.max(...families.map((family) => family.releaseYear ?? 0)),
+      };
+    }),
+    [],
+  );
+
   const selected = selectedId ? rackets.find((racket) => racket.id === selectedId) ?? null : null;
+  const selectedFamily = selectedFamilyId ? catalogFamilies.find((family) => family.id === selectedFamilyId) ?? null : null;
   const compared = compareIds.map((id) => rackets.find((racket) => racket.id === id)).filter(Boolean) as Racket[];
   const featured = recommendations[0];
   const activeFilterCount = [brand !== "全部", stageFilter !== "全部", styleFilter !== "全部"].filter(Boolean).length;
+  const catalogActiveFilterCount = [catalogBrand !== "全部", catalogType !== "全部"].filter(Boolean).length;
+  const visibleCatalogModelCount = filteredFamilies.reduce((total, family) => total + family.models.length, 0);
+  const visibleTourPlayers = tourPlayers.filter((player) => player.tour === tourFilter);
 
   useEffect(() => {
     const readView = () => {
@@ -953,18 +1155,24 @@ export default function RacketApp() {
   }, []);
 
   useEffect(() => {
-    document.body.classList.toggle("app-locked", Boolean(selected || filterOpen));
+    document.body.classList.toggle("app-locked", Boolean(selected || selectedFamily || filterOpen));
     const handleKey = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
       if (filterOpen) setFilterOpen(false);
-      else if (selected) closeDetail();
+      else if (selected) {
+        setSelectedId(null);
+        window.requestAnimationFrame(() => lastFocusRef.current?.focus());
+      } else if (selectedFamily) {
+        setSelectedFamilyId(null);
+        window.requestAnimationFrame(() => lastFocusRef.current?.focus());
+      }
     };
     window.addEventListener("keydown", handleKey);
     return () => {
       document.body.classList.remove("app-locked");
       window.removeEventListener("keydown", handleKey);
     };
-  }, [selected, filterOpen]);
+  }, [selected, selectedFamily, filterOpen]);
 
   useEffect(() => {
     if (!liveMessage) return;
@@ -974,6 +1182,7 @@ export default function RacketApp() {
 
   const goToView = (view: AppView) => {
     setSelectedId(null);
+    setSelectedFamilyId(null);
     setFilterOpen(false);
     setActiveView(view);
     window.history.pushState({}, "", `#${view}`);
@@ -986,8 +1195,20 @@ export default function RacketApp() {
     setSelectedId(id);
   };
 
+  const openFamily = (id: string) => {
+    lastFocusRef.current = document.activeElement as HTMLElement;
+    setSelectedId(null);
+    setFilterOpen(false);
+    setSelectedFamilyId(id);
+  };
+
   const closeDetail = () => {
     setSelectedId(null);
+    window.requestAnimationFrame(() => lastFocusRef.current?.focus());
+  };
+
+  const closeFamily = () => {
+    setSelectedFamilyId(null);
     window.requestAnimationFrame(() => lastFocusRef.current?.focus());
   };
 
@@ -1013,6 +1234,13 @@ export default function RacketApp() {
     setStyleFilter("全部");
     setSearch("");
     setSort("推荐排序");
+  };
+
+  const clearCatalogFilters = () => {
+    setCatalogBrand("全部");
+    setCatalogType("全部");
+    setCatalogSearch("");
+    setCatalogSort("最新发行");
   };
 
   const chooseMatchOption = (step: number, value: string) => {
@@ -1046,9 +1274,9 @@ export default function RacketApp() {
           ))}
         </nav>
         <div className="sidebar-status">
-          <span>你的球拍档案</span>
-          <strong>{rackets.length} 款真实型号</strong>
-          <p>根据阶段、打法与六维属性找到更合拍的选择。</p>
+          <span>当前拍库 · {catalogVerifiedAt}</span>
+          <strong>{catalogModelCount} 款现行型号</strong>
+          <p>{catalogFamilies.length} 个拍系 · {rackets.length} 份六维深度档案 · 8 个品牌。</p>
         </div>
       </aside>
 
@@ -1073,7 +1301,7 @@ export default function RacketApp() {
               <div className="featured-racket__radar"><RadarChart chartRackets={[featured.racket]} compact /></div>
             </section>
 
-            <div className="section-bar"><div><p>为你推荐</p><h2>更接近你的三把拍</h2></div><button onClick={() => goToView("armory")}>查看全部 <span aria-hidden="true">›</span></button></div>
+            <div className="section-bar"><div><p>为你推荐</p><h2>更接近你的三把拍</h2></div><button onClick={() => { setLibraryMode("dossiers"); goToView("armory"); }}>查看全部 <span aria-hidden="true">›</span></button></div>
             <div className="recommendation-list">
               {recommendations.slice(1).map(({ racket, match }) => (
                 <RecommendationRow
@@ -1093,6 +1321,15 @@ export default function RacketApp() {
               <p>先锁定阶段和打法，再用控制、力量、旋转、手感、容错与灵活六个维度确认取舍。</p>
               <button onClick={() => { setMatchStep(0); goToView("match"); }}>开始 3 步匹配 <span aria-hidden="true">→</span></button>
             </section>
+
+            <div className="discover-shortcuts">
+              <button onClick={() => { setLibraryMode("catalog"); goToView("armory"); }}>
+                <span>拍系年鉴</span><b>{catalogModelCount} 款现行型号</b><small>按品牌、类型与代际浏览完整参数</small><i aria-hidden="true">›</i>
+              </button>
+              <button onClick={() => goToView("tour")}>
+                <span>Tour Locker</span><b>ATP + WTA 前 8</b><small>看明星球员的官网公开用拍</small><i aria-hidden="true">›</i>
+              </button>
+            </div>
           </section>
         )}
 
@@ -1145,22 +1382,94 @@ export default function RacketApp() {
 
         {activeView === "armory" && (
           <section className="app-view armory-view" aria-labelledby="armory-title">
-            <ViewTitle eyebrow={`${rackets.length} 款真实球拍档案`} title="球拍库" action={<button className="round-action" onClick={() => setFilterOpen(true)} aria-label="打开筛选">≡{activeFilterCount > 0 && <i>{activeFilterCount}</i>}</button>} />
-            <div className="library-toolbar">
-              <label className="app-search" htmlFor="app-racket-search"><span aria-hidden="true">⌕</span><input id="app-racket-search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="搜索品牌或型号" /><button onClick={() => setSearch("")} aria-label="清除搜索" hidden={!search}>×</button></label>
-              <button className="filter-button" onClick={() => setFilterOpen(true)}>筛选{activeFilterCount > 0 && <span>{activeFilterCount}</span>}</button>
+            <ViewTitle
+              eyebrow={libraryMode === "catalog" ? `${catalogModelCount} 款现行成人型号 · ${catalogFamilies.length} 个拍系` : `${rackets.length} 份六维深度档案`}
+              title="球拍库"
+              action={libraryMode === "dossiers" ? <button className="round-action" onClick={() => setFilterOpen(true)} aria-label="打开筛选">≡{activeFilterCount > 0 && <i>{activeFilterCount}</i>}</button> : undefined}
+            />
+            <div className="library-mode-switch" role="tablist" aria-label="选择拍库浏览方式">
+              <button role="tab" aria-selected={libraryMode === "catalog"} onClick={() => setLibraryMode("catalog")}><b>拍系年鉴</b><small>品牌 · 类型 · 代际</small></button>
+              <button role="tab" aria-selected={libraryMode === "dossiers"} onClick={() => setLibraryMode("dossiers")}><b>深度档案</b><small>雷达图 · 选拍对比</small></button>
             </div>
-            <div className="brand-scroller" aria-label="按品牌筛选">
-              {brandOptions.map((item) => <button key={item} aria-pressed={brand === item} onClick={() => setBrand(item)}>{item}</button>)}
-            </div>
-            <div className="library-summary"><p><b>{filteredRackets.length}</b> 款结果{activeFilterCount > 0 && ` · 已应用 ${activeFilterCount} 个筛选`}</p>{(activeFilterCount > 0 || search) && <button onClick={clearFilters}>全部清除</button>}</div>
-            {filteredRackets.length > 0 ? (
-              <div className="app-racket-grid">
-                {filteredRackets.map((racket) => <AppRacketCard key={racket.id} racket={racket} compared={compareIds.includes(racket.id)} onOpen={() => openRacket(racket.id)} onToggleCompare={() => toggleCompare(racket.id)} />)}
-              </div>
+
+            {libraryMode === "catalog" ? (
+              <>
+                <section className="catalog-coverage" aria-label="拍库覆盖范围">
+                  <div><span>品牌</span><b>{catalogBrands.length}</b><small>主流性能品牌</small></div>
+                  <div><span>拍系</span><b>{catalogFamilies.length}</b><small>按当前代去重</small></div>
+                  <div><span>型号</span><b>{catalogModelCount}</b><small>成人现行子型号</small></div>
+                  <p>核验于 {catalogVerifiedAt}。排除儿童拍、握把尺寸和纯配色重复 SKU；地区官网在售范围可能不同。</p>
+                </section>
+
+                <section className="brand-index" aria-labelledby="brand-index-title">
+                  <div className="section-bar"><div><p>Brand index</p><h2 id="brand-index-title">先从品牌进入</h2></div>{catalogBrand !== "全部" && <button onClick={() => setCatalogBrand("全部")}>查看全部 <span aria-hidden="true">›</span></button>}</div>
+                  <div className="brand-index__grid">
+                    {catalogBrandStats.map((item) => (
+                      <button key={item.brand} aria-pressed={catalogBrand === item.brand} onClick={() => setCatalogBrand(item.brand)}>
+                        <span>{item.brand.slice(0, 2)}</span><b>{item.brand}</b><small>{item.families} 拍系 · {item.models} 型号</small><i>{item.newest || "现行"}</i>
+                      </button>
+                    ))}
+                  </div>
+                </section>
+
+                <div className="library-toolbar catalog-toolbar">
+                  <label className="app-search" htmlFor="catalog-search"><span aria-hidden="true">⌕</span><input id="catalog-search" value={catalogSearch} onChange={(event) => setCatalogSearch(event.target.value)} placeholder="搜索品牌、拍系或具体型号" /><button onClick={() => setCatalogSearch("")} aria-label="清除搜索" hidden={!catalogSearch}>×</button></label>
+                  <label className="catalog-sort" htmlFor="catalog-sort"><span className="sr-only">拍系排序</span><select id="catalog-sort" value={catalogSort} onChange={(event) => setCatalogSort(event.target.value)}><option>最新发行</option><option>品牌顺序</option><option>型号数量</option></select></label>
+                </div>
+                <div className="brand-scroller" aria-label="按品牌筛选拍系">
+                  {["全部", ...catalogBrands].map((item) => <button key={item} aria-pressed={catalogBrand === item} onClick={() => setCatalogBrand(item)}>{item}</button>)}
+                </div>
+                <div className="catalog-type-scroller" aria-label="按球拍类型筛选">
+                  {catalogTypes.map((item) => <button key={item} aria-pressed={catalogType === item} onClick={() => setCatalogType(item)}>{item === "全部" ? "全部类型" : `${item}型`}</button>)}
+                </div>
+                <div className="library-summary"><p><b>{filteredFamilies.length}</b> 个拍系 · {visibleCatalogModelCount} 款型号{catalogActiveFilterCount > 0 && ` · 已应用 ${catalogActiveFilterCount} 个筛选`}</p>{(catalogActiveFilterCount > 0 || catalogSearch) && <button onClick={clearCatalogFilters}>全部清除</button>}</div>
+                {filteredFamilies.length > 0 ? (
+                  <div className="catalog-family-grid">
+                    {filteredFamilies.map((family) => <CatalogFamilyCard key={family.id} family={family} onOpen={() => openFamily(family.id)} />)}
+                  </div>
+                ) : (
+                  <div className="app-empty"><span aria-hidden="true">⌕</span><h2>没有找到对应拍系</h2><p>试试清除类型筛选，或搜索更短的型号关键词。</p><button className="app-button app-button--primary" onClick={clearCatalogFilters}>清除筛选</button></div>
+                )}
+              </>
             ) : (
-              <div className="app-empty"><span aria-hidden="true">⌕</span><h2>没有找到对应球拍</h2><p>试试减少一个筛选条件，或搜索更短的型号关键词。</p><button className="app-button app-button--primary" onClick={clearFilters}>清除筛选</button></div>
+              <>
+                <div className="dossier-explainer"><span>六维评分区</span><p>这里保留经过人工定位的 {rackets.length} 份深度档案，可加入重叠雷达图对比；完整在售型号请切换到“拍系年鉴”。</p></div>
+                <div className="library-toolbar">
+                  <label className="app-search" htmlFor="app-racket-search"><span aria-hidden="true">⌕</span><input id="app-racket-search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="搜索品牌或型号" /><button onClick={() => setSearch("")} aria-label="清除搜索" hidden={!search}>×</button></label>
+                  <button className="filter-button" onClick={() => setFilterOpen(true)}>筛选{activeFilterCount > 0 && <span>{activeFilterCount}</span>}</button>
+                </div>
+                <div className="brand-scroller" aria-label="按品牌筛选">
+                  {brandOptions.map((item) => <button key={item} aria-pressed={brand === item} onClick={() => setBrand(item)}>{item}</button>)}
+                </div>
+                <div className="library-summary"><p><b>{filteredRackets.length}</b> 款结果{activeFilterCount > 0 && ` · 已应用 ${activeFilterCount} 个筛选`}</p>{(activeFilterCount > 0 || search) && <button onClick={clearFilters}>全部清除</button>}</div>
+                {filteredRackets.length > 0 ? (
+                  <div className="app-racket-grid">
+                    {filteredRackets.map((racket) => <AppRacketCard key={racket.id} racket={racket} compared={compareIds.includes(racket.id)} onOpen={() => openRacket(racket.id)} onToggleCompare={() => toggleCompare(racket.id)} />)}
+                  </div>
+                ) : (
+                  <div className="app-empty"><span aria-hidden="true">⌕</span><h2>没有找到对应球拍</h2><p>试试减少一个筛选条件，或搜索更短的型号关键词。</p><button className="app-button app-button--primary" onClick={clearFilters}>清除筛选</button></div>
+                )}
+              </>
             )}
+          </section>
+        )}
+
+        {activeView === "tour" && (
+          <section className="app-view tour-view" aria-labelledby="tour-title">
+            <ViewTitle eyebrow={`排名快照 · ${tourRankAsOf}`} title="巡回赛拍房" />
+            <section className="tour-data-note">
+              <div><span aria-hidden="true">◎</span><p><b>官网公开用拍</b><small>赞助家族或零售型号映射</small></p></div>
+              <p>职业球员常用定制底板、加重和平衡方案；页面中的零售型号不代表其比赛拍实测参数。</p>
+              <div><a href={tourSources.ATP} target="_blank" rel="noreferrer">ATP 排名源 ↗</a><a href={tourSources.WTA} target="_blank" rel="noreferrer">WTA 排名源 ↗</a></div>
+            </section>
+            <div className="tour-switch" role="tablist" aria-label="选择巡回赛">
+              {(["ATP", "WTA"] as Tour[]).map((tour) => <button key={tour} role="tab" aria-selected={tourFilter === tour} onClick={() => setTourFilter(tour)}><b>{tour}</b><span>世界前 8</span></button>)}
+            </div>
+            <TourPlayerCard player={visibleTourPlayers[0]} leader />
+            <div className="section-bar"><div><p>{tourFilter} ranking</p><h2>第 2–8 位的公开用拍</h2></div><span className="tour-updated">截至 {tourRankAsOf}</span></div>
+            <div className="tour-player-grid">
+              {visibleTourPlayers.slice(1).map((player) => <TourPlayerCard key={player.id} player={player} />)}
+            </div>
           </section>
         )}
 
@@ -1172,7 +1481,7 @@ export default function RacketApp() {
                 <div className="compare-empty-app__icon" aria-hidden="true">⇄</div>
                 <h2>先加入想比较的球拍</h2>
                 <p>从球拍库或推荐列表加入 2–3 把，雷达图会在同一刻度重叠显示差异。</p>
-                <button className="app-button app-button--primary" onClick={() => goToView("armory")}>去球拍库选择</button>
+                <button className="app-button app-button--primary" onClick={() => { setLibraryMode("dossiers"); goToView("armory"); }}>去球拍库选择</button>
                 <div className="compare-suggestions">
                   {recommendations.slice(0, 3).map(({ racket }) => <button key={racket.id} onClick={() => toggleCompare(racket.id)}><RacketPhoto racket={racket} variant="thumb" /><span><b>{racket.model}</b><small>+ 加入</small></span></button>)}
                 </div>
@@ -1192,7 +1501,7 @@ export default function RacketApp() {
                       <span>{racket.brand}</span><h3>{racket.model}</h3>
                     </article>
                   ))}
-                  {compared.length < 3 && <button className="compare-add-slot" onClick={() => goToView("armory")}><span>＋</span><b>再加一把</b></button>}
+                  {compared.length < 3 && <button className="compare-add-slot" onClick={() => { setLibraryMode("dossiers"); goToView("armory"); }}><span>＋</span><b>再加一把</b></button>}
                 </div>
 
                 <section className="compare-spec-list">
@@ -1212,7 +1521,7 @@ export default function RacketApp() {
         )}
       </div>
 
-      {!selected && activeView !== "compare" && compareIds.length > 0 && (
+      {!selected && !selectedFamily && activeView !== "compare" && compareIds.length > 0 && (
         <button className="compare-tray" onClick={() => goToView("compare")}>
           <span className="compare-tray__photos">{compared.map((racket) => <RacketPhoto key={racket.id} racket={racket} variant="thumb" />)}{Array.from({ length: 3 - compared.length }).map((_, index) => <i key={index}>+</i>)}</span>
           <span><b>对比 {compared.length}/3</b><small>查看重叠雷达图</small></span>
@@ -1244,13 +1553,73 @@ export default function RacketApp() {
         </div>
       )}
 
+      {selectedFamily && (
+        <div className="detail-backdrop" role="presentation" onMouseDown={closeFamily}>
+          <section className="family-inspector" role="dialog" aria-modal="true" aria-labelledby="family-inspector-title" onMouseDown={(event) => event.stopPropagation()} style={{ "--family-accent": familyTypeAccent[selectedFamily.type] } as CSSProperties}>
+            <div className="sheet-handle" aria-hidden="true" />
+            <header className="family-inspector__header">
+              <button onClick={closeFamily} aria-label="关闭拍系详情">‹</button>
+              <span>{selectedFamily.brand} · {selectedFamily.family}</span>
+              <a href={selectedFamily.familyUrl} target="_blank" rel="noreferrer">官网 ↗</a>
+            </header>
+            <div className="family-inspector__scroll">
+              <ProductGallery
+                key={selectedFamily.id}
+                images={familyGalleries[selectedFamily.id] ?? (selectedFamily.image ? [selectedFamily.image] : [])}
+                alt={`${selectedFamily.brand} ${selectedFamily.family} ${selectedFamily.generation}`}
+                accent={familyTypeAccent[selectedFamily.type]}
+              />
+              <header className="family-inspector__title">
+                <div><span>{selectedFamily.type}型</span><span>{selectedFamily.status === "预告" ? "即将上市" : "现行拍系"}</span></div>
+                <p>{selectedFamily.brand} · {selectedFamily.generation}</p>
+                <h2 id="family-inspector-title">{selectedFamily.family}</h2>
+                <strong>发行 {familyReleaseLabel(selectedFamily)}</strong>
+                <p>{selectedFamily.summary}</p>
+              </header>
+              <dl className="family-inspector__overview">
+                <div><dt>当前型号</dt><dd>{selectedFamily.models.length} 款</dd></div>
+                <div><dt>定位 Type</dt><dd>{selectedFamily.type}</dd></div>
+                <div><dt>代际</dt><dd>{selectedFamily.generation}</dd></div>
+                <div><dt>数据核验</dt><dd>{catalogVerifiedAt}</dd></div>
+              </dl>
+              <section className="model-matrix" aria-labelledby="model-matrix-title">
+                <div className="model-matrix__heading"><div><p>Variant matrix</p><h3 id="model-matrix-title">全系参数</h3></div><span>裸拍数据 · “—”代表官网未公开</span></div>
+                <div className="model-matrix__scroll">
+                  <table>
+                    <thead><tr><th>型号</th><th>发行</th><th>拍面</th><th>重量</th><th>线床</th><th>平衡点</th><th>框厚</th><th>长度</th><th>购买</th></tr></thead>
+                    <tbody>
+                      {selectedFamily.models.map((model) => (
+                        <tr key={`${selectedFamily.id}-${model.name}`}>
+                          <th scope="row">{model.name}</th>
+                          <td>{model.releaseDate ?? familyReleaseLabel(selectedFamily)}</td>
+                          <td>{model.head === null ? "—" : `${model.head} in²`}</td>
+                          <td>{model.weight === null ? "—" : `${model.weight} g`}</td>
+                          <td>{model.pattern ?? "—"}</td>
+                          <td>{model.balance === null ? "—" : `${model.balance} mm`}</td>
+                          <td>{model.beam === null ? "—" : `${model.beam} mm`}</td>
+                          <td>{model.length === null ? "—" : `${model.length} in`}</td>
+                          <td><a href={model.url} target="_blank" rel="noreferrer" aria-label={`前往官网查看 ${model.name}`}>官网 ↗</a></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+              {selectedFamily.note && <p className="family-inspector__note"><b>数据说明</b>{selectedFamily.note}</p>}
+              <p className="family-inspector__source">规格与发行信息来自品牌官网；不同国家/地区在售款可能不同。握把尺寸、纯配色与儿童拍未重复计数。</p>
+            </div>
+            <footer className="family-inspector__actions"><span><b>{selectedFamily.models.length} 款</b><small>官网现行成人型号</small></span><a className="app-button app-button--primary" href={selectedFamily.familyUrl} target="_blank" rel="noreferrer">打开 {selectedFamily.brand} 官网 <span aria-hidden="true">↗</span></a></footer>
+          </section>
+        </div>
+      )}
+
       {selected && (
         <div className="detail-backdrop" role="presentation" onMouseDown={closeDetail}>
           <section className="racket-inspector" role="dialog" aria-modal="true" aria-labelledby="inspector-title" onMouseDown={(event) => event.stopPropagation()} style={{ "--racket-accent": selected.accent } as CSSProperties}>
             <div className="sheet-handle" aria-hidden="true" />
             <header className="racket-inspector__header"><button onClick={closeDetail} aria-label="关闭详情">‹</button><span>{selected.brand}</span><button onClick={() => toggleCompare(selected.id)} aria-pressed={compareIds.includes(selected.id)}>{compareIds.includes(selected.id) ? "已对比" : "+ 对比"}</button></header>
             <div className="racket-inspector__scroll">
-              <RacketPhoto racket={selected} variant="detail" />
+              {racketGalleries[selected.id] ? <ProductGallery key={selected.id} images={racketGalleries[selected.id]} alt={`${selected.brand} ${selected.model}`} accent={selected.accent} /> : <RacketPhoto racket={selected} variant="detail" />}
               <div className="racket-inspector__title"><p>{selected.series} · {selected.year}</p><h2 id="inspector-title">{selected.model}</h2><span>{selected.stages.join(" · ")} / {selected.styles.join(" · ")}</span></div>
               <p className="racket-inspector__verdict">{selected.verdict}</p>
               <dl className="inspector-specs">
