@@ -2239,6 +2239,10 @@ a:active {
   margin: 18px 0 0;
 }
 
+.racket-inspector__title + .racket-spec-tags {
+  margin-top: 18px;
+}
+
 .racket-inspector__family-path {
   align-items: center;
   background: var(--accent-soft);
@@ -2930,31 +2934,9 @@ a:active {
   margin: 4px 0 7px;
 }
 
-.catalog-model-result__specs {
+.catalog-model-result__tags {
   border-top: 1px solid var(--separator);
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-}
-
-.catalog-model-result__specs > span {
-  border-left: 1px solid var(--separator);
-  display: grid;
-  gap: 3px;
-  padding: 10px 12px;
-}
-
-.catalog-model-result__specs > span:first-child {
-  border-left: 0;
-}
-
-.catalog-model-result__specs small {
-  color: var(--text-faint);
-  font-size: 8px;
-}
-
-.catalog-model-result__specs b {
-  font-family: var(--mono);
-  font-size: 10px;
+  padding: 12px;
 }
 
 .catalog-model-result__actions {
@@ -3514,7 +3496,7 @@ a:active {
 
 .model-matrix table {
   border-collapse: collapse;
-  min-width: 1280px;
+  min-width: 1380px;
   width: 100%;
 }
 
@@ -3538,6 +3520,7 @@ a:active {
 
 .model-matrix thead th:first-child {
   left: 0;
+  min-width: 250px;
   z-index: 3;
 }
 
@@ -3556,13 +3539,175 @@ a:active {
 
 .model-matrix tbody th {
   background: var(--surface);
+  box-shadow: 8px 0 18px -18px rgba(20, 25, 35, 0.7);
   font-size: 11px;
   left: 0;
-  max-width: 260px;
-  overflow: hidden;
+  min-width: 250px;
+  overflow: visible;
   position: sticky;
-  text-overflow: ellipsis;
+  vertical-align: top;
+  white-space: normal;
+  width: 250px;
   z-index: 1;
+}
+
+.model-matrix__dossier {
+  border-radius: 12px;
+  display: grid;
+  gap: 5px;
+  justify-items: start;
+  min-height: 44px;
+  padding: 7px 8px;
+  text-align: left;
+  transition: background 160ms ease;
+  width: 100%;
+}
+
+.model-matrix__dossier:hover {
+  background: color-mix(in srgb, var(--family-accent) 9%, var(--surface-soft));
+}
+
+.model-matrix__dossier:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--family-accent) 72%, transparent);
+  outline-offset: 1px;
+}
+
+.model-matrix__dossier strong {
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.model-matrix__dossier > span {
+  color: var(--family-accent);
+  font-size: 9px;
+  font-weight: 650;
+}
+
+.model-spec-value {
+  align-items: start;
+  display: grid;
+  gap: 5px;
+  justify-items: start;
+}
+
+.model-spec-value small {
+  background: color-mix(in srgb, var(--family-accent) 11%, var(--surface-soft));
+  border-radius: 999px;
+  color: var(--family-accent);
+  font-family: var(--font);
+  font-size: 8px;
+  font-weight: 650;
+  padding: 3px 6px;
+}
+
+.model-spec-value.is-unknown {
+  color: var(--text-faint);
+}
+
+.model-spec-value.is-unknown small {
+  background: var(--surface-soft);
+  color: var(--text-faint);
+}
+
+.racket-spec-tags {
+  --spec-tag-accent: var(--racket-accent, var(--family-accent, var(--accent)));
+  display: grid;
+  gap: 9px;
+}
+
+.racket-spec-tags__specs {
+  display: grid;
+  gap: 7px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.racket-spec-tag {
+  background: var(--surface-soft);
+  border: 1px solid transparent;
+  border-radius: 12px;
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  padding: 9px 10px;
+}
+
+.racket-spec-tag small {
+  color: var(--text-faint);
+  font-size: 8px;
+}
+
+.racket-spec-tag b {
+  font-family: var(--mono);
+  font-size: 10px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.racket-spec-tag--mainstream {
+  background: color-mix(in srgb, var(--spec-tag-accent) 10%, var(--surface));
+  border-color: color-mix(in srgb, var(--spec-tag-accent) 24%, var(--separator));
+}
+
+.racket-spec-tag--mainstream small,
+.racket-spec-tag--mainstream b {
+  color: var(--spec-tag-accent);
+}
+
+.racket-spec-tag--unknown b {
+  color: var(--text-faint);
+}
+
+.racket-spec-tags__traits {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.racket-spec-tags__traits > span {
+  background: var(--surface-soft);
+  border: 1px solid var(--separator);
+  border-radius: 999px;
+  color: var(--text-soft);
+  font-size: 9px;
+  font-weight: 600;
+  line-height: 1.2;
+  padding: 5px 8px;
+}
+
+.racket-spec-tags__traits > span.is-mainstream {
+  background: color-mix(in srgb, var(--spec-tag-accent) 11%, var(--surface));
+  border-color: color-mix(in srgb, var(--spec-tag-accent) 24%, var(--separator));
+  color: var(--spec-tag-accent);
+}
+
+.racket-spec-tags__traits > span.is-unknown {
+  border-style: dashed;
+  color: var(--text-faint);
+}
+
+.racket-spec-tags__traits > .racket-spec-tags__more {
+  background: transparent;
+  color: var(--text-faint);
+}
+
+.racket-spec-tags > p {
+  color: var(--text-soft);
+  font-size: 11px;
+  line-height: 1.65;
+  margin: 0;
+}
+
+.racket-spec-tags--compact {
+  gap: 6px;
+}
+
+.racket-spec-tags--compact .racket-spec-tags__traits > span {
+  font-size: 8px;
+  padding: 4px 6px;
+}
+
+.model-matrix__identity > .racket-spec-tags {
+  margin: 7px 8px 2px;
 }
 
 .model-matrix td:not(:first-child) {
@@ -4905,6 +5050,10 @@ a:active {
     padding-top: 10px;
   }
 
+  .racket-spec-tags__specs {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .catalog-family-card {
     display: grid;
     grid-template-columns: minmax(126px, 0.44fr) minmax(0, 1fr);
@@ -5060,7 +5209,7 @@ a:active {
   .model-matrix tbody th {
     border: 0;
     font-size: 14px;
-    grid-column: 1 / 3;
+    grid-column: 1 / -1;
     left: auto;
     max-width: none;
     min-width: 0;
@@ -5069,6 +5218,11 @@ a:active {
     position: static;
     text-overflow: clip;
     white-space: normal;
+    width: auto;
+  }
+
+  .model-matrix__dossier strong {
+    font-size: 14px;
   }
 
   .model-matrix tbody td {
@@ -5092,7 +5246,7 @@ a:active {
     align-items: center;
     border-left: 1px solid var(--separator);
     grid-column: 3;
-    grid-row: 1 / 5;
+    grid-row: 2 / 6;
     justify-items: center;
     padding: 0;
   }
@@ -5115,7 +5269,7 @@ a:active {
 
   .model-matrix__actions {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .model-matrix__actions button,

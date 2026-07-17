@@ -4,6 +4,7 @@ import { catalogFamilies, catalogModelCount } from "../app/catalog-data.ts";
 import { catalogModelImages } from "../app/catalog-model-images.ts";
 import {
   buildDeepRackets,
+  buildRacketSpecInsights,
   deepRackets,
   formatNumberSpec,
   officialHead,
@@ -53,6 +54,20 @@ test("creates one deterministic deep dossier for every catalog model", () => {
     assert.ok(racket.verdict.length > 10);
     assert.match(racket.profileBasis, /官网公开硬规格 \d\/6 项/);
     assert.match(racket.specCoverage, /^[0-6]\/6 · (完整|部分|基础)$/);
+    assert.deepEqual({
+      specTags: racket.specTags,
+      traitTags: racket.traitTags,
+      primaryTraitTags: racket.primaryTraitTags,
+      traitSummary: racket.traitSummary,
+      mainstreamSpecCount: racket.mainstreamSpecCount,
+      knownSpecCount: racket.knownSpecCount,
+      isMainstream: racket.isMainstream,
+      mainstreamKnown: racket.mainstreamKnown,
+    }, buildRacketSpecInsights(family, model));
+    assert.equal(racket.specTags.length, 6);
+    assert.ok(racket.traitTags.length > 0);
+    assert.ok(racket.primaryTraitTags.length > 0 && racket.primaryTraitTags.length <= 3);
+    assert.ok(racket.traitSummary.length > 12);
     assert.ok(racket.stages.length > 0 && racket.stages.every((stage) => allowedStages.has(stage)));
     assert.ok(racket.styles.length === 2 && racket.styles.every((style) => allowedStyles.has(style)));
     assert.deepEqual(Object.keys(racket.scores).sort(), scoreKeys);

@@ -329,6 +329,65 @@ function MiniRadar({ racket }: { racket: Racket }) {
   );
 }
 
+const specDimensionLabels = {
+  head: "拍面",
+  weight: "重量",
+  pattern: "线床",
+  balance: "静态平衡",
+  beam: "框厚",
+  length: "长度",
+} as const;
+
+function ModelSpecValue({ racket, dimension }: { racket: Racket; dimension: keyof typeof specDimensionLabels }) {
+  const tag = racket.specTags.find((item) => item.key === dimension);
+  if (!tag) return <span>—</span>;
+
+  return (
+    <div className={`model-spec-value${tag.mainstream ? " is-mainstream" : ""}${tag.known ? "" : " is-unknown"}`} aria-label={`${tag.label}${tag.mainstream ? `，主流${specDimensionLabels[dimension]}` : ""}`}>
+      <span>{tag.label}</span>
+      {tag.mainstream && <small>主流{specDimensionLabels[dimension]}</small>}
+      {!tag.known && <small>官网未公开</small>}
+    </div>
+  );
+}
+
+function RacketSpecTags({
+  racket,
+  compact = false,
+  expanded = false,
+  showSpecs = true,
+  showSummary = false,
+}: {
+  racket: Racket;
+  compact?: boolean;
+  expanded?: boolean;
+  showSpecs?: boolean;
+  showSummary?: boolean;
+}) {
+  const visibleTraits = expanded ? racket.traitTags : racket.primaryTraitTags;
+  const remainingTraits = Math.max(0, racket.traitTags.length - visibleTraits.length);
+
+  return (
+    <div className={`racket-spec-tags${compact ? " racket-spec-tags--compact" : ""}`}>
+      {showSpecs && (
+        <div className="racket-spec-tags__specs" aria-label={`${racket.model} 公开规格标签`}>
+          {racket.specTags.map((tag) => (
+            <span key={tag.key} className={`racket-spec-tag${tag.mainstream ? " racket-spec-tag--mainstream" : ""}${tag.known ? "" : " racket-spec-tag--unknown"}`}>
+              <small>{tag.mainstream ? `主流${specDimensionLabels[tag.key]}` : specDimensionLabels[tag.key]}</small>
+              <b>{tag.label}</b>
+            </span>
+          ))}
+        </div>
+      )}
+      <div className="racket-spec-tags__traits" aria-label={`${racket.model} 规格特点`}>
+        {visibleTraits.map((trait) => <span key={trait} className={trait.startsWith("主流") ? "is-mainstream" : trait === "参数待补" ? "is-unknown" : undefined}>{trait}</span>)}
+        {!expanded && remainingTraits > 0 && <span className="racket-spec-tags__more" aria-label={`另有 ${remainingTraits} 个特点`}>+{remainingTraits}</span>}
+      </div>
+      {showSummary && <p>{racket.traitSummary}</p>}
+    </div>
+  );
+}
+
 export function recommendationScore(racket: Racket, stage: Stage, style: PlayStyle, priority: string) {
   const values = Object.values(racket.scores);
   const average = values.reduce((sum, value) => sum + value, 0) / values.length;
@@ -2019,7 +2078,7 @@ export default function RacketApp() {
           const returnButton = Array.from(dialog.querySelectorAll<HTMLButtonElement>("[data-racket-id]"))
             .find((button) => button.dataset.racketId === familyReturnRacketRef.current);
           if (familyTargetNeedsRevealRef.current) {
-            returnButton?.scrollIntoView({ behavior: "auto", block: "center" });
+            returnButton?.scrollIntoView({ behavior: "auto", block: "center", inline: "nearest" });
             familyScrollTopRef.current = scrollArea?.scrollTop ?? familyScrollTopRef.current;
             familyMatrixScrollLeftRef.current = matrixScrollArea?.scrollLeft ?? familyMatrixScrollLeftRef.current;
             familyTargetNeedsRevealRef.current = false;
@@ -3081,6 +3140,7 @@ export default function RacketApp() {
     { label: "定位 Type", value: (racket) => racket.familyType ?? "—" },
     { label: "代际", value: (racket) => racket.generation ?? "—" },
     { label: "发行", value: (racket) => racket.releaseDate ?? racket.year },
+    { label: "规格特点", value: (racket) => <RacketSpecTags racket={racket} compact showSpecs={false} /> },
     { label: "适合阶段", value: (racket) => racket.stages.join(" · ") },
     { label: "打法风格", value: (racket) => racket.styles.join(" · ") },
     { label: "裸拍重量", value: (racket) => formatNumberSpec(officialWeight(racket), "g") },
@@ -3307,7 +3367,7 @@ export default function RacketApp() {
               eyebrow={`${deepRackets.length} 份深度档案 · ${catalogFamilies.length} 个拍系`}
               title="球拍库"
             />
-            <div className="dossier-explainer"><span>年鉴 × 六维雷达</span><p>每个型号都在年鉴参数表中直接显示独立雷达；进入深度档案可查看完整分数、适合阶段与打法，并加入重叠对比。</p></div>
+            <div className="dossier-explainer"><span>年鉴 × 六维雷达</span><p>每个型号都有独立雷达与规格标签；“主流”指硬规格落入拍库定义的成人性能拍常见区间，不代表销量排名。进入深度档案可看完整特点、适合阶段与打法。</p></div>
             <section className="catalog-coverage" aria-label="拍库覆盖范围">
               <div><span>品牌</span><b>{catalogBrands.length}</b><small>主流性能品牌</small></div>
               <div><span>拍系</span><b>{catalogFamilies.length}</b><small>按当前代去重</small></div>
@@ -3358,7 +3418,7 @@ export default function RacketApp() {
                       <span><small>{racket.brand} · {racket.familyName} · {racket.generation}</small><strong>{racket.model}</strong><em>{racket.stages.join(" · ")} / {racket.styles.join(" · ")}</em></span>
                       <MiniRadar racket={racket} />
                     </button>
-                    <div className="catalog-model-result__specs"><span><small>裸拍</small><b>{formatNumberSpec(officialWeight(racket), "g")}</b></span><span><small>拍面</small><b>{formatNumberSpec(officialHead(racket), "in²")}</b></span><span><small>线床</small><b>{officialPattern(racket) ?? "—"}</b></span></div>
+                    <div className="catalog-model-result__tags"><RacketSpecTags racket={racket} /></div>
                     <div className="catalog-model-result__actions"><button data-focus-key={`catalog-model-dossier-${racket.id}`} onClick={() => openRacket(racket.id)} aria-label={`打开 ${racket.model} 深度档案`}>深度档案</button><button data-focus-key={`catalog-model-compare-${racket.id}`} onClick={() => requestCompare(racket.id)} aria-pressed={compareIds.includes(racket.id)} aria-label={!compareIds.includes(racket.id) && compareIds.length >= 3 ? `管理已满的球拍对比，当前无法加入 ${racket.model}` : `${compareIds.includes(racket.id) ? "移出" : "加入"} ${racket.model} 对比`}>{compareIds.includes(racket.id) ? "✓ 已对比" : compareIds.length >= 3 ? "管理 3/3" : "+ 对比"}</button>{racket.familyId && <button data-focus-key={`catalog-model-family-${racket.id}`} onClick={() => openFamily(racket.familyId as string, racket.id)} aria-label={`打开 ${racket.familyName} 拍系并定位 ${racket.model}`}>所属拍系</button>}</div>
                   </article>
                 ))}
@@ -3537,28 +3597,32 @@ export default function RacketApp() {
                 <div><dt>数据核验</dt><dd>{catalogVerifiedAt}</dd></div>
               </dl>
               <section className="model-matrix" aria-labelledby="model-matrix-title">
-                <div className="model-matrix__heading"><div><p>Variant matrix</p><h3 id="model-matrix-title">全系参数与六维雷达</h3></div><span>按每款规格计算 · “—”代表官网未公开</span></div>
-                <p className="model-matrix__scroll-hint" id={`model-matrix-scroll-hint-${selectedFamily.id}`}>{wideModelMatrix ? "横向滑动或使用方向键，查看全部型号参数" : "向下逐卡浏览全部型号参数"}</p>
+                <div className="model-matrix__heading"><div><p>Variant matrix</p><h3 id="model-matrix-title">全系参数与六维雷达</h3></div><span>主流 = 拍库常见区间 · 待补 = 官网未公开</span></div>
+                <p className="model-matrix__scroll-hint" id={`model-matrix-scroll-hint-${selectedFamily.id}`}>{wideModelMatrix ? "深度档案固定在左侧；横向滑动或使用方向键查看完整规格" : "每张卡片顶部均可直接进入深度档案"}</p>
                 <div className="model-matrix__scroll" role="region" aria-label={`${selectedFamily.brand} ${selectedFamily.family} 全系参数与六维雷达`} aria-describedby={`model-matrix-scroll-hint-${selectedFamily.id}`} tabIndex={wideModelMatrix ? 0 : -1} onScroll={(event) => persistFamilyMatrixScroll(event.currentTarget.scrollLeft)}>
                   <table>
-                    <thead><tr><th scope="col">型号</th><th scope="col">六维雷达</th><th scope="col">发行</th><th scope="col">拍面</th><th scope="col">重量</th><th scope="col">线床</th><th scope="col">平衡点</th><th scope="col">框厚</th><th scope="col">长度</th><th scope="col">档案 / 官网</th></tr></thead>
+                    <thead><tr><th scope="col">型号 / 档案</th><th scope="col">六维雷达</th><th scope="col">发行</th><th scope="col">拍面</th><th scope="col">重量</th><th scope="col">线床</th><th scope="col">平衡点</th><th scope="col">框厚</th><th scope="col">长度</th><th scope="col">对比 / 官网</th></tr></thead>
                     <tbody>
                       {selectedFamily.models.map((model, modelIndex) => {
                         const racketProfile = deepRacketById.get(catalogRacketId(selectedFamily, modelIndex)) as Racket;
                         return (
                           <tr key={`${selectedFamily.id}-${model.name}`} className={familyTargetRacketId === racketProfile.id ? "is-targeted" : undefined}>
-                            <th scope="row">{model.name}</th>
+                            <th scope="row" className="model-matrix__identity">
+                              <button className="model-matrix__dossier" data-racket-id={racketProfile.id} data-focus-key={`family-dossier-${racketProfile.id}`} onClick={() => openRacket(racketProfile.id)} aria-label={`打开 ${model.name} 深度档案`}>
+                                <strong>{model.name}</strong><span>查看深度档案 <span aria-hidden="true">›</span></span>
+                              </button>
+                              <RacketSpecTags racket={racketProfile} compact showSpecs={false} />
+                            </th>
                             <td className="model-matrix__radar-cell" data-label="六维雷达"><button className="model-matrix__radar-button" data-focus-key={`family-radar-${racketProfile.id}`} onClick={() => openRacket(racketProfile.id)} aria-label={`打开 ${model.name} 完整六维雷达`}><MiniRadar racket={racketProfile} /></button></td>
                             <td data-label="发行">{modelReleaseLabel(selectedFamily, model.releaseDate)}</td>
-                            <td data-label="拍面">{model.head === null ? "—" : `${model.head} in²`}</td>
-                            <td data-label="重量">{model.weight === null ? "—" : `${model.weight} g`}</td>
-                            <td data-label="线床">{model.pattern ?? "—"}</td>
-                            <td data-label="平衡点">{model.balance === null ? "—" : `${model.balance} mm`}</td>
-                            <td data-label="框厚">{model.beam === null ? "—" : `${model.beam} mm`}</td>
-                            <td data-label="长度">{model.length === null ? "—" : `${model.length} in`}</td>
+                            <td data-label="拍面"><ModelSpecValue racket={racketProfile} dimension="head" /></td>
+                            <td data-label="重量"><ModelSpecValue racket={racketProfile} dimension="weight" /></td>
+                            <td data-label="线床"><ModelSpecValue racket={racketProfile} dimension="pattern" /></td>
+                            <td data-label="平衡点"><ModelSpecValue racket={racketProfile} dimension="balance" /></td>
+                            <td data-label="框厚"><ModelSpecValue racket={racketProfile} dimension="beam" /></td>
+                            <td data-label="长度"><ModelSpecValue racket={racketProfile} dimension="length" /></td>
                             <td data-label="操作">
                               <div className="model-matrix__actions">
-                                <button data-racket-id={racketProfile.id} data-focus-key={`family-dossier-${racketProfile.id}`} onClick={() => openRacket(racketProfile.id)} aria-label={`打开 ${model.name} 深度档案`}>深度档案</button>
                                 <button data-focus-key={`family-compare-${racketProfile.id}`} onClick={() => requestCompare(racketProfile.id)} aria-pressed={compareIds.includes(racketProfile.id)} aria-label={!compareIds.includes(racketProfile.id) && compareIds.length >= 3 ? `管理已满的球拍对比，当前无法加入 ${model.name}` : `${compareIds.includes(racketProfile.id) ? "移出" : "加入"} ${model.name} 对比`}>{compareIds.includes(racketProfile.id) ? "✓ 已对比" : compareIds.length >= 3 ? "管理 3/3" : "+ 对比"}</button>
                                 <a href={model.url} target="_blank" rel="noreferrer" aria-label={`前往官网查看 ${model.name}，新标签页打开`}>官网资料 ↗</a>
                               </div>
@@ -3571,7 +3635,7 @@ export default function RacketApp() {
                 </div>
               </section>
               {selectedFamily.note && <p className="family-inspector__note"><b>数据说明</b>{selectedFamily.note}</p>}
-              <p className="family-inspector__source">规格与发行信息来自品牌官网；表内直接展示每款型号的六维雷达，进入“深度档案”可查看完整得分、打法阶段并加入对比。不同国家/地区在售款可能不同。</p>
+              <p className="family-inspector__source">规格与发行信息来自品牌官网；参数特点是基于公开硬规格的导向归纳，静态平衡不等于挥重，也不替代实际试打。表内六维雷达为拍库相对评估；不同国家/地区在售款可能不同。</p>
             </div>
             <footer className="family-inspector__actions"><span><b>{selectedFamily.models.length} 款</b><small>官网现行成人型号</small></span>{compareIds.length > 0 && <button className="app-button app-button--soft" onClick={() => goToView("compare")}>查看对比 {compareIds.length}/3</button>}<a className="app-button app-button--primary" href={selectedFamily.familyUrl} target="_blank" rel="noreferrer" aria-label={`打开 ${selectedFamily.brand} ${selectedFamily.family} 官网，新标签页打开`}>打开 {selectedFamily.brand} 官网 <span aria-hidden="true">↗</span></a></footer>
           </section>
@@ -3588,6 +3652,7 @@ export default function RacketApp() {
                 ? <p className="inspector-image-note">图片来自该型号官网商品页{selected.imageVerifiedAt ? ` · 核验 ${selected.imageVerifiedAt}` : ""}；{selected.images.length > 1 ? "可左右切换查看官方角度。" : "当前官网仅提供这一商品角度。"}</p>
                 : selected.familyId && <p className="inspector-image-note">图片为 {selected.familyName} 拍系的官网代表图；具体子型号外观与细节请以官网页面为准。</p>}
               <div className="racket-inspector__title"><p>{selected.series} · {selected.generation ?? selected.year}</p><h2 id="inspector-title">{selected.model}</h2><strong>发行 {selected.releaseDate ?? selected.year}</strong><span>{selected.stages.join(" · ")} / {selected.styles.join(" · ")}</span></div>
+              <RacketSpecTags racket={selected} expanded showSummary />
               <p className="racket-inspector__summary">{selected.summary}</p>
               <p className="racket-inspector__verdict">{selected.verdict}</p>
               {selected.familyId && <button className="racket-inspector__family-path" data-focus-key={`dossier-family-${selected.id}`} onClick={() => openFamily(selected.familyId as string, selected.id)}>查看 {selected.familyName} 拍系全部型号 <span aria-hidden="true">›</span></button>}
@@ -3595,7 +3660,7 @@ export default function RacketApp() {
                 <div><dt>裸拍重量</dt><dd>{formatNumberSpec(officialWeight(selected), "g")}</dd></div><div><dt>拍面</dt><dd>{formatNumberSpec(officialHead(selected), "in²")}</dd></div><div><dt>线床</dt><dd>{officialPattern(selected) ?? "—"}</dd></div><div><dt>平衡点</dt><dd>{officialBalance(selected)}</dd></div><div><dt>框厚</dt><dd>{officialBeam(selected)}</dd></div><div><dt>长度</dt><dd>{officialLength(selected)}</dd></div><div><dt>阶段</dt><dd>{selected.stages.join(" / ")}</dd></div><div><dt>打法</dt><dd>{selected.styles.join(" / ")}</dd></div><div><dt>资料完整度</dt><dd>{selected.specCoverage ?? "—"}</dd></div>
               </dl>
               <section className="inspector-radar"><div><p>六维属性</p><span>官网规格 × 拍系定位</span></div><RadarChart chartRackets={[selected]} /></section>
-              <p className="inspector-note">{selected.profileBasis} 非实验室测量。穿线、磅数与个人动作都会改变最终手感；评分适合用于同库比较，不替代实际试打。</p>
+              <p className="inspector-note">{selected.profileBasis} 参数标签为公开硬规格的导向归纳，静态平衡不等于挥重。六维评分非实验室测量；穿线、磅数与个人动作都会改变最终手感，不替代实际试打。</p>
             </div>
             <footer className="racket-inspector__actions"><button className="app-button app-button--soft" data-focus-key={`dossier-footer-compare-${selected.id}`} onClick={compareIds.includes(selected.id) ? activeView === "compare" ? closeDetail : () => goToView("compare") : () => requestCompare(selected.id)}>{compareIds.includes(selected.id) ? activeView === "compare" ? "返回球拍对比" : `查看对比 ${compareIds.length}/3` : compareIds.length >= 3 ? "管理对比 3/3" : "+ 加入对比"}</button><a className="app-button app-button--primary" href={selected.buyUrl} target="_blank" rel="noreferrer" aria-label={`前往 ${selected.buyLabel} 查看 ${selected.model}，新标签页打开`}>前往 {selected.buyLabel} <span aria-hidden="true">↗</span></a></footer>
           </section>

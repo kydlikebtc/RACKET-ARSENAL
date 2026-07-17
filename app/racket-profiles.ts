@@ -5,6 +5,24 @@ export type Stage = "入门" | "进阶" | "高阶";
 export type PlayStyle = "底线相持" | "上旋进攻" | "全场控制" | "抢点快攻" | "舒适护臂";
 export type ScoreKey = "control" | "power" | "spin" | "feel" | "forgiveness" | "agility";
 
+export type RacketSpecTag = {
+  key: "head" | "weight" | "pattern" | "balance" | "beam" | "length";
+  label: string;
+  mainstream: boolean;
+  known: boolean;
+};
+
+export type RacketSpecInsights = {
+  specTags: RacketSpecTag[];
+  traitTags: string[];
+  primaryTraitTags: string[];
+  traitSummary: string;
+  mainstreamSpecCount: number;
+  knownSpecCount: number;
+  isMainstream: boolean;
+  mainstreamKnown: boolean;
+};
+
 export type DeepRacket = {
   id: string;
   brand: string;
@@ -35,6 +53,14 @@ export type DeepRacket = {
   releaseDate?: string;
   profileBasis?: string;
   specCoverage?: string;
+  specTags: RacketSpecTag[];
+  traitTags: string[];
+  primaryTraitTags: string[];
+  traitSummary: string;
+  mainstreamSpecCount: number;
+  knownSpecCount: number;
+  isMainstream: boolean;
+  mainstreamKnown: boolean;
   official?: {
     weight: number | null;
     head: number | null;
@@ -88,6 +114,125 @@ function beamAverage(beam: string | null) {
   if (!beam) return null;
   const values = beam.match(/\d+(?:\.\d+)?/g)?.map(Number) ?? [];
   return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null;
+}
+
+function normalizedPattern(pattern: string | null) {
+  return pattern?.replace(/\s/g, "").toLowerCase().replace(/x/g, "×") ?? null;
+}
+
+type TraitCandidate = {
+  tag: string;
+  summary: string;
+};
+
+/**
+ * A single, deterministic taxonomy for every catalog model. "Mainstream" here
+ * means the common adult performance-racket reference window used by this
+ * armory, not a brand claim or a lab measurement.
+ */
+export function buildRacketSpecInsights(family: CatalogFamily, model: CatalogModel): RacketSpecInsights {
+  const pattern = normalizedPattern(model.pattern);
+  const averageBeam = beamAverage(model.beam);
+  const mainstream = {
+    head: model.head !== null && model.head >= 98 && model.head <= 100,
+    weight: model.weight !== null && model.weight >= 295 && model.weight <= 305,
+    pattern: pattern === "16×19",
+    balance: model.balance !== null && model.balance >= 315 && model.balance <= 325,
+    beam: averageBeam !== null && averageBeam >= 21.5 && averageBeam <= 25,
+    length: model.length !== null && model.length >= 26.95 && model.length <= 27.05,
+  };
+  const specTags: RacketSpecTag[] = [
+    { key: "head", label: model.head === null ? "拍面待补" : `${model.head} in²`, mainstream: mainstream.head, known: model.head !== null },
+    { key: "weight", label: model.weight === null ? "重量待补" : `${model.weight} g`, mainstream: mainstream.weight, known: model.weight !== null },
+    { key: "pattern", label: model.pattern ?? "线床待补", mainstream: mainstream.pattern, known: model.pattern !== null },
+    { key: "balance", label: model.balance === null ? "平衡待补" : `${model.balance} mm`, mainstream: mainstream.balance, known: model.balance !== null },
+    { key: "beam", label: model.beam === null ? "框厚待补" : `${model.beam} mm`, mainstream: mainstream.beam, known: model.beam !== null },
+    { key: "length", label: model.length === null ? "长度待补" : `${model.length} in`, mainstream: mainstream.length, known: model.length !== null },
+  ];
+  const mainstreamSpecCount = specTags.filter((tag) => tag.mainstream).length;
+  const knownSpecCount = specTags.filter((tag) => tag.known).length;
+  const mainstreamKnown = model.head !== null && model.weight !== null && pattern !== null && model.length !== null && model.balance !== null;
+  const isMainstream = mainstreamKnown
+    && model.head! >= 99 && model.head! <= 101
+    && model.weight! >= 295 && model.weight! <= 305
+    && pattern === "16×19"
+    && model.length! >= 26.95 && model.length! <= 27.05
+    && model.balance! >= 315 && model.balance! <= 325;
+  const candidates: TraitCandidate[] = [];
+  const add = (tag: string, summary: string) => candidates.push({ tag, summary });
+
+  if (model.head !== null) {
+    if (model.head <= 97) add("小拍面精准", "小拍面更偏向集中反馈与精确落点。");
+    else if (model.head <= 100) {
+      // Covered by the mainstream badge; no duplicate trait needed.
+    } else if (model.head <= 104) add("扩展甜区", "扩展拍面在保留性能取向的同时增加甜区窗口。");
+    else if (model.head <= 109) add("大拍面容错", "大拍面提供更宽的击球窗口和容错。");
+    else add("超大拍面省力", "超大拍面优先扩大甜区并降低借力门槛。");
+  }
+
+  if (model.weight !== null) {
+    if (model.weight <= 270) add("超轻易挥", "超轻重量更容易加速与连续挥拍。");
+    else if (model.weight <= 289) add("轻量灵活", "轻量设定减少启动负担，偏向灵活与快速到位。");
+    else if (model.weight <= 294) add("均衡轻量", "略轻于常见基准的重量，在稳定与易挥之间折中。");
+    else if (model.weight <= 305) {
+      // Covered by the mainstream badge; no duplicate trait needed.
+    } else if (model.weight <= 319) add("加重稳定", "加重设定更强调击球稳定和对抗感。");
+    else add("重型穿透", "重型设定偏向稳定穿透，同时对挥拍完整度要求更高。");
+  }
+
+  if (pattern) {
+    if (pattern === "18×20") add("密线控制", "18×20 密线床偏向稳定弹道与控制。");
+    else if (pattern === "18×19") add("偏密控球", "18×19 线床偏密，更重视轨迹可预期性。");
+    else if (pattern === "16×20") add("控旋均衡", "16×20 线床在控制和旋转窗口之间取平衡。");
+    else if (["16×18", "16×17", "18×16", "14×18"].includes(pattern)) add("开放旋转", "开放线床更利于咬球、旋转与轻松出球。");
+    else if (pattern !== "16×19") add("特色线床", "非常见线床带来更鲜明的弹道取向。");
+  }
+
+  if (model.length !== null) {
+    if (model.length < 26.95) add("短拍易控", "短于常见长度的设定更偏向贴身操控。");
+    else if (model.length > 27.05 && model.length < 27.4) add("微加长增压", "微加长设定增加触球范围和杠杆效应。");
+    else if (model.length >= 27.4) add("加长增压", "加长设定强调杠杆增压与覆盖范围，挥拍门槛也更高。");
+  }
+
+  if (averageBeam !== null) {
+    if (averageBeam <= 21.5) add("薄框手感", "薄框结构偏向持球反馈与精细手感。");
+    else if (averageBeam >= 25.5) add("厚框弹力", "厚框结构更强调回弹和免费力量。");
+  }
+
+  if (model.balance !== null && model.length !== null) {
+    const midpointOffset = model.balance - (model.length * 12.7);
+    if (midpointOffset <= -25) add("头轻灵活", "头轻平衡更利于拍头调整和网前反应。");
+    else if (midpointOffset >= -8) add("偏头重借力", "偏头重平衡优先提供拍头惯性与借力。");
+  }
+
+  const uniqueCandidates = candidates.filter((candidate, index) => candidates.findIndex((item) => item.tag === candidate.tag) === index);
+  const traitTags = uniqueCandidates.map((candidate) => candidate.tag);
+  const coreMainstream = mainstream.head && mainstream.weight && mainstream.pattern && mainstream.length;
+  if (isMainstream) traitTags.unshift("主流规格");
+  else if (coreMainstream && model.balance === null) traitTags.unshift("主流核心规格");
+  if (knownSpecCount < 4) traitTags.push("参数待补");
+  if (traitTags.length === 0) traitTags.push(`${family.type}型常规规格`);
+
+  const summaryLead = isMainstream
+    ? "拍面、重量、线床、长度与静态平衡均处于拍库定义的成人性能拍主流区间。"
+    : knownSpecCount < 4
+      ? `官网规格有限（已公开 ${knownSpecCount}/6 项），已仅按公开参数标注。`
+      : mainstreamSpecCount >= 4
+        ? `${mainstreamSpecCount}/6 项参数处于拍库常见区间，其余参数构成该型号的区分度。`
+      : "参数组合呈现鲜明取向。";
+  const summaryDetails = uniqueCandidates.slice(0, 3).map((candidate) => candidate.summary).join("");
+  const traitSummary = `${summaryLead}${summaryDetails || `整体延续 ${family.family} 的${family.type}型取向。`}`;
+
+  return {
+    specTags,
+    traitTags,
+    primaryTraitTags: traitTags.slice(0, 3),
+    traitSummary,
+    mainstreamSpecCount,
+    knownSpecCount,
+    isMainstream,
+    mainstreamKnown,
+  };
 }
 
 export function buildProfileScores(family: CatalogFamily, model: CatalogModel) {
@@ -229,6 +374,7 @@ export function buildDeepRacket(family: CatalogFamily, model: CatalogModel, mode
     ?? (family.releaseDate ? `${family.releaseDate}（本代）` : family.releaseYear ? `${family.releaseYear}（本代）` : "官网未注明");
   const knownSpecs = [model.head, model.weight, model.pattern, model.balance, model.beam, model.length].filter((value) => value !== null).length;
   const completeness = knownSpecs >= 5 ? "完整" : knownSpecs >= 3 ? "部分" : "基础";
+  const specInsights = buildRacketSpecInsights(family, model);
   const specSummary = [
     model.weight === null ? null : `${model.weight}g 裸拍`,
     model.head === null ? null : `${model.head}in² 拍面`,
@@ -267,6 +413,7 @@ export function buildDeepRacket(family: CatalogFamily, model: CatalogModel, mode
     releaseDate,
     profileBasis: `根据拍系定位与品牌官网公开硬规格 ${knownSpecs}/6 项生成的拍库相对评估（资料${completeness}）；官网未公开的字段不参与加减分。`,
     specCoverage: `${knownSpecs}/6 · ${completeness}`,
+    ...specInsights,
     official: {
       weight: model.weight,
       head: model.head,
