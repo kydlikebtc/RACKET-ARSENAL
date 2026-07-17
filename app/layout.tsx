@@ -17,13 +17,13 @@ export async function generateMetadata(): Promise<Metadata> {
       description: "从规格走向打法，找到和你同频的下一把武器。",
       type: "website",
       locale: "zh_CN",
-      images: [{ url: `${origin}/og.png`, width: 1664, height: 960, alt: "拍库球拍武器库" }],
+      images: [{ url: `${origin}/og-app.png`, width: 1652, height: 952, alt: "拍库球拍发现与对比 App" }],
     },
     twitter: {
       card: "summary_large_image",
       title: "拍库｜RACKET ARSENAL",
       description: "从规格走向打法，找到和你同频的下一把武器。",
-      images: [`${origin}/og.png`],
+      images: [`${origin}/og-app.png`],
     },
   };
 }
@@ -31,8 +31,12 @@ export async function generateMetadata(): Promise<Metadata> {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#090b0b",
-  colorScheme: "dark",
+  viewportFit: "cover",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#f2f2f7" },
+    { media: "(prefers-color-scheme: dark)", color: "#0f1013" },
+  ],
+  colorScheme: "light dark",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 
 type Stage = "入门" | "进阶" | "高阶";
 type PlayStyle = "底线相持" | "上旋进攻" | "全场控制" | "抢点快攻" | "舒适护臂";
@@ -508,7 +508,7 @@ function recommendationScore(racket: Racket, stage: Stage, style: PlayStyle, pri
   return Math.min(98, Math.round(score));
 }
 
-export default function Home() {
+function LegacyHome() {
   const [brand, setBrand] = useState("全部");
   const [stageFilter, setStageFilter] = useState<(typeof stageOptions)[number]>("全部");
   const [styleFilter, setStyleFilter] = useState<(typeof styleOptions)[number]>("全部");
@@ -796,6 +796,475 @@ export default function Home() {
           </section>
         </div>
       )}
+    </main>
+  );
+}
+
+type AppView = "discover" | "match" | "armory" | "compare";
+
+const appTabs: { id: AppView; label: string; icon: string }[] = [
+  { id: "discover", label: "发现", icon: "◉" },
+  { id: "match", label: "匹配", icon: "◇" },
+  { id: "armory", label: "球拍库", icon: "▦" },
+  { id: "compare", label: "对比", icon: "⇄" },
+];
+
+const coreScoreKeys: ScoreKey[] = ["control", "power", "spin"];
+
+function AppRacketCard({
+  racket,
+  compared,
+  onOpen,
+  onToggleCompare,
+}: {
+  racket: Racket;
+  compared: boolean;
+  onOpen: () => void;
+  onToggleCompare: () => void;
+}) {
+  return (
+    <article className="app-racket-card" style={{ "--racket-accent": racket.accent } as CSSProperties}>
+      <button className="app-racket-card__preview" onClick={onOpen} aria-label={`查看 ${racket.brand} ${racket.model} 详情`}>
+        <RacketPhoto racket={racket} variant="compact" />
+      </button>
+      <div className="app-racket-card__body">
+        <div className="app-racket-card__meta"><span>{racket.brand}</span><span>{racket.year}</span></div>
+        <button className="app-racket-card__title" onClick={onOpen}><h3>{racket.model}</h3></button>
+        <p>{racket.summary}</p>
+        <div className="app-racket-card__specs" aria-label="核心规格">
+          <span><b>{racket.weight}</b> g</span>
+          <span><b>{racket.head}</b> in²</span>
+          <span><b>{racket.pattern}</b></span>
+        </div>
+        <div className="app-racket-card__scores" aria-label="核心属性">
+          {coreScoreKeys.map((key) => (
+            <span key={key}><i style={{ height: `${racket.scores[key]}%` }} /><b>{scoreLabels[key]}</b><small>{racket.scores[key]}</small></span>
+          ))}
+        </div>
+        <div className="app-racket-card__actions">
+          <button className="app-button app-button--soft" onClick={onToggleCompare} aria-pressed={compared}>
+            <span aria-hidden="true">{compared ? "✓" : "+"}</span>{compared ? "已加入对比" : "加入对比"}
+          </button>
+          <button className="app-button app-button--plain" onClick={onOpen}>查看详情 <span aria-hidden="true">›</span></button>
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function RecommendationRow({
+  racket,
+  match,
+  onOpen,
+  onToggleCompare,
+  compared,
+}: {
+  racket: Racket;
+  match: number;
+  onOpen: () => void;
+  onToggleCompare: () => void;
+  compared: boolean;
+}) {
+  return (
+    <article className="recommendation-row">
+      <button className="recommendation-row__main" onClick={onOpen}>
+        <RacketPhoto racket={racket} variant="thumb" />
+        <span className="recommendation-row__copy">
+          <small>{racket.brand} · {racket.series}</small>
+          <strong>{racket.model}</strong>
+          <span>{racket.styles.join(" · ")}</span>
+        </span>
+        <span className="recommendation-row__match"><b>{match}%</b><small>匹配</small></span>
+        <span className="recommendation-row__chevron" aria-hidden="true">›</span>
+      </button>
+      <button className="recommendation-row__compare" onClick={onToggleCompare} aria-pressed={compared} aria-label={`${compared ? "移出" : "加入"} ${racket.model} 对比`}>
+        {compared ? "✓" : "+"}
+      </button>
+    </article>
+  );
+}
+
+function ViewTitle({ eyebrow, title, action }: { eyebrow: string; title: string; action?: React.ReactNode }) {
+  return (
+    <header className="view-title">
+      <div><p>{eyebrow}</p><h1>{title}</h1></div>
+      {action}
+    </header>
+  );
+}
+
+export default function RacketApp() {
+  const [activeView, setActiveView] = useState<AppView>("discover");
+  const [brand, setBrand] = useState("全部");
+  const [stageFilter, setStageFilter] = useState<(typeof stageOptions)[number]>("全部");
+  const [styleFilter, setStyleFilter] = useState<(typeof styleOptions)[number]>("全部");
+  const [search, setSearch] = useState("");
+  const [sort, setSort] = useState("推荐排序");
+  const [matchStage, setMatchStage] = useState<Stage>("进阶");
+  const [matchStyle, setMatchStyle] = useState<PlayStyle>("底线相持");
+  const [priority, setPriority] = useState("均衡");
+  const [matchStep, setMatchStep] = useState(0);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [compareIds, setCompareIds] = useState<string[]>([]);
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [liveMessage, setLiveMessage] = useState("");
+  const lastFocusRef = useRef<HTMLElement | null>(null);
+
+  const recommendations = useMemo(
+    () => rackets
+      .map((racket) => ({ racket, match: recommendationScore(racket, matchStage, matchStyle, priority) }))
+      .sort((a, b) => b.match - a.match)
+      .slice(0, 4),
+    [matchStage, matchStyle, priority],
+  );
+
+  const filteredRackets = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    return rackets
+      .filter((racket) => {
+        const matchesBrand = brand === "全部" || racket.brand === brand;
+        const matchesStage = stageFilter === "全部" || racket.stages.includes(stageFilter as Stage);
+        const matchesStyle = styleFilter === "全部" || racket.styles.includes(styleFilter as PlayStyle);
+        const matchesSearch = !term || `${racket.brand} ${racket.model} ${racket.series}`.toLowerCase().includes(term);
+        return matchesBrand && matchesStage && matchesStyle && matchesSearch;
+      })
+      .sort((a, b) => {
+        if (sort === "重量从轻到重") return a.weight - b.weight;
+        if (sort === "控制优先") return b.scores.control - a.scores.control;
+        if (sort === "力量优先") return b.scores.power - a.scores.power;
+        if (sort === "容错优先") return b.scores.forgiveness - a.scores.forgiveness;
+        return rackets.indexOf(a) - rackets.indexOf(b);
+      });
+  }, [brand, stageFilter, styleFilter, search, sort]);
+
+  const selected = selectedId ? rackets.find((racket) => racket.id === selectedId) ?? null : null;
+  const compared = compareIds.map((id) => rackets.find((racket) => racket.id === id)).filter(Boolean) as Racket[];
+  const featured = recommendations[0];
+  const activeFilterCount = [brand !== "全部", stageFilter !== "全部", styleFilter !== "全部"].filter(Boolean).length;
+
+  useEffect(() => {
+    const readView = () => {
+      const hash = window.location.hash.replace("#", "") as AppView;
+      if (appTabs.some((tab) => tab.id === hash)) setActiveView(hash);
+    };
+    readView();
+    window.addEventListener("popstate", readView);
+    return () => window.removeEventListener("popstate", readView);
+  }, []);
+
+  useEffect(() => {
+    document.body.classList.toggle("app-locked", Boolean(selected || filterOpen));
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      if (filterOpen) setFilterOpen(false);
+      else if (selected) closeDetail();
+    };
+    window.addEventListener("keydown", handleKey);
+    return () => {
+      document.body.classList.remove("app-locked");
+      window.removeEventListener("keydown", handleKey);
+    };
+  }, [selected, filterOpen]);
+
+  useEffect(() => {
+    if (!liveMessage) return;
+    const timer = window.setTimeout(() => setLiveMessage(""), 2800);
+    return () => window.clearTimeout(timer);
+  }, [liveMessage]);
+
+  const goToView = (view: AppView) => {
+    setSelectedId(null);
+    setFilterOpen(false);
+    setActiveView(view);
+    window.history.pushState({}, "", `#${view}`);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const openRacket = (id: string) => {
+    lastFocusRef.current = document.activeElement as HTMLElement;
+    setFilterOpen(false);
+    setSelectedId(id);
+  };
+
+  const closeDetail = () => {
+    setSelectedId(null);
+    window.requestAnimationFrame(() => lastFocusRef.current?.focus());
+  };
+
+  const toggleCompare = (id: string) => {
+    setCompareIds((current) => {
+      const racket = rackets.find((item) => item.id === id);
+      if (current.includes(id)) {
+        setLiveMessage(`${racket?.model ?? "球拍"} 已移出对比`);
+        return current.filter((item) => item !== id);
+      }
+      if (current.length >= 3) {
+        setLiveMessage("最多同时对比三把球拍，请先移除一把");
+        return current;
+      }
+      setLiveMessage(`${racket?.model ?? "球拍"} 已加入对比，当前 ${current.length + 1}/3`);
+      return [...current, id];
+    });
+  };
+
+  const clearFilters = () => {
+    setBrand("全部");
+    setStageFilter("全部");
+    setStyleFilter("全部");
+    setSearch("");
+    setSort("推荐排序");
+  };
+
+  const chooseMatchOption = (step: number, value: string) => {
+    if (step === 0) setMatchStage(value as Stage);
+    if (step === 1) setMatchStyle(value as PlayStyle);
+    if (step === 2) setPriority(value);
+    setMatchStep(step + 1);
+  };
+
+  const comparisonRows: { label: string; value: (racket: Racket) => React.ReactNode }[] = [
+    { label: "适合阶段", value: (racket) => racket.stages.join(" · ") },
+    { label: "打法风格", value: (racket) => racket.styles.join(" · ") },
+    { label: "裸拍重量", value: (racket) => <><b>{racket.weight}</b> g</> },
+    { label: "拍面", value: (racket) => <><b>{racket.head}</b> in²</> },
+    { label: "线床", value: (racket) => racket.pattern },
+    ...radarKeys.map((key) => ({ label: scoreLabels[key], value: (racket: Racket) => <b>{racket.scores[key]}</b> })),
+  ];
+
+  return (
+    <main className="racket-app">
+      <aside className="desktop-sidebar" aria-label="应用导航">
+        <button className="app-brand" onClick={() => goToView("discover")} aria-label="拍库首页">
+          <span>拍</span><span><b>拍库</b><small>Racket Lab</small></span>
+        </button>
+        <nav>
+          {appTabs.map((tab) => (
+            <button key={tab.id} aria-current={activeView === tab.id ? "page" : undefined} onClick={() => goToView(tab.id)}>
+              <span aria-hidden="true">{tab.icon}</span><b>{tab.label}</b>
+              {tab.id === "compare" && compareIds.length > 0 && <i>{compareIds.length}</i>}
+            </button>
+          ))}
+        </nav>
+        <div className="sidebar-status">
+          <span>你的球拍档案</span>
+          <strong>{rackets.length} 款真实型号</strong>
+          <p>根据阶段、打法与六维属性找到更合拍的选择。</p>
+        </div>
+      </aside>
+
+      <div className="app-content">
+        {activeView === "discover" && (
+          <section className="app-view discover-view" aria-labelledby="discover-title">
+            <ViewTitle eyebrow="为你的打法准备" title="今天，想怎么赢？" action={<button className="profile-button" aria-label="拍库个人档案">拍</button>} />
+
+            <section className="featured-racket" style={{ "--racket-accent": featured.racket.accent } as CSSProperties}>
+              <div className="featured-racket__copy">
+                <div className="match-badge"><span>本周首选</span><b>{featured.match}% 匹配</b></div>
+                <p>{featured.racket.brand} · {featured.racket.series}</p>
+                <h2>{featured.racket.model}</h2>
+                <p className="featured-racket__summary">{featured.racket.verdict}</p>
+                <div className="featured-racket__tags"><span>{matchStage}</span><span>{matchStyle}</span><span>{priority}优先</span></div>
+                <div className="featured-racket__actions">
+                  <button className="app-button app-button--primary" onClick={() => openRacket(featured.racket.id)}>查看球拍</button>
+                  <button className="app-button app-button--glass" onClick={() => { setMatchStep(0); goToView("match"); }}>重新匹配</button>
+                </div>
+              </div>
+              <RacketPhoto racket={featured.racket} variant="hero" />
+              <div className="featured-racket__radar"><RadarChart chartRackets={[featured.racket]} compact /></div>
+            </section>
+
+            <div className="section-bar"><div><p>为你推荐</p><h2>更接近你的三把拍</h2></div><button onClick={() => goToView("armory")}>查看全部 <span aria-hidden="true">›</span></button></div>
+            <div className="recommendation-list">
+              {recommendations.slice(1).map(({ racket, match }) => (
+                <RecommendationRow
+                  key={racket.id}
+                  racket={racket}
+                  match={match}
+                  onOpen={() => openRacket(racket.id)}
+                  onToggleCompare={() => toggleCompare(racket.id)}
+                  compared={compareIds.includes(racket.id)}
+                />
+              ))}
+            </div>
+
+            <section className="insight-card">
+              <div><span aria-hidden="true">◎</span><p>选拍提示</p></div>
+              <h2>参数只是起点，动作与目标才决定答案。</h2>
+              <p>先锁定阶段和打法，再用控制、力量、旋转、手感、容错与灵活六个维度确认取舍。</p>
+              <button onClick={() => { setMatchStep(0); goToView("match"); }}>开始 3 步匹配 <span aria-hidden="true">→</span></button>
+            </section>
+          </section>
+        )}
+
+        {activeView === "match" && (
+          <section className="app-view match-view" aria-labelledby="match-title">
+            <ViewTitle eyebrow="三步找到你的方向" title="打法匹配" action={matchStep > 0 ? <button className="round-action" onClick={() => setMatchStep((step) => Math.max(0, step - 1))} aria-label="返回上一步">‹</button> : undefined} />
+            <div className="match-progress" aria-label={`匹配进度 ${Math.min(matchStep + 1, 4)} / 4`}>
+              {[0, 1, 2, 3].map((step) => <i key={step} className={matchStep >= step ? "is-active" : ""} />)}
+            </div>
+
+            {matchStep < 3 ? (
+              <section className="match-question" aria-live="polite">
+                <p>步骤 {matchStep + 1} / 3</p>
+                <h2>{matchStep === 0 ? "你现在处于哪个阶段？" : matchStep === 1 ? "哪种打法最像你？" : "最想优先获得什么？"}</h2>
+                <p className="match-question__hint">
+                  {matchStep === 0 ? "按当前稳定水平选择，不用把它当成水平考试。" : matchStep === 1 ? "选择你最常用来赢分的方式。" : "每把球拍都有取舍，先确定这一阶段最重要的能力。"}
+                </p>
+                <div className={`match-options match-options--${matchStep}`}>
+                  {(matchStep === 0 ? ["入门", "进阶", "高阶"] : matchStep === 1 ? styleOptions.slice(1) : ["均衡", "力量", "旋转", "控制", "手感", "护臂"]).map((item) => {
+                    const current = matchStep === 0 ? matchStage === item : matchStep === 1 ? matchStyle === item : priority === item;
+                    return <button key={item} aria-pressed={current} onClick={() => chooseMatchOption(matchStep, item)}><span>{item}</span><i aria-hidden="true">{current ? "✓" : "›"}</i></button>;
+                  })}
+                </div>
+              </section>
+            ) : (
+              <section className="match-results-app" aria-live="polite">
+                <div className="match-result-hero">
+                  <span>匹配完成</span>
+                  <h2>{matchStage} · {matchStyle}</h2>
+                  <p>优先方向：{priority}。以下结果综合阶段、打法和六维属性排序。</p>
+                  <button onClick={() => setMatchStep(0)}>修改答案</button>
+                </div>
+                <div className="match-result-list">
+                  {recommendations.slice(0, 3).map(({ racket, match }, index) => (
+                    <article key={racket.id} className="match-result-card">
+                      <span className="match-result-card__rank">{index + 1}</span>
+                      <RacketPhoto racket={racket} variant="thumb" />
+                      <button className="match-result-card__main" onClick={() => openRacket(racket.id)}>
+                        <small>{racket.brand}</small><strong>{racket.model}</strong><span>{racket.summary}</span>
+                      </button>
+                      <div className="match-result-card__score"><b>{match}%</b><small>匹配</small></div>
+                      <button className="match-result-card__add" onClick={() => toggleCompare(racket.id)} aria-pressed={compareIds.includes(racket.id)} aria-label={`${compareIds.includes(racket.id) ? "移出" : "加入"}对比`}>{compareIds.includes(racket.id) ? "✓" : "+"}</button>
+                    </article>
+                  ))}
+                </div>
+              </section>
+            )}
+          </section>
+        )}
+
+        {activeView === "armory" && (
+          <section className="app-view armory-view" aria-labelledby="armory-title">
+            <ViewTitle eyebrow={`${rackets.length} 款真实球拍档案`} title="球拍库" action={<button className="round-action" onClick={() => setFilterOpen(true)} aria-label="打开筛选">≡{activeFilterCount > 0 && <i>{activeFilterCount}</i>}</button>} />
+            <div className="library-toolbar">
+              <label className="app-search" htmlFor="app-racket-search"><span aria-hidden="true">⌕</span><input id="app-racket-search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="搜索品牌或型号" /><button onClick={() => setSearch("")} aria-label="清除搜索" hidden={!search}>×</button></label>
+              <button className="filter-button" onClick={() => setFilterOpen(true)}>筛选{activeFilterCount > 0 && <span>{activeFilterCount}</span>}</button>
+            </div>
+            <div className="brand-scroller" aria-label="按品牌筛选">
+              {brandOptions.map((item) => <button key={item} aria-pressed={brand === item} onClick={() => setBrand(item)}>{item}</button>)}
+            </div>
+            <div className="library-summary"><p><b>{filteredRackets.length}</b> 款结果{activeFilterCount > 0 && ` · 已应用 ${activeFilterCount} 个筛选`}</p>{(activeFilterCount > 0 || search) && <button onClick={clearFilters}>全部清除</button>}</div>
+            {filteredRackets.length > 0 ? (
+              <div className="app-racket-grid">
+                {filteredRackets.map((racket) => <AppRacketCard key={racket.id} racket={racket} compared={compareIds.includes(racket.id)} onOpen={() => openRacket(racket.id)} onToggleCompare={() => toggleCompare(racket.id)} />)}
+              </div>
+            ) : (
+              <div className="app-empty"><span aria-hidden="true">⌕</span><h2>没有找到对应球拍</h2><p>试试减少一个筛选条件，或搜索更短的型号关键词。</p><button className="app-button app-button--primary" onClick={clearFilters}>清除筛选</button></div>
+            )}
+          </section>
+        )}
+
+        {activeView === "compare" && (
+          <section className="app-view compare-view" aria-labelledby="compare-title">
+            <ViewTitle eyebrow="最多同时装载三把" title="球拍对比" action={compared.length > 0 ? <button className="text-action" onClick={() => setCompareIds([])}>清空</button> : undefined} />
+            {compared.length === 0 ? (
+              <div className="compare-empty-app">
+                <div className="compare-empty-app__icon" aria-hidden="true">⇄</div>
+                <h2>先加入想比较的球拍</h2>
+                <p>从球拍库或推荐列表加入 2–3 把，雷达图会在同一刻度重叠显示差异。</p>
+                <button className="app-button app-button--primary" onClick={() => goToView("armory")}>去球拍库选择</button>
+                <div className="compare-suggestions">
+                  {recommendations.slice(0, 3).map(({ racket }) => <button key={racket.id} onClick={() => toggleCompare(racket.id)}><RacketPhoto racket={racket} variant="thumb" /><span><b>{racket.model}</b><small>+ 加入</small></span></button>)}
+                </div>
+              </div>
+            ) : (
+              <div className="compare-app-loaded">
+                <section className="compare-radar-card">
+                  <div><p>六维轮廓</p><h2>重叠雷达图</h2><span>实线、长虚线与点线对应不同球拍，满分 100。</span></div>
+                  <RadarChart chartRackets={compared} />
+                </section>
+
+                <div className="compare-product-grid" style={{ "--compare-count": compared.length } as CSSProperties}>
+                  {compared.map((racket) => (
+                    <article key={racket.id}>
+                      <button className="compare-product-grid__remove" onClick={() => toggleCompare(racket.id)} aria-label={`移除 ${racket.model}`}>×</button>
+                      <RacketPhoto racket={racket} variant="thumb" />
+                      <span>{racket.brand}</span><h3>{racket.model}</h3>
+                    </article>
+                  ))}
+                  {compared.length < 3 && <button className="compare-add-slot" onClick={() => goToView("armory")}><span>＋</span><b>再加一把</b></button>}
+                </div>
+
+                <section className="compare-spec-list">
+                  {comparisonRows.map((row) => (
+                    <div className="compare-spec-row" key={row.label}>
+                      <h3>{row.label}</h3>
+                      <div style={{ "--compare-count": compared.length } as CSSProperties}>{compared.map((racket) => <span key={racket.id}>{row.value(racket)}</span>)}</div>
+                    </div>
+                  ))}
+                </section>
+                <div className="compare-buy-grid" style={{ "--compare-count": compared.length } as CSSProperties}>
+                  {compared.map((racket) => <a key={racket.id} href={racket.buyUrl} target="_blank" rel="noreferrer">前往 {racket.brand} 官网 <span aria-hidden="true">↗</span></a>)}
+                </div>
+              </div>
+            )}
+          </section>
+        )}
+      </div>
+
+      {!selected && activeView !== "compare" && compareIds.length > 0 && (
+        <button className="compare-tray" onClick={() => goToView("compare")}>
+          <span className="compare-tray__photos">{compared.map((racket) => <RacketPhoto key={racket.id} racket={racket} variant="thumb" />)}{Array.from({ length: 3 - compared.length }).map((_, index) => <i key={index}>+</i>)}</span>
+          <span><b>对比 {compared.length}/3</b><small>查看重叠雷达图</small></span>
+          <strong>继续 <span aria-hidden="true">›</span></strong>
+        </button>
+      )}
+
+      <nav className="mobile-tabbar" aria-label="应用导航">
+        {appTabs.map((tab) => (
+          <button key={tab.id} aria-current={activeView === tab.id ? "page" : undefined} onClick={() => goToView(tab.id)}>
+            <span aria-hidden="true">{tab.icon}</span><b>{tab.label}</b>{tab.id === "compare" && compareIds.length > 0 && <i>{compareIds.length}</i>}
+          </button>
+        ))}
+      </nav>
+
+      {filterOpen && (
+        <div className="sheet-backdrop" role="presentation" onMouseDown={() => setFilterOpen(false)}>
+          <section className="filter-sheet" role="dialog" aria-modal="true" aria-labelledby="filter-title" onMouseDown={(event) => event.stopPropagation()}>
+            <div className="sheet-handle" aria-hidden="true" />
+            <header><button onClick={() => setFilterOpen(false)}>取消</button><h2 id="filter-title">筛选球拍</h2><button onClick={clearFilters}>重置</button></header>
+            <div className="filter-sheet__content">
+              <fieldset><legend>品牌</legend><div>{brandOptions.map((item) => <button key={item} aria-pressed={brand === item} onClick={() => setBrand(item)}>{item}</button>)}</div></fieldset>
+              <fieldset><legend>打球阶段</legend><div>{stageOptions.map((item) => <button key={item} aria-pressed={stageFilter === item} onClick={() => setStageFilter(item)}>{item}</button>)}</div></fieldset>
+              <fieldset><legend>打法风格</legend><div>{styleOptions.map((item) => <button key={item} aria-pressed={styleFilter === item} onClick={() => setStyleFilter(item)}>{item}</button>)}</div></fieldset>
+              <label className="filter-sort" htmlFor="app-sort">排序方式<select id="app-sort" value={sort} onChange={(event) => setSort(event.target.value)}><option>推荐排序</option><option>重量从轻到重</option><option>控制优先</option><option>力量优先</option><option>容错优先</option></select></label>
+            </div>
+            <button className="app-button app-button--primary filter-sheet__apply" onClick={() => setFilterOpen(false)}>显示 {filteredRackets.length} 款球拍</button>
+          </section>
+        </div>
+      )}
+
+      {selected && (
+        <div className="detail-backdrop" role="presentation" onMouseDown={closeDetail}>
+          <section className="racket-inspector" role="dialog" aria-modal="true" aria-labelledby="inspector-title" onMouseDown={(event) => event.stopPropagation()} style={{ "--racket-accent": selected.accent } as CSSProperties}>
+            <div className="sheet-handle" aria-hidden="true" />
+            <header className="racket-inspector__header"><button onClick={closeDetail} aria-label="关闭详情">‹</button><span>{selected.brand}</span><button onClick={() => toggleCompare(selected.id)} aria-pressed={compareIds.includes(selected.id)}>{compareIds.includes(selected.id) ? "已对比" : "+ 对比"}</button></header>
+            <div className="racket-inspector__scroll">
+              <RacketPhoto racket={selected} variant="detail" />
+              <div className="racket-inspector__title"><p>{selected.series} · {selected.year}</p><h2 id="inspector-title">{selected.model}</h2><span>{selected.stages.join(" · ")} / {selected.styles.join(" · ")}</span></div>
+              <p className="racket-inspector__verdict">{selected.verdict}</p>
+              <dl className="inspector-specs">
+                <div><dt>裸拍重量</dt><dd>{selected.weight} g</dd></div><div><dt>拍面</dt><dd>{selected.head} in²</dd></div><div><dt>线床</dt><dd>{selected.pattern}</dd></div><div><dt>平衡点</dt><dd>{selected.balance}</dd></div><div><dt>框厚</dt><dd>{selected.beam}</dd></div><div><dt>阶段</dt><dd>{selected.stages.join(" / ")}</dd></div>
+              </dl>
+              <section className="inspector-radar"><div><p>六维属性</p><span>拍库内部相对评分</span></div><RadarChart chartRackets={[selected]} /></section>
+              <p className="inspector-note">穿线、磅数与个人动作都会改变最终手感；评分适合用于同库比较，不替代实际试打。</p>
+            </div>
+            <footer className="racket-inspector__actions"><button className="app-button app-button--soft" onClick={() => toggleCompare(selected.id)}>{compareIds.includes(selected.id) ? "✓ 已加入对比" : "+ 加入对比"}</button><a className="app-button app-button--primary" href={selected.buyUrl} target="_blank" rel="noreferrer">前往 {selected.buyLabel} <span aria-hidden="true">↗</span></a></footer>
+          </section>
+        </div>
+      )}
+
+      <div className={`app-toast${liveMessage ? " is-visible" : ""}`} aria-live="polite">{liveMessage}</div>
     </main>
   );
 }
