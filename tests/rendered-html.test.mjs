@@ -22,23 +22,26 @@ test("server-renders the app experience", async () => {
   const html = await response.text();
   assert.match(html, /拍库｜找到和你打法同频的下一把球拍/);
   assert.match(html, /今天，想怎么赢/);
+  assert.match(html, /先建立你的打法档案/);
+  assert.doesNotMatch(html, /你的首选/);
   assert.match(html, />匹配</);
   assert.match(html, /球拍库/);
   assert.match(html, />球星</);
   assert.match(html, />对比</);
   assert.match(html, /ATP \+ WTA 前 8/);
-  assert.match(html, /213(?:<!-- -->)? 款现行型号/);
-  assert.match(html, /213(?:<!-- -->)? 份六维深度档案/);
+  assert.match(html, /259(?:<!-- -->)? 款现行型号/);
+  assert.match(html, /259(?:<!-- -->)? 份六维深度档案/);
   assert.doesNotMatch(html, /Codex is working|Your site is taking shape|codex-preview/i);
 });
 
 test("keeps racket imagery and app interactions wired", async () => {
-  const [page, css, layout, catalog, tour] = await Promise.all([
+  const [page, css, layout, catalog, tour, sessionState] = await Promise.all([
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
     readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/catalog-data.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/tour-data.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/session-state.ts", import.meta.url), "utf8"),
   ]);
 
   const imagePaths = [...page.matchAll(/^  "[^"]+": "(\/rackets\/[^"]+)"/gm)].map((match) => match[1]);
@@ -46,20 +49,137 @@ test("keeps racket imagery and app interactions wired", async () => {
   await Promise.all(imagePaths.map((path) => access(new URL(`../public${path}`, import.meta.url))));
 
   assert.match(page, /function RadarChart/);
+  assert.match(page, /function MiniRadar/);
   assert.match(page, /六维属性重叠对比雷达图/);
+  assert.match(page, /hasCompletedMatch/);
+  assert.match(page, /先建立你的打法档案/);
+  assert.doesNotMatch(page, /本周首选/);
+  assert.match(page, /\[0, 1, 2\]\.map/);
+  assert.doesNotMatch(page, /\[0, 1, 2, 3\]\.map/);
   assert.match(page, /className="mobile-tabbar"/);
   assert.match(page, /className="compare-tray"/);
   assert.match(page, /function ProductGallery/);
   assert.match(page, /from "\.\/racket-profiles"/);
   assert.match(page, /catalogRacketId\(selectedFamily, modelIndex\)/);
+  assert.match(page, /selectedFamily\.models\.map\([\s\S]*?<MiniRadar racket=\{racketProfile\}/);
+  assert.match(page, /className="model-matrix__radar-button"[\s\S]*?onClick=\{\(\) => openRacket\(racketProfile\.id\)\}[\s\S]*?<MiniRadar racket=\{racketProfile\}/);
+  assert.match(page, /全系参数与六维雷达/);
+  assert.match(page, /\{scoreLabels\[key\]\}<\/text>/);
+  assert.doesNotMatch(page, /scoreLabels\[key\]\.slice/);
+  assert.match(page, /表内直接展示每款型号的六维雷达/);
+  assert.match(page, /className="model-matrix__actions"[\s\S]*?aria-pressed=\{compareIds\.includes\(racketProfile\.id\)\}/);
   assert.match(page, />深度档案</);
   assert.match(page, /非实验室测量/);
   assert.doesNotMatch(page, /libraryMode|library-mode-switch/);
   assert.match(page, /className="catalog-family-grid"/);
+  assert.match(page, /matchesCatalogFamilySearch/);
+  assert.match(page, /matchesCatalogRacketSearch/);
+  assert.match(page, /catalogGenerationOptions/);
+  assert.match(page, /catalogReleaseYearOptions/);
+  assert.match(page, /matchesCatalogFamilyReleaseYear/);
+  assert.match(page, /generation: "全部代际"/);
+  assert.match(page, /matchingCatalogRackets/);
+  assert.match(page, /className="catalog-model-results"/);
+  assert.match(page, /matchingCatalogRackets\.slice\(0, catalogResultLimit\)/);
+  assert.match(page, /className="catalog-model-results__more/);
+  assert.match(page, /const showMoreCatalogResults/);
+  assert.match(page, /catalog-model-open-\$\{firstNewRacket\.id\}/);
+  assert.match(page, /patch\.search\.slice\(0, armoryFilterConfig\.maxSearchLength\)/);
+  assert.match(page, /setFrame\(\(safeFrame \+ direction \+ availableImages\.length\)/);
+  assert.doesNotMatch(page, /className="sheet-handle"/);
+  assert.match(sessionState, /paiku-session-v1/);
   assert.match(page, /className="model-matrix__scroll"/);
   assert.match(page, /className="tour-player-grid"/);
   assert.match(page, /role="dialog"/);
+  assert.match(page, /data-dialog-close/);
+  assert.match(page, /setAttribute\("inert", ""\)/);
+  assert.match(page, /detailReturnFamilyId/);
+  assert.match(page, /formatAppRoute/);
+  assert.match(page, /parseAppRoute/);
+  assert.match(page, /paikuOverlayPushed/);
+  assert.match(page, /paikuMatchScreen/);
+  assert.match(page, /paikuMatchJourneyId/);
+  assert.match(page, /paikuMatchJourneyDepth/);
+  assert.match(page, /paikuMatchOrigin/);
+  assert.match(page, /paikuHistoryIndex/);
+  assert.match(page, /planMatchSettlement/);
+  assert.match(page, /materializeMatchSettlement/);
+  assert.match(page, /synthesizeOrigin/);
+  assert.match(page, /stripMatchJourneyState/);
+  assert.match(page, /MATCH_JOURNEY_LIFECYCLE_STORAGE_KEY/);
+  assert.match(page, /findSettledMatchJourney/);
+  assert.match(page, /recordSettledMatchJourney/);
+  assert.match(page, /buildColdMatchHistory/);
+  assert.match(page, /paikuMatchRecovery/);
+  assert.match(page, /这份匹配结果不在当前设备/);
+  assert.match(page, /当前浏览器无法持久保存/);
+  assert.match(page, /closeTopOverlayRef/);
+  assert.match(page, /className="compare-spec-table"/);
+  assert.match(page, /pendingCompareId/);
+  assert.match(page, /replacePendingCompare/);
+  assert.match(page, /undoCompareChange/);
+  assert.match(page, />撤销</);
+  assert.match(page, /seriesSlots/);
+  assert.match(page, /serializeMatchFlow/);
+  assert.match(page, /restoreMatchScreen/);
+  assert.match(page, /familyTargetRacketId/);
+  assert.match(page, /paikuFamilyScrollTop/);
+  assert.match(page, /paikuFamilyMatrixScrollLeft/);
+  assert.match(page, /paikuRacketScrollTop/);
+  assert.match(page, /paikuViewScrollTop/);
+  assert.match(page, /paikuFocus/);
+  assert.match(page, /paikuFamilyRevealTarget/);
+  assert.match(page, /paikuPendingCompareId/);
+  assert.match(page, /paikuCatalogResultLimit/);
+  assert.match(page, /data-focus-key/);
+  assert.match(page, /dossier-header-compare-/);
+  assert.match(page, /dossier-footer-compare-/);
+  assert.match(page, /queueOverlayHistoryPatch/);
+  assert.match(page, /role="region" aria-label="球拍规格对比表"/);
+  assert.match(page, /tabIndex=\{wideModelMatrix \? 0 : -1\}/);
+  assert.match(page, /compareSlotRackets\.map/);
+  assert.match(page, /disabled=\{Boolean\(pendingCompareRacket\)\}/);
+  assert.match(page, /className="app-shell" inert=\{!sessionReady\} aria-hidden=\{!sessionReady\}/);
+  assert.match(page, /className="skip-link" href="#main-content"/);
+  assert.match(page, /event\.preventDefault\(\); document\.getElementById\("main-content"\)\?\.focus\(\)/);
+  assert.match(page, /<main className="app-content" id="main-content" tabIndex=\{-1\}>/);
+  assert.match(page, /tourCatalogTargets/);
+  assert.match(page, /formatTourRouteState/);
+  assert.match(page, /parseTourRouteState/);
+  assert.match(page, /const commitTourFilter/);
+  assert.match(page, /copyTourLink/);
+  assert.match(page, /查看深度档案/);
+  assert.match(page, /role="group" aria-label="选择巡回赛"/);
   assert.match(page, /aria-live="polite"/);
+  assert.match(page, /className="match-draft-banner"/);
+  assert.match(page, /进度仅保留在本页/);
+  assert.match(page, /className="match-storage-warning"/);
+  assert.match(page, /discover-match-profile/);
+  assert.match(page, /planColdMissingResultRestart/);
+  assert.match(page, /shouldImportCompareRoute/);
+  assert.match(page, /rejectedCount/);
+  assert.match(page, /kind: "import-link"/);
+  assert.match(page, /Command 或 Control 加 Z/);
+  assert.doesNotMatch(page, /7200/);
+  assert.match(page, /SESSION_DOMAIN_STORAGE_KEYS\.match/);
+  assert.match(page, /SESSION_DOMAIN_STORAGE_KEYS\.compare/);
+  assert.match(page, /window\.addEventListener\("storage", handleStorage\)/);
+  assert.match(page, /selectSessionDomainCopy\("compare", legacySessionSaved, legacyLocalSaved\)/);
+  assert.match(page, /reconcileSharedCompare\(\);/);
+  assert.match(page, /compareSlotsEqual\(compareSlots, compareUndo\.afterSlots\)/);
+  assert.doesNotMatch(page, /compareUndo\?\.message === liveMessage/);
+  assert.doesNotMatch(page, /localStorage\.setItem\("paiku-session-v1"/);
+  assert.match(page, /shouldResumeStoredMatchDraft/);
+  assert.match(page, /shouldUseMatchHistoryBack/);
+  assert.match(page, /matchPriorities/);
+  assert.match(page, /护臂 \/ 容错/);
+  assert.match(page, /document\.title = `\$\{pageLabel\}｜拍库`/);
+  assert.match(page, /id="catalog-result-summary"/);
+  assert.match(page, /enterKeyHint="search"/);
+  assert.match(page, /shareCurrentView/);
+  assert.match(page, /compareTableScrollable \? 0 : -1/);
+  assert.match(page, /compareBrowseReturnRef/);
+  assert.match(page, /新标签页打开/);
 
   const galleryPaths = [
     "/rackets/gallery/wilson-blade-v10-02.png",
@@ -69,23 +189,44 @@ test("keeps racket imagery and app interactions wired", async () => {
   ];
   await Promise.all(galleryPaths.map((path) => access(new URL(`../public${path}`, import.meta.url))));
 
-  for (const brand of ["Wilson", "Yonex", "Babolat", "HEAD", "Tecnifibre", "Dunlop", "Völkl", "Prince"]) {
+  for (const brand of ["Wilson", "Yonex", "Babolat", "HEAD", "Tecnifibre", "Dunlop", "Völkl", "Prince", "Solinco", "ProKennex", "Diadem"]) {
     assert.match(catalog, new RegExp(`brand: "${brand}"`));
   }
   const familyIds = catalog.match(/id: "[^"]+", brand:/g) ?? [];
   const catalogModels = catalog.match(/\bspec\("/g) ?? [];
   const catalogImagePaths = [...catalog.matchAll(/^\s+image: "(\/rackets\/[^"]+)"/gm)].map((match) => match[1]);
-  assert.equal(familyIds.length, 37);
-  assert.equal(catalogModels.length, 213);
+  assert.equal(familyIds.length, 49);
+  assert.equal(catalogModels.length, 259);
   assert.equal(catalogImagePaths.length, familyIds.length);
   await Promise.all(catalogImagePaths.map((path) => access(new URL(`../public${path}`, import.meta.url))));
   assert.match(catalog, /export const catalogModelCount/);
   assert.match(catalog, /releaseDate/);
+  assert.doesNotMatch(catalog, /familyUrl: "https:\/\/www\.wilson\.com\/en-us\/explore\/help\/product\/stringing-instructions"/);
   assert.equal((tour.match(/tour: "(?:ATP|WTA)"/g) ?? []).length, 16);
   assert.match(tour, /export const tourRankAsOf = "2026-07-13"/);
+  assert.match(tour, /head\.com\/en_US\/athletes\/tennis\/wta\/karolina-muchova/);
 
   assert.match(css, /min-height:\s*44px/);
-  assert.match(css, /env\(safe-area-inset-bottom\)/);
+  assert.match(css, /\.mini-radar__shape/);
+  assert.match(css, /\.match-draft-banner/);
+  assert.match(css, /\.match-storage-warning/);
+  assert.match(css, /\.skip-link/);
+  assert.match(css, /\.catalog-filter-axis/);
+  assert.match(css, /\.compare-spec-table-scroll:focus-visible[\s\S]*?var\(--accent\) 72%/);
+  assert.match(css, /\.model-matrix__scroll:focus-visible[\s\S]*?var\(--family-accent\) 72%/);
+  assert.match(css, /\.mini-radar svg[\s\S]*?height:\s*106px[\s\S]*?width:\s*120px/);
+  assert.match(css, /\.model-matrix tbody tr[\s\S]*?grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\) 124px/);
+  assert.match(css, /\.model-matrix tbody \.model-matrix__radar-cell[\s\S]*?grid-column:\s*3[\s\S]*?grid-row:\s*1 \/ 5/);
+  assert.match(css, /\.model-matrix__actions[\s\S]*?grid-template-columns:\s*repeat\(3, minmax\(0, 1fr\)\)/);
+  assert.match(css, /\.compare-spec-table/);
+  assert.match(css, /\.match-progress[\s\S]*?repeat\(3, 1fr\)/);
+  assert.match(css, /\.mobile-tabbar[\s\S]*?repeat\(5, minmax\(0, 1fr\)\)/);
+  assert.match(css, /\.catalog-model-result__actions button[\s\S]*?min-height:\s*44px/);
+  assert.match(css, /\.tour-player-card__journey button[\s\S]*?min-height:\s*44px/);
+  for (const edge of ["top", "right", "bottom", "left"]) assert.match(css, new RegExp(`env\\(safe-area-inset-${edge}\\)`));
+  assert.match(css, /\.app-search:focus-within/);
+  assert.match(css, /\.app-search input:focus-visible/);
+  assert.match(css, /\.library-toolbar\s*\{[\s\S]*?top:\s*env\(safe-area-inset-top\)/);
   assert.match(css, /prefers-reduced-motion:\s*reduce/);
   assert.match(css, /prefers-color-scheme:\s*dark/);
   assert.match(layout, /viewportFit:\s*"cover"/);

@@ -11,7 +11,7 @@ export type TourPlayer = {
   brand: string;
   marketedFamily: string;
   marketedModel?: string;
-  mapping: "型号级映射" | "系列级映射";
+  mapping: "型号级映射" | "系列级映射" | "基础型号等效" | "当前拍系参考";
   racketImageId?: string;
   profileUrl: string;
   gearUrl: string;
@@ -135,7 +135,7 @@ export const tourPlayers: TourPlayer[] = [
     countryCode: "SRB",
     brand: "HEAD",
     marketedFamily: "Speed Legend 2025",
-    mapping: "系列级映射",
+    mapping: "当前拍系参考",
     racketImageId: "head-speed-mp-2026",
     profileUrl: "https://www.head.com/en_US/sports/tennis/speed-legend",
     gearUrl: "https://www.head.com/it_IT/product/speed-pro-legend-2025-232066",
@@ -220,7 +220,7 @@ export const tourPlayers: TourPlayer[] = [
     brand: "HEAD",
     marketedFamily: "Boom 2026",
     marketedModel: "Boom MP Alternate 2026",
-    mapping: "型号级映射",
+    mapping: "基础型号等效",
     racketImageId: "head-boom-mp-2024",
     profileUrl: "https://www.head.com/en/athletes/tennis/wta/coco-gauff",
     gearUrl: "https://www.head.com/en/product/boom-mp-alternate-2026-232406",
@@ -254,7 +254,7 @@ export const tourPlayers: TourPlayer[] = [
     marketedFamily: "Speed 2026",
     mapping: "系列级映射",
     racketImageId: "head-speed-mp-2026",
-    profileUrl: "https://www.head.com/tennis/",
+    profileUrl: "https://www.head.com/en_US/athletes/tennis/wta/karolina-muchova",
     gearUrl: "https://www.head.com/en/sports/tennis/speed-racquets/",
     note: "HEAD 当前运动员映射为 Speed 系列，未把页面主图 Speed MP 等同其比赛拍。",
   },
@@ -286,7 +286,7 @@ export const tourPlayers: TourPlayer[] = [
     brand: "Tecnifibre",
     marketedFamily: "T-Fight 2025",
     marketedModel: "T-Fight 300S IG",
-    mapping: "型号级映射",
+    mapping: "基础型号等效",
     racketImageId: "tecnifibre-tfight-305s",
     profileUrl: "https://www.tecnifibre.com/en/pages/iga-swiatek",
     gearUrl: "https://www.tecnifibre.com/en-ue/collections/raquettes-t-fight/products/tfight-300s-ig",

@@ -1,4 +1,5 @@
 import { catalogFamilies, type CatalogFamily, type CatalogModel, type RacketFamilyType } from "./catalog-data";
+import { catalogModelImages } from "./catalog-model-images";
 
 export type Stage = "入门" | "进阶" | "高阶";
 export type PlayStyle = "底线相持" | "上旋进攻" | "全场控制" | "抢点快攻" | "舒适护臂";
@@ -24,6 +25,9 @@ export type DeepRacket = {
   buyUrl: string;
   buyLabel: string;
   image?: string;
+  images?: string[];
+  imageSourceUrl?: string;
+  imageVerifiedAt?: string;
   familyId?: string;
   familyName?: string;
   familyType?: RacketFamilyType;
@@ -192,11 +196,31 @@ function buildStyles(family: CatalogFamily, scores: Record<ScoreKey, number>): P
   return [primary, secondary];
 }
 
-export function catalogRacketId(family: CatalogFamily, modelIndex: number) {
+function modelIdSlug(name: string) {
+  return name
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[×✕]/g, "x")
+    .replace(/\+/g, "-plus")
+    .replace(/&/g, "-and-")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+export function legacyCatalogRacketId(family: CatalogFamily, modelIndex: number) {
   return `catalog-${family.id}-${modelIndex + 1}`;
 }
 
+export function catalogRacketId(family: CatalogFamily, modelIndex: number) {
+  const model = family.models[modelIndex];
+  const slug = model ? modelIdSlug(model.name) : "";
+  return `catalog-${family.id}-${slug || `model-${modelIndex + 1}`}`;
+}
+
 export function buildDeepRacket(family: CatalogFamily, model: CatalogModel, modelIndex: number): DeepRacket {
+  const id = catalogRacketId(family, modelIndex);
+  const modelImages = catalogModelImages[id];
   const scores = buildProfileScores(family, model);
   const stages = buildStages(family, model);
   const styles = buildStyles(family, scores);
@@ -212,7 +236,7 @@ export function buildDeepRacket(family: CatalogFamily, model: CatalogModel, mode
   ].filter(Boolean).join("、");
 
   return {
-    id: catalogRacketId(family, modelIndex),
+    id,
     brand: family.brand,
     model: model.name,
     series: `${family.family} · ${family.type}型`,
@@ -230,7 +254,12 @@ export function buildDeepRacket(family: CatalogFamily, model: CatalogModel, mode
     scores,
     buyUrl: model.url,
     buyLabel: `${family.brand} 官网`,
-    image: family.image,
+    image: modelImages?.images[0] ?? family.image,
+    ...(modelImages ? {
+      images: [...modelImages.images],
+      imageSourceUrl: modelImages.sourceUrl,
+      imageVerifiedAt: modelImages.verifiedAt,
+    } : {}),
     familyId: family.id,
     familyName: family.family,
     familyType: family.type,

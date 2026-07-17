@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { catalogFamilies, catalogModelCount } from "../app/catalog-data.ts";
+import { catalogModelImages } from "../app/catalog-model-images.ts";
 import {
   buildDeepRackets,
   deepRackets,
@@ -21,7 +22,7 @@ function findProfile(familyId, model) {
 
 test("creates one deterministic deep dossier for every catalog model", () => {
   const sourceModels = catalogFamilies.flatMap((family) => family.models.map((model) => ({ family, model })));
-  assert.equal(catalogModelCount, 213);
+  assert.equal(catalogModelCount, 259);
   assert.equal(sourceModels.length, catalogModelCount);
   assert.equal(deepRackets.length, catalogModelCount);
   assert.deepEqual(buildDeepRackets(), deepRackets);
@@ -44,7 +45,10 @@ test("creates one deterministic deep dossier for every catalog model", () => {
       beam: model.beam,
       length: model.length,
     });
-    assert.equal(racket.image, family.image);
+    const modelGallery = catalogModelImages[racket.id];
+    assert.ok(modelGallery, `${racket.brand} ${racket.model} is missing its model gallery`);
+    assert.equal(racket.image, modelGallery.images[0]);
+    assert.deepEqual(racket.images, modelGallery.images);
     assert.ok(racket.summary.length > 10);
     assert.ok(racket.verdict.length > 10);
     assert.match(racket.profileBasis, /官网公开硬规格 \d\/6 项/);
@@ -61,16 +65,18 @@ test("creates one deterministic deep dossier for every catalog model", () => {
 
 test("preserves unknown official specs instead of presenting zeroes", () => {
   const astrel = findProfile("yonex-astrel", "ASTREL 105");
-  assert.equal(astrel.official.weight, null);
-  assert.equal(astrel.official.length, null);
-  assert.equal(officialWeight(astrel), null);
-  assert.equal(formatNumberSpec(officialWeight(astrel), "g"), "—");
+  assert.equal(astrel.official.weight, 260);
+  assert.equal(astrel.official.length, 27);
+  assert.equal(officialWeight(astrel), 260);
+  assert.equal(formatNumberSpec(officialWeight(astrel), "g"), "260 g");
   assert.equal(astrel.releaseDate, "官网未注明");
 
   const tempo = findProfile("tecnifibre-tempo-v2", "Tempo 275 V2");
-  assert.equal(tempo.official.head, null);
-  assert.equal(officialHead(tempo), null);
-  assert.equal(formatNumberSpec(officialHead(tempo), "in²"), "—");
+  assert.equal(tempo.official.head, 105);
+  assert.equal(officialHead(tempo), 105);
+  assert.equal(formatNumberSpec(officialHead(tempo), "in²"), "105 in²");
+  assert.equal(tempo.official.balance, null);
+  assert.equal(tempo.official.beam, null);
 });
 
 test("keeps key specification relationships directionally coherent", () => {
