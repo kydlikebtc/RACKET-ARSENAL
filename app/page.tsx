@@ -54,6 +54,7 @@ import {
   shouldResumeStoredMatchDraft,
   shouldUseMatchHistoryBack,
   snapshotMatchScreen,
+  type MatchPriority,
   type MatchQuestionStep,
   type MatchScreenSnapshot,
 } from "./match-flow";
@@ -123,6 +124,7 @@ import {
   serializeStoredDecision,
 } from "./decision-storage";
 import { HONESTY_NOTES } from "./honesty-notes";
+import { changedRankCount, diffRecommendationRanks } from "./match-preview";
 
 type Racket = DeepRacket;
 
@@ -941,6 +943,7 @@ export default function RacketApp() {
   const [catalogFiltersOpen, setCatalogFiltersOpen] = useState(false);
   const [matchFlow, setMatchFlow] = useState(emptyMatchFlow);
   const [breakdownOpenIds, setBreakdownOpenIds] = useState<readonly string[]>([]);
+  const [previewPriority, setPreviewPriority] = useState<MatchPriority | null>(null);
   const [sessionReady, setSessionReady] = useState(false);
   const [sessionPersistence, setSessionPersistence] = useState<"unknown" | "available" | "memory-only">("unknown");
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -1022,13 +1025,17 @@ export default function RacketApp() {
   const profileStage = matchFlow.committed?.stage ?? matchStage;
   const profileStyle = matchFlow.committed?.style ?? matchStyle;
   const profilePriority = matchFlow.committed?.priority ?? priority;
+  // The preview is an unsaved overlay: everything on the result screen reads
+  // this single display priority so cards, reasons, breakdowns and actions
+  // can never disagree about which ranking is on screen.
+  const displayPriority = previewPriority ?? profilePriority;
   const prescriptionBaseline = prescriptionBaselineId ? deepRacketById.get(prescriptionBaselineId) ?? null : null;
   const generalRecommendations = useMemo(() => (
-    buildRecommendations(deepRackets, profileStage, profileStyle, profilePriority)
-  ), [profileStage, profileStyle, profilePriority]);
+    buildRecommendations(deepRackets, profileStage, profileStyle, displayPriority)
+  ), [profileStage, profileStyle, displayPriority]);
   const prescriptionResults = useMemo(() => (
-    buildSwapPrescription(deepRackets, prescriptionBaseline, profileStage, profileStyle, profilePriority, 3)
-  ), [prescriptionBaseline, profileStage, profileStyle, profilePriority]);
+    buildSwapPrescription(deepRackets, prescriptionBaseline, profileStage, profileStyle, displayPriority, 3)
+  ), [prescriptionBaseline, profileStage, profileStyle, displayPriority]);
   const prescriptionResultById = useMemo(
     () => new Map(prescriptionResults.map((result) => [result.racket.id, result])),
     [prescriptionResults],
@@ -1036,6 +1043,16 @@ export default function RacketApp() {
   const recommendations = prescriptionBaseline
     ? prescriptionResults.map(({ racket, match }) => ({ racket, match }))
     : generalRecommendations;
+  const previewRankChanges = useMemo(() => {
+    if (previewPriority === null || previewPriority === profilePriority) return null;
+    const committedRanking = prescriptionBaseline
+      ? buildSwapPrescription(deepRackets, prescriptionBaseline, profileStage, profileStyle, profilePriority, 3)
+      : buildRecommendations(deepRackets, profileStage, profileStyle, profilePriority);
+    const previewRanking = prescriptionBaseline
+      ? buildSwapPrescription(deepRackets, prescriptionBaseline, profileStage, profileStyle, previewPriority, 3)
+      : buildRecommendations(deepRackets, profileStage, profileStyle, previewPriority);
+    return diffRecommendationRanks(committedRanking, previewRanking, 3);
+  }, [previewPriority, profilePriority, prescriptionBaseline, profileStage, profileStyle]);
 
   const filteredFamilies = useMemo(() => {
     return catalogFamilies
@@ -1387,6 +1404,7 @@ export default function RacketApp() {
     window.history.scrollRestoration = "manual";
     let suppressHashTimer = 0;
     const readRoute = (source: "initial" | "pop" | "hash" = "initial") => {
+      setPreviewPriority(null);
       let entryState = window.history.state as (PaikuHistoryState & Record<string, unknown>) | null;
       const previousHistoryIndex = currentHistoryIndexRef.current;
       const hasStoredHistoryIndex = typeof entryState?.paikuHistoryIndex === "number";
@@ -2513,6 +2531,7 @@ export default function RacketApp() {
   }, [liveMessage, actionableCompareUndo, toastPaused]);
 
   const goToView = (view: AppView, scrollMode: "top" | "restore" = "top") => {
+    setPreviewPriority(null);
     const currentRoute = parseAppRoute(window.location.hash);
     const sameView = activeView === view && !currentRoute.familyId && !currentRoute.racketId;
     if (activeView === "armory" && view !== "armory" && compareBrowseReturnRef.current) {
@@ -3278,10 +3297,29 @@ export default function RacketApp() {
     setBreakdownOpenIds((current) => current.includes(id) ? current.filter((openId) => openId !== id) : [...current, id]);
   };
 
+  // Instant preview only mutates in-memory state: no snapshot persistence, no
+  // history entries, no hash changes. Leaving the screen restores the
+  // committed profile ranking automatically.
+  const previewMatchPriority = (item: MatchPriority) => {
+    const nextPreview = item === profilePriority ? null : item;
+    if (nextPreview === previewPriority) return;
+    setPreviewPriority(nextPreview);
+    if (nextPreview === null) return;
+    const committedRanking = prescriptionBaseline
+      ? buildSwapPrescription(deepRackets, prescriptionBaseline, profileStage, profileStyle, profilePriority, 3)
+      : buildRecommendations(deepRackets, profileStage, profileStyle, profilePriority);
+    const previewRanking = prescriptionBaseline
+      ? buildSwapPrescription(deepRackets, prescriptionBaseline, profileStage, profileStyle, nextPreview, 3)
+      : buildRecommendations(deepRackets, profileStage, profileStyle, nextPreview);
+    const changedCount = changedRankCount(diffRecommendationRanks(committedRanking, previewRanking, 3));
+    setLiveMessage(changedCount > 0 ? `预览 ${nextPreview} 优先，${changedCount} 把球拍名次变化` : `预览 ${nextPreview} 优先，名次没有变化`);
+  };
+
   const restartMatchProfile = () => {
     const recoveringMissingResult = matchRouteNotice === "missing-result";
     setMatchRouteNotice(null);
     setBreakdownOpenIds([]);
+    setPreviewPriority(null);
     const currentRoute = parseAppRoute(window.location.hash);
     const alreadyAtStart = activeView === "match" && currentRoute.matchStep === 0 && !currentRoute.familyId && !currentRoute.racketId;
     if (!alreadyAtStart && !recoveringMissingResult) snapshotCurrentHistoryEntry();
@@ -3433,6 +3471,7 @@ export default function RacketApp() {
 
   const goToPreviousMatchStep = () => {
     if (matchStep <= 0) return;
+    setPreviewPriority(null);
     const state = window.history.state as PaikuHistoryState | null;
     if (shouldUseMatchHistoryBack(matchScreen, Boolean(state?.paikuMatchPushed))) {
       pendingMatchFocusRef.current = true;
@@ -3688,8 +3727,18 @@ export default function RacketApp() {
                 <div className="match-result-hero">
                   <span>{prescriptionBaseline ? `从 ${prescriptionBaseline.model} 出发` : "换拍处方已生成"}</span>
                   <h2 ref={matchHeadingRef} tabIndex={-1}>{profileStage} · {profileStyle}</h2>
-                  <p>优先方向：{profilePriority}。{prescriptionBaseline ? "每个候选都会说明相对当前球拍的收益、取舍与适应成本。" : "选择你当前使用的球拍，可查看更具体的迁移差异。"}</p>
+                  <p>优先方向：{displayPriority}。{prescriptionBaseline ? "每个候选都会说明相对当前球拍的收益、取舍与适应成本。" : "选择你当前使用的球拍，可查看更具体的迁移差异。"}</p>
                   <button onClick={restartMatchProfile}>修改答案</button>
+                </div>
+                <div className="match-priority-preview">
+                  <div className="match-priority-preview__capsules" role="group" aria-label="预览不同优先方向">
+                    {matchPriorities.map((item) => (
+                      <button key={item} type="button" aria-pressed={displayPriority === item} onClick={() => previewMatchPriority(item)}>{item === "护臂" ? "护臂 / 容错" : item}</button>
+                    ))}
+                  </div>
+                  {previewPriority !== null && previewPriority !== profilePriority && (
+                    <p className="match-priority-preview__status">预览中：{previewPriority} 优先（未保存）· 你的档案仍为 {profilePriority} 优先</p>
+                  )}
                 </div>
                 <div className="match-result-list">
                   {recommendations.slice(0, 3).map(({ racket, match }, index) => (
@@ -3700,14 +3749,21 @@ export default function RacketApp() {
                         <span className="match-result-card__copy">
                           <small>{prescriptionResultById.get(racket.id)?.role ?? racket.brand}</small>
                           <strong>{racket.model}</strong>
-                          <span>{prescriptionResultById.get(racket.id)?.gains.join("；") ?? recommendationReason(racket, profileStage, profileStyle, profilePriority)}</span>
+                          {(() => {
+                            const change = previewRankChanges?.find((entry) => entry.id === racket.id);
+                            if (!change || (!change.isNew && change.delta === 0)) return null;
+                            const badge = change.isNew ? "新上榜" : change.delta > 0 ? `↑${change.delta}` : `↓${Math.abs(change.delta)}`;
+                            const spoken = change.isNew ? "较档案榜单新进前三" : change.delta > 0 ? `较档案榜单上升 ${change.delta} 位` : `较档案榜单下降 ${Math.abs(change.delta)} 位`;
+                            return <span className={`match-result-card__rank-change${change.isNew ? " is-new" : change.delta > 0 ? " is-up" : " is-down"}`} role="img" aria-label={spoken}>{badge}</span>;
+                          })()}
+                          <span>{prescriptionResultById.get(racket.id)?.gains.join("；") ?? recommendationReason(racket, profileStage, profileStyle, displayPriority)}</span>
                           {prescriptionBaseline && prescriptionResultById.get(racket.id) && <em>{prescriptionDeltaSummary(prescriptionResultById.get(racket.id) as PrescriptionResult)} · 适应成本 {prescriptionResultById.get(racket.id)?.adaptation}</em>}
                         </span>
                       </button>
                       <div className="match-result-card__score"><b>{Math.round(match)}</b><small>指数</small></div>
                       <button className="match-result-card__add" data-focus-key={`match-result-compare-${racket.id}`} onClick={() => requestCompare(racket.id)} aria-pressed={compareIds.includes(racket.id)} aria-label={!compareIds.includes(racket.id) && compareIds.length >= 3 ? `决策室已有三把候选，管理后再加入 ${racket.model}` : `${compareIds.includes(racket.id) ? "移出" : "加入"} ${racket.model} 决策室`}>{compareIds.includes(racket.id) ? "✓" : compareIds.length >= 3 ? "⇄" : "+"}</button>
                       {!prescriptionBaseline && (() => {
-                        const breakdown = recommendationBreakdown(racket, profileStage, profileStyle, profilePriority);
+                        const breakdown = recommendationBreakdown(racket, profileStage, profileStyle, displayPriority);
                         const expanded = breakdownOpenIds.includes(racket.id);
                         return (
                           <div className="match-result-breakdown">
@@ -3719,7 +3775,7 @@ export default function RacketApp() {
                                 <li>基础分 +{breakdown.base}</li>
                                 <li>{breakdown.stageHit ? `阶段命中 +${breakdown.stagePoints}（适合${profileStage}）` : `阶段未命中 +0（该拍标注：${racket.stages.join("、")}）`}</li>
                                 <li>{breakdown.styleHit ? `打法命中 +${breakdown.stylePoints}（匹配${profileStyle}）` : `打法未命中 +0（该拍标注：${racket.styles.join("、")}）`}</li>
-                                <li>{breakdown.priorityMode === "均衡" ? `六维均衡加权 +${breakdown.priorityPoints.toFixed(1)}（六维均值×0.18 + 最低维×0.06）` : `${profilePriority}加权 +${breakdown.priorityPoints.toFixed(1)}（${profilePriority} ${racket.scores[priorityScoreKeyMap[profilePriority]]}×0.2 + 六维均值×0.04）`}</li>
+                                <li>{breakdown.priorityMode === "均衡" ? `六维均衡加权 +${breakdown.priorityPoints.toFixed(1)}（六维均值×0.18 + 最低维×0.06）` : `${displayPriority}加权 +${breakdown.priorityPoints.toFixed(1)}（${displayPriority} ${racket.scores[priorityScoreKeyMap[displayPriority]]}×0.2 + 六维均值×0.04）`}</li>
                               </ul>
                               <p className="match-result-breakdown__total">合计 {breakdown.raw.toFixed(1)} ≈ 卡面 {Math.round(match)}{breakdown.capped ? `（原始 ${breakdown.raw.toFixed(1)}，封顶 99）` : ""}</p>
                               <p className="match-result-breakdown__note">{HONESTY_NOTES.matchIndex}</p>

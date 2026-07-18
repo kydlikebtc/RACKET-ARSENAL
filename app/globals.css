@@ -1154,6 +1154,64 @@ a:active {
   margin-top: 18px;
 }
 
+/* === match-preview start === */
+.match-priority-preview {
+  display: grid;
+  gap: 8px;
+  margin: 14px 0 12px;
+}
+
+.match-priority-preview__capsules {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.match-priority-preview__capsules button {
+  background: var(--surface);
+  border: 1px solid var(--separator);
+  border-radius: 22px;
+  color: var(--text-soft);
+  font-size: 13px;
+  min-height: 44px;
+  padding: 0 15px;
+}
+
+.match-priority-preview__capsules button[aria-pressed="true"] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+
+.match-priority-preview__status {
+  color: var(--text-soft);
+  font-size: 12px;
+}
+
+.match-result-card__rank-change {
+  background: var(--surface-soft);
+  border-radius: 9px;
+  color: var(--text-soft);
+  font-size: 10px;
+  font-weight: 640;
+  justify-self: start;
+  margin: 1px 0 3px;
+  padding: 2px 7px;
+}
+
+.match-result-card__rank-change.is-up {
+  color: var(--acid);
+}
+
+.match-result-card__rank-change.is-down {
+  color: var(--copper);
+}
+
+.match-result-card__rank-change.is-new {
+  color: var(--accent);
+}
+/* === match-preview end === */
+
 /* === match-breakdown start === */
 .match-result-breakdown {
   border-top: 1px solid var(--separator);
