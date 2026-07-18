@@ -261,3 +261,59 @@ test("canonicalizes invalid Tour query state and drops it from other tabs", () =
   });
   assert.equal(formatTourRouteState({ view: "compare" }, "WTA"), "#compare");
 });
+
+const tourPlayerResolver = (playerId) => (
+  { "iga-swiatek": "WTA", "carlos-alcaraz": "ATP" }[playerId] ?? null
+);
+
+test("round-trips a tour player deep link", () => {
+  const route = { view: "tour", playerId: "carlos-alcaraz" };
+  const hash = formatAppRoute(route);
+
+  assert.equal(hash, "#tour/player/carlos-alcaraz");
+  assert.deepEqual(parseAppRoute(hash), route);
+  assert.equal(formatAppRoute({ view: "tour", playerId: "id with/slash" }), "#tour/player/id%20with%2Fslash");
+  assert.deepEqual(parseAppRoute("#tour/player/id%20with%2Fslash"), { view: "tour", playerId: "id with/slash" });
+
+  const parsed = parseTourRouteState("#tour/player/carlos-alcaraz", "ATP", tourPlayerResolver);
+  assert.deepEqual(parsed, {
+    route,
+    tour: "ATP",
+    playerId: "carlos-alcaraz",
+    canonicalHash: "#tour/player/carlos-alcaraz",
+    shouldReplace: false,
+  });
+});
+
+test("lets the player decide the tour and strips a conflicting query", () => {
+  const parsed = parseTourRouteState("#tour/player/iga-swiatek?tour=ATP", "ATP", tourPlayerResolver);
+
+  assert.equal(parsed.tour, "WTA");
+  assert.equal(parsed.playerId, "iga-swiatek");
+  assert.equal(parsed.canonicalHash, "#tour/player/iga-swiatek");
+  assert.equal(parsed.shouldReplace, true);
+  assert.equal(formatTourRouteState({ view: "tour", playerId: "iga-swiatek" }, "WTA"), "#tour/player/iga-swiatek");
+});
+
+test("falls back to the plain tour list for unknown or undecodable players", () => {
+  for (const hash of ["#tour/player/unknown-player", "#tour/player/%E4%ZZ", "#tour/player/"]) {
+    const parsed = parseTourRouteState(hash, "ATP", tourPlayerResolver);
+    assert.deepEqual(parsed.route, { view: "tour" });
+    assert.equal(parsed.playerId, undefined);
+    assert.equal(parsed.canonicalHash, "#tour");
+    assert.equal(parsed.shouldReplace, true);
+  }
+  const withoutResolver = parseTourRouteState("#tour/player/iga-swiatek?tour=WTA");
+  assert.deepEqual(withoutResolver.route, { view: "tour" });
+  assert.equal(withoutResolver.canonicalHash, "#tour?tour=WTA");
+  const otherView = parseAppRoute("#armory/player/iga-swiatek");
+  assert.deepEqual(otherView, { view: "armory" });
+});
+
+test("drops the player segment as soon as a racket overlay opens", () => {
+  const overlay = formatAppRoute({ view: "tour", playerId: "iga-swiatek", racketId: "catalog-x" });
+
+  assert.equal(overlay, "#tour/racket/catalog-x");
+  assert.deepEqual(parseAppRoute(overlay), { view: "tour", racketId: "catalog-x" });
+  assert.equal(formatTourRouteState({ view: "tour", playerId: "iga-swiatek", racketId: "catalog-x" }, "WTA"), "#tour/racket/catalog-x?tour=WTA");
+});

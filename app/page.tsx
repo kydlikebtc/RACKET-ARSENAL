@@ -125,6 +125,7 @@ import {
 } from "./decision-storage";
 import { HONESTY_NOTES } from "./honesty-notes";
 import { changedRankCount, diffRecommendationRanks } from "./match-preview";
+import { buildTourPlayerSync } from "./tour-sync";
 
 type Racket = DeepRacket;
 
@@ -193,6 +194,8 @@ const radarSeries = ["var(--acid)", "var(--copper)", "var(--sky)"];
 const radarDash = ["none", "10 5", "2 5"];
 const compareBaselineIds = ["catalog-wilson-blade-v10-blade-100-v10", "catalog-yonex-ezone-8-ezone-100", "catalog-babolat-pure-aero-gen9-pure-aero-gen9"];
 const deepRacketById = new Map(deepRackets.map((racket) => [racket.id, racket]));
+const tourPlayerById = new Map(tourPlayers.map((player) => [player.id, player]));
+const resolveTourPlayerRouteFilter = (playerId: string) => tourPlayerById.get(playerId)?.tour ?? null;
 const catalogFamilyById = new Map(catalogFamilies.map((family) => [family.id, family]));
 for (const family of catalogFamilies) {
   family.models.forEach((_, modelIndex) => {
@@ -896,7 +899,7 @@ function TourPlayerCard({
   const linkedRacket = target?.kind === "racket" ? deepRacketById.get(target.racketId) : undefined;
 
   return (
-    <article className={`tour-player-card${leader ? " tour-player-card--leader" : ""}`}>
+    <article id={`tour-player-${player.id}`} tabIndex={-1} className={`tour-player-card${leader ? " tour-player-card--leader" : ""}`}>
       <div className="tour-player-card__rank"><span>{player.tour}</span><b>#{player.rank}</b></div>
       <div className="tour-player-card__visual"><TourRacketVisual player={player} /></div>
       <div className="tour-player-card__body">
@@ -944,6 +947,8 @@ export default function RacketApp() {
   const [matchFlow, setMatchFlow] = useState(emptyMatchFlow);
   const [breakdownOpenIds, setBreakdownOpenIds] = useState<readonly string[]>([]);
   const [previewPriority, setPreviewPriority] = useState<MatchPriority | null>(null);
+  const [tourPlayerLanding, setTourPlayerLanding] = useState<{ id: string; token: number } | null>(null);
+  const tourLandingTokenRef = useRef(0);
   const [sessionReady, setSessionReady] = useState(false);
   const [sessionPersistence, setSessionPersistence] = useState<"unknown" | "available" | "memory-only">("unknown");
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -1053,6 +1058,9 @@ export default function RacketApp() {
       : buildRecommendations(deepRackets, profileStage, profileStyle, previewPriority);
     return diffRecommendationRanks(committedRanking, previewRanking, 3);
   }, [previewPriority, profilePriority, prescriptionBaseline, profileStage, profileStyle]);
+  const tourPlayerSync = useMemo(() => (
+    buildTourPlayerSync(tourPlayers, tourCatalogTargets, deepRackets, { stage: profileStage, style: profileStyle, priority: displayPriority }, recommendationScore)
+  ), [profileStage, profileStyle, displayPriority]);
 
   const filteredFamilies = useMemo(() => {
     return catalogFamilies
@@ -1438,7 +1446,7 @@ export default function RacketApp() {
       }
 
       const armoryRouteState = parseArmoryRouteState(window.location.hash, armoryFilterConfig);
-      const tourRouteState = parseTourRouteState(window.location.hash);
+      const tourRouteState = parseTourRouteState(window.location.hash, "ATP", resolveTourPlayerRouteFilter);
       let compareRouteState = parseCompareRouteState(
         window.location.hash,
         (id) => deepRacketById.get(id)?.id ?? null,
@@ -1521,6 +1529,7 @@ export default function RacketApp() {
       let racket = parsedRoute.racketId ? deepRacketById.get(parsedRoute.racketId) : undefined;
       if (parsedRoute.racketId && !racket) setLiveMessage("该球拍链接已失效，已返回当前栏目");
       else if (parsedRoute.familyId && !familyId) setLiveMessage("该拍系链接已变更，已返回当前栏目");
+      else if (parsedRoute.view === "tour" && parsedRoute.playerId && !tourRouteState.playerId) setLiveMessage("该球星链接已失效，已返回巡回赛拍房");
       let nestedFamilyId = familyId && racket?.familyId === familyId ? familyId : undefined;
       const matchRouteStep = parsedRoute.view === "match" && !parsedRoute.familyId && !parsedRoute.racketId
         ? parsedRoute.matchStep
@@ -1539,7 +1548,7 @@ export default function RacketApp() {
           ? { view: parsedRoute.view, ...(nestedFamilyId ? { familyId: nestedFamilyId } : {}), racketId: racket.id }
           : familyId
             ? { view: parsedRoute.view, familyId }
-            : { view: parsedRoute.view };
+            : { view: parsedRoute.view, ...(tourRouteState.playerId ? { playerId: tourRouteState.playerId } : {}) };
       let state = window.history.state as (PaikuHistoryState & Record<string, unknown>) | null;
 
       const settledJourney = state?.paikuMatchJourneyId
@@ -1732,6 +1741,14 @@ export default function RacketApp() {
       setSelectedId(racket?.id ?? null);
       setSelectedFamilyId(!racket && familyId ? familyId : null);
       setDetailReturnFamilyId(nestedFamilyId ?? null);
+      if (route.view === "tour" && route.playerId) {
+        if (!state?.paikuFocus) {
+          setTourPlayerLanding({ id: route.playerId, token: ++tourLandingTokenRef.current });
+          setLiveMessage(`已定位到 ${tourPlayerById.get(route.playerId)?.nameZh ?? "目标球星"} 的球星卡`);
+        }
+      } else {
+        setTourPlayerLanding(null);
+      }
       const pendingCandidate = route.view === "compare" && state?.paikuPendingCompareId
         ? deepRacketById.get(state.paikuPendingCompareId)
         : undefined;
@@ -2111,7 +2128,7 @@ export default function RacketApp() {
       compareSlotsRef.current = restoredCompareSlots;
       setCompareSlots(restoredCompareSlots);
       const savedTourFilter: Tour = (storedTour ?? saved?.tourFilter) === "WTA" ? "WTA" : "ATP";
-      applyTourFilterToState(route.view === "tour" ? parseTourRouteState(window.location.hash).tour : savedTourFilter);
+      applyTourFilterToState(route.view === "tour" ? parseTourRouteState(window.location.hash, "ATP", resolveTourPlayerRouteFilter).tour : savedTourFilter);
       const savedCatalogSource = storedCatalog ?? saved?.catalog;
       const savedCatalog = savedCatalogSource && typeof savedCatalogSource === "object" && !Array.isArray(savedCatalogSource)
         ? savedCatalogSource as Record<string, unknown>
@@ -3051,9 +3068,46 @@ export default function RacketApp() {
     }
   };
 
+  useEffect(() => {
+    if (!tourPlayerLanding) return;
+    const frame = window.requestAnimationFrame(() => {
+      const card = document.getElementById(`tour-player-${tourPlayerLanding.id}`);
+      if (!card) return;
+      card.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
+      card.focus({ preventScroll: true });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [tourPlayerLanding]);
+
+  const openTourPlayer = (playerId: string) => {
+    const player = tourPlayerById.get(playerId);
+    if (!player) return;
+    snapshotCurrentHistoryEntry();
+    setPreviewPriority(null);
+    viewScrollPositionsRef.current[activeViewRef.current] = window.scrollY;
+    pendingViewFocusRef.current = null;
+    pendingHistoryFocusRef.current = null;
+    pendingPageFocusRef.current = false;
+    setSelectedId(null);
+    setSelectedFamilyId(null);
+    setFamilyTargetRacketId(null);
+    setDetailReturnFamilyId(null);
+    familyReturnRacketRef.current = null;
+    applyTourFilterToState(player.tour);
+    setActiveView("tour");
+    activeViewRef.current = "tour";
+    const route: AppRoute = { view: "tour", playerId: player.id };
+    lastRouteRef.current = route;
+    pushPaikuHistory({ paiku: true, paikuOverlayPushed: false, paikuMatchPushed: false, paikuViewScrollTop: 0 }, "", formatCurrentRoute(route));
+    setTourPlayerLanding({ id: player.id, token: ++tourLandingTokenRef.current });
+    setLiveMessage(`已定位到 ${player.nameZh} 的球星卡`);
+  };
+
   const copyTourLink = async () => {
+    const url = new URL(window.location.href);
+    url.hash = formatTourRouteState({ view: "tour" }, tourFilterRef.current);
     try {
-      await navigator.clipboard.writeText(window.location.href);
+      await navigator.clipboard.writeText(url.href);
       setLiveMessage(`已复制 ${tourFilterRef.current} 榜单链接`);
     } catch {
       setLiveMessage("浏览器未允许复制，请直接复制地址栏链接");
@@ -3210,8 +3264,14 @@ export default function RacketApp() {
     if (nextTour === tourFilterRef.current) return;
     if (activeViewRef.current === "tour") snapshotCurrentHistoryEntry();
     applyTourFilterToState(nextTour);
+    setTourPlayerLanding(null);
     if (activeViewRef.current === "tour") {
-      const route = parseAppRoute(window.location.hash);
+      const parsedTourRoute = parseAppRoute(window.location.hash);
+      const route: AppRoute = {
+        view: parsedTourRoute.view,
+        ...(parsedTourRoute.familyId ? { familyId: parsedTourRoute.familyId } : {}),
+        ...(parsedTourRoute.racketId ? { racketId: parsedTourRoute.racketId } : {}),
+      };
       const focused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
       pushPaikuHistory({
         ...((window.history.state as Record<string, unknown> | null) ?? {}),
@@ -3786,6 +3846,28 @@ export default function RacketApp() {
                     </article>
                   ))}
                 </div>
+                <section className="match-sync" aria-labelledby="match-sync-title">
+                  <div className="match-sync__head">
+                    <p>Tour Sync</p>
+                    <h3 id="match-sync-title">球星同频</h3>
+                  </div>
+                  <p className="match-sync__note">{HONESTY_NOTES.tourSync}</p>
+                  <ul className="match-sync__list">
+                    {tourPlayerSync.slice(0, 4).map((item) => (
+                      <li key={item.player.id}>
+                        <button type="button" data-focus-key={`tour-sync-open-${item.player.id}`} onClick={() => openTourPlayer(item.player.id)} aria-label={`${item.player.nameZh}，${item.player.tour} 第 ${item.player.rank} 位，同频 ${item.syncScore}%，${item.mapping}，打开球星卡`}>
+                          <span className="match-sync__who">
+                            <strong>{item.player.nameZh}</strong>
+                            <small>{item.player.tour} #{item.player.rank} · {item.mapping}</small>
+                            <small>{tourCatalogTargets[item.player.id]?.kind === "family" ? `按系内最同频型号 ${item.viaRacket.model} 估算` : `依据型号 ${item.viaRacket.model}`}</small>
+                          </span>
+                          <span className="match-sync__score"><b>同频 {item.syncScore}%</b><i aria-hidden="true">›</i></span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                  <button type="button" className="match-sync__all" data-focus-key="tour-sync-all" onClick={() => goToView("tour")}>查看全部 {tourPlayers.length} 位球星</button>
+                </section>
                 <div className="match-results-actions"><button className="app-button app-button--primary" onClick={compareIds.length > 0 ? () => goToView("compare") : compareTopMatches}>{compareIds.length > 0 ? `进入决策室 ${compareIds.length}/3` : "把前两名放入决策室"}</button><button className="app-button app-button--soft" onClick={browseFullCatalog}>浏览完整拍库</button></div>
               </section>
             )}
