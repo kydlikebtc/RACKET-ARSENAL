@@ -14,6 +14,7 @@ import {
 import { catalogBrandProfile } from "./brand-data";
 import { buildCuratedListEntries, curatedCriteriaSummary, curatedLists } from "./curated-lists";
 import { HONESTY_NOTES } from "./honesty-notes";
+import { normalizeRecentRackets, recordRecentRacket, removeRecentRacket } from "./recent-rackets";
 import {
   catalogRacketId,
   deepRackets,
@@ -911,6 +912,7 @@ export default function RacketApp() {
   const [sessionReady, setSessionReady] = useState(false);
   const [sessionPersistence, setSessionPersistence] = useState<"unknown" | "available" | "memory-only">("unknown");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [recentRacketIds, setRecentRacketIds] = useState<string[]>([]);
   const [selectedFamilyId, setSelectedFamilyId] = useState<string | null>(null);
   const [familyTargetRacketId, setFamilyTargetRacketId] = useState<string | null>(null);
   const [detailReturnFamilyId, setDetailReturnFamilyId] = useState<string | null>(null);
@@ -2083,6 +2085,7 @@ export default function RacketApp() {
         ? parseArmoryRouteState(window.location.hash, armoryFilterConfig).filters
         : savedArmoryFilters;
       applyArmoryFiltersToState(initialArmoryFilters);
+      setRecentRacketIds(normalizeRecentRackets(savedCatalog?.recents, (id) => deepRacketById.get(id)?.id ?? null));
     } catch {
       // A browser history or storage restriction falls back to the server-rendered defaults.
     }
@@ -2168,10 +2171,19 @@ export default function RacketApp() {
       releaseYear: catalogReleaseYear,
       search: catalogSearch,
       sort: catalogSort,
+      recents: recentRacketIds,
     });
     const frame = window.requestAnimationFrame(() => setSessionPersistence(saved ? "available" : "memory-only"));
     return () => window.cancelAnimationFrame(frame);
-  }, [sessionReady, catalogScope, catalogBrand, catalogType, catalogGeneration, catalogReleaseYear, catalogSearch, catalogSort, writeSessionDomain]);
+  }, [sessionReady, catalogScope, catalogBrand, catalogType, catalogGeneration, catalogReleaseYear, catalogSearch, catalogSort, recentRacketIds, writeSessionDomain]);
+
+  useEffect(() => {
+    if (!selectedId) return;
+    const canonicalId = deepRacketById.get(selectedId)?.id;
+    if (!canonicalId) return;
+    const frame = window.requestAnimationFrame(() => setRecentRacketIds((current) => recordRecentRacket(current, canonicalId)));
+    return () => window.cancelAnimationFrame(frame);
+  }, [selectedId]);
 
   useEffect(() => {
     if (!sessionReady || decisionHydratedRef.current) return;
@@ -2598,6 +2610,32 @@ export default function RacketApp() {
     queueOverlayHistoryPatch({
       paikuRacketScrollTop: scrollTop,
     });
+  };
+
+  const recentRackets = useMemo(
+    () => recentRacketIds.map((id) => deepRacketById.get(id)).filter((racket): racket is Racket => Boolean(racket)),
+    [recentRacketIds],
+  );
+
+  const focusRecentShelfAnchor = () => {
+    window.requestAnimationFrame(() => {
+      const anchor = document.getElementById("recent-shelf-title") ?? document.getElementById("main-content");
+      anchor?.focus();
+    });
+  };
+
+  const removeRecent = (id: string) => {
+    const racket = deepRacketById.get(id);
+    setRecentRacketIds((current) => removeRecentRacket(current, id));
+    setLiveMessage(racket ? `已从最近看过移除 ${racket.brand} ${racket.model}` : "已从最近看过移除该球拍");
+    focusRecentShelfAnchor();
+  };
+
+  const clearRecentRackets = () => {
+    if (recentRacketIds.length === 0) return;
+    setRecentRacketIds([]);
+    setLiveMessage("已清空最近看过");
+    focusRecentShelfAnchor();
   };
 
   const openRacket = (id: string) => {
@@ -3642,6 +3680,30 @@ export default function RacketApp() {
                 <span>Tour Locker</span><b>ATP + WTA 前 8</b><small>看明星球员的官网公开用拍</small><i aria-hidden="true">›</i>
               </button>
             </div>
+
+            {recentRackets.length > 0 && (
+              <section className="recent-shelf" aria-labelledby="recent-shelf-title">
+                <div className="recent-shelf__header">
+                  <div>
+                    <h2 id="recent-shelf-title" tabIndex={-1}>最近看过</h2>
+                    <p>{sessionPersistence === "memory-only" ? "仅保留在本页，刷新或关闭页面后会丢失" : "仅保存在本机"}</p>
+                  </div>
+                  <button className="recent-shelf__clear" data-focus-key="recent-clear" onClick={clearRecentRackets} aria-label="清空最近看过">清空</button>
+                </div>
+                <ul className="recent-shelf__track">
+                  {recentRackets.map((racket) => (
+                    <li key={racket.id} className="recent-shelf__item">
+                      <button className="recent-shelf__open" data-focus-key={`recent-open-${racket.id}`} onClick={() => openRacket(racket.id)}>
+                        <RacketPhoto racket={racket} variant="thumb" />
+                        <span>{racket.brand}</span>
+                        <b>{racket.model}</b>
+                      </button>
+                      <button className="recent-shelf__remove" data-focus-key={`recent-remove-${racket.id}`} aria-label={`从最近看过移除 ${racket.brand} ${racket.model}`} onClick={() => removeRecent(racket.id)}>×</button>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
           </section>
         )}
 

@@ -3351,6 +3351,116 @@ a:active {
 }
 /* === curated-lists end === */
 
+/* === recent-shelf start === */
+.recent-shelf {
+  margin-top: 28px;
+}
+
+.recent-shelf__header {
+  align-items: end;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.recent-shelf__header h2 {
+  font-size: 19px;
+  letter-spacing: -0.02em;
+}
+
+.recent-shelf__header h2:focus-visible {
+  border-radius: 8px;
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.recent-shelf__header p {
+  color: var(--text-soft);
+  font-size: 11px;
+  margin-top: 3px;
+}
+
+.recent-shelf__clear {
+  border: 1px solid var(--separator);
+  border-radius: 22px;
+  color: var(--text-soft);
+  font-size: 12px;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 8px 16px;
+}
+
+.recent-shelf__clear:hover {
+  color: var(--accent);
+}
+
+.recent-shelf__track {
+  display: grid;
+  gap: 10px;
+  grid-auto-columns: 148px;
+  grid-auto-flow: column;
+  list-style: none;
+  margin-top: 14px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+  scroll-snap-type: inline proximity;
+}
+
+.recent-shelf__item {
+  display: grid;
+  gap: 6px;
+  grid-template-rows: 1fr auto;
+  scroll-snap-align: start;
+}
+
+.recent-shelf__open {
+  background: var(--surface);
+  border: 1px solid var(--separator);
+  border-radius: 18px;
+  display: grid;
+  gap: 3px;
+  justify-items: start;
+  min-height: 44px;
+  padding: 12px;
+  text-align: left;
+}
+
+.recent-shelf__open:hover {
+  box-shadow: var(--shadow-soft);
+}
+
+.recent-shelf__open .racket-photo {
+  height: 84px;
+  justify-self: center;
+  margin-bottom: 5px;
+  width: 100%;
+}
+
+.recent-shelf__open span {
+  color: var(--text-soft);
+  font-size: 10px;
+}
+
+.recent-shelf__open b {
+  font-size: 13px;
+  letter-spacing: -0.01em;
+}
+
+.recent-shelf__remove {
+  border: 1px solid var(--separator);
+  border-radius: 14px;
+  color: var(--text-soft);
+  font-size: 15px;
+  min-height: 44px;
+  min-width: 44px;
+  width: 100%;
+}
+
+.recent-shelf__remove:hover {
+  color: var(--accent);
+}
+/* === recent-shelf end === */
+
 .library-mode-switch {
   background: var(--surface-soft);
   border: 1px solid var(--separator);
