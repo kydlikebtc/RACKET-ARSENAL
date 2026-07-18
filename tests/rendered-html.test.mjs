@@ -80,6 +80,8 @@ test("keeps racket imagery and app interactions wired", async () => {
   assert.match(trailingActions, /\u5b98\u7f51\u8d44\u6599/);
   assert.match(page, /function RacketSpecTags/);
   assert.match(page, /function ModelSpecValue/);
+  assert.match(page, /<small>\{tag\.characteristic\}<\/small>/);
+  assert.match(page, /\{tag\.known && <em>\{tag\.familyPosition\}<\/em>\}/);
   assert.match(page, /className="catalog-model-result__tags"><RacketSpecTags racket=\{racket\}/);
   assert.match(page, /<RacketSpecTags racket=\{selected\} expanded showSummary \/>/);
   assert.match(page, />深度档案</);
@@ -235,6 +237,8 @@ test("keeps racket imagery and app interactions wired", async () => {
   assert.match(css, /\.model-matrix__dossier[\s\S]*?min-height:\s*44px/);
   assert.match(css, /\.racket-spec-tag--mainstream/);
   assert.match(css, /\.racket-spec-tags__traits/);
+  assert.match(css, /\.model-spec-value\.is-mainstream small[\s\S]*?var\(--family-accent\)/);
+  assert.match(css, /\.model-spec-value em[\s\S]*?font-style:\s*normal/);
   assert.match(css, /\.compare-spec-table/);
   assert.match(css, /\.match-progress[\s\S]*?repeat\(3, 1fr\)/);
   assert.match(css, /\.mobile-tabbar[\s\S]*?repeat\(5, minmax\(0, 1fr\)\)/);

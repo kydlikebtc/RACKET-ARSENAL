@@ -338,15 +338,24 @@ const specDimensionLabels = {
   length: "长度",
 } as const;
 
+function modelMatrixOverview(racket: Racket) {
+  const coverage = racket.knownSpecCount < 6
+    ? `已公开 ${racket.knownSpecCount}/6 项`
+    : `${racket.mainstreamSpecCount}/6 项常见规格`;
+  const distinctive = racket.primaryTraitTags.find((trait) => !trait.startsWith("主流") && trait !== "参数待补");
+  const note = distinctive ?? (racket.knownSpecCount < 6 ? "参数待补" : racket.isMainstream ? "主流组合" : "已逐项标注");
+  return `${coverage} · ${note}`;
+}
+
 function ModelSpecValue({ racket, dimension }: { racket: Racket; dimension: keyof typeof specDimensionLabels }) {
   const tag = racket.specTags.find((item) => item.key === dimension);
   if (!tag) return <span>—</span>;
 
   return (
-    <div className={`model-spec-value${tag.mainstream ? " is-mainstream" : ""}${tag.known ? "" : " is-unknown"}`} aria-label={`${tag.label}${tag.mainstream ? `，主流${specDimensionLabels[dimension]}` : ""}`}>
+    <div className={`model-spec-value${tag.mainstream ? " is-mainstream" : tag.known ? " is-trait" : " is-unknown"}`} aria-label={`${specDimensionLabels[dimension]}：${tag.label}；特点：${tag.characteristic}${tag.known ? `；${tag.familyPosition}` : ""}`}>
       <span>{tag.label}</span>
-      {tag.mainstream && <small>主流{specDimensionLabels[dimension]}</small>}
-      {!tag.known && <small>官网未公开</small>}
+      <small>{tag.characteristic}</small>
+      {tag.known && <em>{tag.familyPosition}</em>}
     </div>
   );
 }
@@ -373,8 +382,10 @@ function RacketSpecTags({
         <div className="racket-spec-tags__specs" aria-label={`${racket.model} 公开规格标签`}>
           {racket.specTags.map((tag) => (
             <span key={tag.key} className={`racket-spec-tag${tag.mainstream ? " racket-spec-tag--mainstream" : ""}${tag.known ? "" : " racket-spec-tag--unknown"}`}>
-              <small>{tag.mainstream ? `主流${specDimensionLabels[tag.key]}` : specDimensionLabels[tag.key]}</small>
+              <small>{specDimensionLabels[tag.key]}</small>
               <b>{tag.label}</b>
+              <span>{tag.characteristic}</span>
+              {tag.known && <em>{tag.familyPosition}</em>}
             </span>
           ))}
         </div>
@@ -3367,7 +3378,7 @@ export default function RacketApp() {
               eyebrow={`${deepRackets.length} 份深度档案 · ${catalogFamilies.length} 个拍系`}
               title="球拍库"
             />
-            <div className="dossier-explainer"><span>年鉴 × 六维雷达</span><p>每个型号都有独立雷达与规格标签；“主流”指硬规格落入拍库定义的成人性能拍常见区间，不代表销量排名。进入深度档案可看完整特点、适合阶段与打法。</p></div>
+            <div className="dossier-explainer"><span>年鉴 × 六维雷达</span><p>每个型号都有独立雷达与六项规格标签；每项同时显示参数特点和相对本拍系中位值的差异。“主流”指拍库常见区间，不代表销量排名。</p></div>
             <section className="catalog-coverage" aria-label="拍库覆盖范围">
               <div><span>品牌</span><b>{catalogBrands.length}</b><small>主流性能品牌</small></div>
               <div><span>拍系</span><b>{catalogFamilies.length}</b><small>按当前代去重</small></div>
@@ -3597,7 +3608,7 @@ export default function RacketApp() {
                 <div><dt>数据核验</dt><dd>{catalogVerifiedAt}</dd></div>
               </dl>
               <section className="model-matrix" aria-labelledby="model-matrix-title">
-                <div className="model-matrix__heading"><div><p>Variant matrix</p><h3 id="model-matrix-title">全系参数与六维雷达</h3></div><span>主流 = 拍库常见区间 · 待补 = 官网未公开</span></div>
+                <div className="model-matrix__heading"><div><p>Variant matrix</p><h3 id="model-matrix-title">全系参数与六维雷达</h3></div><span>每项 = 官网数值 · 参数特点 · 本系中位差</span></div>
                 <p className="model-matrix__scroll-hint" id={`model-matrix-scroll-hint-${selectedFamily.id}`}>{wideModelMatrix ? "深度档案固定在左侧；横向滑动或使用方向键查看完整规格" : "每张卡片顶部均可直接进入深度档案"}</p>
                 <div className="model-matrix__scroll" role="region" aria-label={`${selectedFamily.brand} ${selectedFamily.family} 全系参数与六维雷达`} aria-describedby={`model-matrix-scroll-hint-${selectedFamily.id}`} tabIndex={wideModelMatrix ? 0 : -1} onScroll={(event) => persistFamilyMatrixScroll(event.currentTarget.scrollLeft)}>
                   <table>
@@ -3611,7 +3622,7 @@ export default function RacketApp() {
                               <button className="model-matrix__dossier" data-racket-id={racketProfile.id} data-focus-key={`family-dossier-${racketProfile.id}`} onClick={() => openRacket(racketProfile.id)} aria-label={`打开 ${model.name} 深度档案`}>
                                 <strong>{model.name}</strong><span>查看深度档案 <span aria-hidden="true">›</span></span>
                               </button>
-                              <RacketSpecTags racket={racketProfile} compact showSpecs={false} />
+                              <p className="model-matrix__overview">{modelMatrixOverview(racketProfile)}</p>
                             </th>
                             <td className="model-matrix__radar-cell" data-label="六维雷达"><button className="model-matrix__radar-button" data-focus-key={`family-radar-${racketProfile.id}`} onClick={() => openRacket(racketProfile.id)} aria-label={`打开 ${model.name} 完整六维雷达`}><MiniRadar racket={racketProfile} /></button></td>
                             <td data-label="发行">{modelReleaseLabel(selectedFamily, model.releaseDate)}</td>

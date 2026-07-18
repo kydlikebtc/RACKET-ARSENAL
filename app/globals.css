@@ -3586,18 +3586,33 @@ a:active {
 .model-spec-value {
   align-items: start;
   display: grid;
-  gap: 5px;
+  gap: 3px;
   justify-items: start;
+  min-width: 88px;
+  white-space: normal;
 }
 
 .model-spec-value small {
-  background: color-mix(in srgb, var(--family-accent) 11%, var(--surface-soft));
+  background: var(--surface-soft);
   border-radius: 999px;
-  color: var(--family-accent);
+  color: var(--text-soft);
   font-family: var(--font);
   font-size: 8px;
   font-weight: 650;
   padding: 3px 6px;
+}
+
+.model-spec-value.is-mainstream small {
+  background: color-mix(in srgb, var(--family-accent) 11%, var(--surface-soft));
+  color: var(--family-accent);
+}
+
+.model-spec-value em {
+  color: var(--text-faint);
+  font-family: var(--font);
+  font-size: 8px;
+  font-style: normal;
+  line-height: 1.25;
 }
 
 .model-spec-value.is-unknown {
@@ -3606,7 +3621,15 @@ a:active {
 
 .model-spec-value.is-unknown small {
   background: var(--surface-soft);
+  border: 1px dashed var(--separator-strong);
   color: var(--text-faint);
+}
+
+.model-matrix__overview {
+  color: var(--text-faint);
+  font-size: 8px;
+  line-height: 1.45;
+  margin: 6px 8px 2px;
 }
 
 .racket-spec-tags {
@@ -3643,17 +3666,33 @@ a:active {
   overflow-wrap: anywhere;
 }
 
+.racket-spec-tag > span {
+  color: var(--text-soft);
+  font-size: 9px;
+  font-weight: 650;
+  line-height: 1.3;
+}
+
+.racket-spec-tag > em {
+  color: var(--text-faint);
+  font-size: 8px;
+  font-style: normal;
+  line-height: 1.3;
+}
+
 .racket-spec-tag--mainstream {
   background: color-mix(in srgb, var(--spec-tag-accent) 10%, var(--surface));
   border-color: color-mix(in srgb, var(--spec-tag-accent) 24%, var(--separator));
 }
 
 .racket-spec-tag--mainstream small,
-.racket-spec-tag--mainstream b {
+.racket-spec-tag--mainstream b,
+.racket-spec-tag--mainstream > span {
   color: var(--spec-tag-accent);
 }
 
-.racket-spec-tag--unknown b {
+.racket-spec-tag--unknown b,
+.racket-spec-tag--unknown > span {
   color: var(--text-faint);
 }
 
@@ -3704,10 +3743,6 @@ a:active {
 .racket-spec-tags--compact .racket-spec-tags__traits > span {
   font-size: 8px;
   padding: 4px 6px;
-}
-
-.model-matrix__identity > .racket-spec-tags {
-  margin: 7px 8px 2px;
 }
 
 .model-matrix td:not(:first-child) {
@@ -5223,6 +5258,11 @@ a:active {
 
   .model-matrix__dossier strong {
     font-size: 14px;
+  }
+
+  .model-matrix .model-spec-value {
+    gap: 2px;
+    min-width: 0;
   }
 
   .model-matrix tbody td {

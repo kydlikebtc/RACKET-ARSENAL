@@ -8,6 +8,8 @@ export type ScoreKey = "control" | "power" | "spin" | "feel" | "forgiveness" | "
 export type RacketSpecTag = {
   key: "head" | "weight" | "pattern" | "balance" | "beam" | "length";
   label: string;
+  characteristic: string;
+  familyPosition: string;
   mainstream: boolean;
   known: boolean;
 };
@@ -120,6 +122,105 @@ function normalizedPattern(pattern: string | null) {
   return pattern?.replace(/\s/g, "").toLowerCase().replace(/x/g, "×") ?? null;
 }
 
+function median(values: number[]) {
+  const sorted = [...values].sort((left, right) => left - right);
+  const middle = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 0 ? (sorted[middle - 1] + sorted[middle]) / 2 : sorted[middle];
+}
+
+function formatDelta(value: number) {
+  const rounded = Math.round(value * 100) / 100;
+  return Number.isInteger(rounded) ? String(rounded) : String(Number(rounded.toFixed(2)));
+}
+
+function numericFamilyPosition(values: Array<number | null>, current: number | null, unit: string, prefix = "") {
+  if (current === null) return "无法同系比较";
+  const known = values.filter((value): value is number => value !== null && Number.isFinite(value));
+  if (known.length <= 1) return "本系唯一公开";
+  if (new Set(known.map((value) => value.toFixed(3))).size === 1) return "本系共用";
+  const difference = current - median(known);
+  if (Math.abs(difference) < 0.005) return "本系中位";
+  return `本系${prefix ? `${prefix} ` : " "}${difference > 0 ? "+" : ""}${formatDelta(difference)} ${unit}`;
+}
+
+const patternRanks: Record<string, number> = {
+  "16×17": -2,
+  "16×18": -1,
+  "18×16": -1,
+  "16×19": 0,
+  "16×20": 1,
+  "18×19": 1,
+  "18×20": 2,
+};
+
+function patternFamilyPosition(family: CatalogFamily, pattern: string | null) {
+  if (!pattern) return "无法同系比较";
+  const known = family.models.map((model) => normalizedPattern(model.pattern)).filter((value): value is string => Boolean(value));
+  if (known.length <= 1) return "本系唯一公开";
+  if (new Set(known).size === 1) return "本系共用";
+  const currentRank = patternRanks[pattern];
+  const ranks = known.map((value) => patternRanks[value]).filter((value): value is number => value !== undefined);
+  if (currentRank === undefined || ranks.length < 2) return "本系特色线床";
+  const difference = currentRank - median(ranks);
+  if (difference < 0) return "本系更开放";
+  if (difference > 0) return "本系更密";
+  return "本系中位";
+}
+
+function headCharacteristic(head: number | null) {
+  if (head === null) return "官网未公开";
+  if (head <= 97) return "小拍面 · 精准";
+  if (head <= 100) return "主流拍面";
+  if (head <= 104) return "扩展甜区 · 均衡";
+  if (head <= 109) return "大拍面 · 容错";
+  return "超大拍面 · 省力";
+}
+
+function weightCharacteristic(weight: number | null) {
+  if (weight === null) return "官网未公开";
+  if (weight <= 270) return "超轻 · 易挥";
+  if (weight <= 289) return "轻量 · 灵活";
+  if (weight <= 294) return "偏轻 · 快挥";
+  if (weight <= 305) return "主流重量";
+  if (weight <= 319) return "加重 · 稳定";
+  return "重型 · 穿透";
+}
+
+function patternCharacteristic(pattern: string | null) {
+  if (!pattern) return "官网未公开";
+  if (pattern === "16×19") return "主流线床";
+  if (pattern === "18×20") return "密线 · 控制";
+  if (["18×19", "16×20"].includes(pattern)) return "控旋 · 均衡";
+  if (["16×18", "16×17", "18×16"].includes(pattern)) return "开放 · 旋转";
+  return "特色线床";
+}
+
+function balanceCharacteristic(balance: number | null, length: number | null) {
+  if (balance === null) return "官网未公开";
+  if (length === null) return "缺长度参照";
+  const midpointOffset = balance - (length * 12.7);
+  if (midpointOffset <= -25) return "静态头轻 · 灵活";
+  if (midpointOffset <= -16) return "静态均衡 · 易控";
+  if (midpointOffset < 0) return "重心偏前 · 借力";
+  return "静态头重 · 增压";
+}
+
+function beamCharacteristic(beam: string | null) {
+  const average = beamAverage(beam);
+  if (average === null) return "官网未公开";
+  if (average <= 21.5) return "薄框 · 手感";
+  if (average < 25.5) return "中框 · 均衡";
+  return "厚框 · 弹力";
+}
+
+function lengthCharacteristic(length: number | null) {
+  if (length === null) return "官网未公开";
+  if (length < 26.95) return "短拍 · 易控";
+  if (length <= 27.05) return "标准长度";
+  if (length < 27.4) return "微加长 · 覆盖";
+  return "加长 · 增压";
+}
+
 type TraitCandidate = {
   tag: string;
   summary: string;
@@ -142,12 +243,54 @@ export function buildRacketSpecInsights(family: CatalogFamily, model: CatalogMod
     length: model.length !== null && model.length >= 26.95 && model.length <= 27.05,
   };
   const specTags: RacketSpecTag[] = [
-    { key: "head", label: model.head === null ? "拍面待补" : `${model.head} in²`, mainstream: mainstream.head, known: model.head !== null },
-    { key: "weight", label: model.weight === null ? "重量待补" : `${model.weight} g`, mainstream: mainstream.weight, known: model.weight !== null },
-    { key: "pattern", label: model.pattern ?? "线床待补", mainstream: mainstream.pattern, known: model.pattern !== null },
-    { key: "balance", label: model.balance === null ? "平衡待补" : `${model.balance} mm`, mainstream: mainstream.balance, known: model.balance !== null },
-    { key: "beam", label: model.beam === null ? "框厚待补" : `${model.beam} mm`, mainstream: mainstream.beam, known: model.beam !== null },
-    { key: "length", label: model.length === null ? "长度待补" : `${model.length} in`, mainstream: mainstream.length, known: model.length !== null },
+    {
+      key: "head",
+      label: model.head === null ? "—" : `${model.head} in²`,
+      characteristic: headCharacteristic(model.head),
+      familyPosition: numericFamilyPosition(family.models.map((item) => item.head), model.head, "in²"),
+      mainstream: mainstream.head,
+      known: model.head !== null,
+    },
+    {
+      key: "weight",
+      label: model.weight === null ? "—" : `${model.weight} g`,
+      characteristic: weightCharacteristic(model.weight),
+      familyPosition: numericFamilyPosition(family.models.map((item) => item.weight), model.weight, "g"),
+      mainstream: mainstream.weight,
+      known: model.weight !== null,
+    },
+    {
+      key: "pattern",
+      label: model.pattern ?? "—",
+      characteristic: patternCharacteristic(pattern),
+      familyPosition: patternFamilyPosition(family, pattern),
+      mainstream: mainstream.pattern,
+      known: model.pattern !== null,
+    },
+    {
+      key: "balance",
+      label: model.balance === null ? "—" : `${model.balance} mm`,
+      characteristic: balanceCharacteristic(model.balance, model.length),
+      familyPosition: numericFamilyPosition(family.models.map((item) => item.balance), model.balance, "mm"),
+      mainstream: mainstream.balance,
+      known: model.balance !== null,
+    },
+    {
+      key: "beam",
+      label: model.beam === null ? "—" : `${model.beam} mm`,
+      characteristic: beamCharacteristic(model.beam),
+      familyPosition: numericFamilyPosition(family.models.map((item) => beamAverage(item.beam)), averageBeam, "mm", "均厚"),
+      mainstream: mainstream.beam,
+      known: model.beam !== null,
+    },
+    {
+      key: "length",
+      label: model.length === null ? "—" : `${model.length} in`,
+      characteristic: lengthCharacteristic(model.length),
+      familyPosition: numericFamilyPosition(family.models.map((item) => item.length), model.length, "in"),
+      mainstream: mainstream.length,
+      known: model.length !== null,
+    },
   ];
   const mainstreamSpecCount = specTags.filter((tag) => tag.mainstream).length;
   const knownSpecCount = specTags.filter((tag) => tag.known).length;

@@ -17,13 +17,33 @@ test("keeps every deep-dossier entry in the sticky first column", async () => {
   assert.ok(dossier > identityStart && dossier < identityEnd, "dossier control must live inside the first identity cell");
   assert.ok(dossier < radar && radar < actions, "keyboard and reading order must reach the dossier before horizontally scrolled content");
   assert.match(source.slice(identityStart, identityEnd), /data-racket-id=\{racketProfile\.id\}/, "return-focus anchor moves with the dossier control");
-  assert.match(source.slice(identityStart, identityEnd), /<RacketSpecTags racket=\{racketProfile\} compact showSpecs=\{false\} \/>/);
+  assert.match(source.slice(identityStart, identityEnd), /className="model-matrix__overview"/);
+  assert.match(source.slice(identityStart, identityEnd), /modelMatrixOverview\(racketProfile\)/);
 
   const actionsEnd = source.indexOf("</div>", actions);
   const actionSource = source.slice(actions, actionsEnd);
   assert.doesNotMatch(actionSource, /family-dossier-|\u6df1\u5ea6\u6863\u6848/);
   assert.match(actionSource, /family-compare-/);
   assert.match(actionSource, /\u5b98\u7f51\u8d44\u6599/);
+});
+
+test("renders one characteristic and the same-family position in all six parameter cells", async () => {
+  const page = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
+  const componentStart = page.indexOf("function ModelSpecValue");
+  const componentEnd = page.indexOf("function RacketSpecTags", componentStart);
+  const component = page.slice(componentStart, componentEnd);
+  assert.match(component, /\{tag\.characteristic\}/);
+  assert.match(component, /\{tag\.familyPosition\}/);
+  assert.match(component, /\{tag\.known && <em>/);
+  assert.match(component, /特点：\$\{tag\.characteristic\}/);
+  assert.doesNotMatch(component, /role="tab"|tabIndex|<button/);
+
+  const mapStart = page.indexOf("{selectedFamily.models.map");
+  const mapEnd = page.indexOf("</tbody>", mapStart);
+  const source = page.slice(mapStart, mapEnd);
+  const dimensions = [...source.matchAll(/<ModelSpecValue racket=\{racketProfile\} dimension="([^"]+)" \/>/g)].map((match) => match[1]);
+  assert.deepEqual(dimensions, ["head", "weight", "pattern", "balance", "beam", "length"]);
+  assert.match(page, /racket\.specTags\.map\(\(tag\)[\s\S]*?\{tag\.characteristic\}[\s\S]*?\{tag\.familyPosition\}/);
 });
 
 test("styles the dossier as a reachable sticky primary action on desktop and mobile", async () => {

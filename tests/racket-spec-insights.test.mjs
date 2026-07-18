@@ -14,6 +14,7 @@ function findProfile(model) {
 test("gives all 259 rackets one complete, null-safe specification presentation", () => {
   assert.equal(deepRackets.length, catalogModelCount);
   assert.equal(catalogModelCount, 259);
+  let specCellCount = 0;
 
   for (const family of catalogFamilies) {
     for (const model of family.models) {
@@ -22,6 +23,7 @@ test("gives all 259 rackets one complete, null-safe specification presentation",
         .filter((value) => value !== null).length;
 
       assert.deepEqual(insights.specTags.map((tag) => tag.key), specKeys, `${model.name} must keep the six canonical specification dimensions`);
+      specCellCount += insights.specTags.length;
       assert.equal(insights.knownSpecCount, knownCount, `${model.name} must not convert an unknown field to zero`);
       assert.equal(insights.mainstreamSpecCount, insights.specTags.filter((tag) => tag.mainstream).length);
       assert.ok(insights.traitTags.length >= 1, `${model.name} needs at least one trait or disclosure tag`);
@@ -33,13 +35,21 @@ test("gives all 259 rackets one complete, null-safe specification presentation",
 
       for (const tag of insights.specTags) {
         assert.ok(tag.label.trim().length > 0);
+        assert.ok(tag.characteristic.trim().length > 0, `${model.name} ${tag.key} needs one visible characteristic`);
+        assert.ok(tag.familyPosition.trim().length > 0, `${model.name} ${tag.key} needs one same-family position`);
         if (!tag.known) {
           assert.equal(tag.mainstream, false);
-          assert.match(tag.label, /待补$/);
+          assert.equal(tag.label, "—");
+          assert.equal(tag.characteristic, "官网未公开");
+          assert.equal(tag.familyPosition, "无法同系比较");
+        } else {
+          assert.notEqual(tag.characteristic, "官网未公开");
+          assert.notEqual(tag.familyPosition, "无法同系比较");
         }
       }
     }
   }
+  assert.equal(specCellCount, catalogModelCount * 6, "every catalog model must expose all six parameter cells");
 });
 
 test("distinguishes a full mainstream reference from a partial core specification", () => {
@@ -78,6 +88,24 @@ test("summarizes distinctive heavy, oversized, open-pattern, and extended models
   assert.ok(extended.traitTags.includes("加长增压"));
 });
 
+test("shows the characteristic and same-family difference inside every Blade parameter", () => {
+  const pro = findProfile("Blade Pro 98 16×19 V10");
+  const proTags = Object.fromEntries(pro.specTags.map((tag) => [tag.key, tag]));
+  assert.equal(proTags.head.characteristic, "主流拍面");
+  assert.equal(proTags.head.familyPosition, "本系 -2 in²");
+  assert.equal(proTags.weight.characteristic, "主流重量");
+  assert.equal(proTags.weight.familyPosition, "本系 +10 g");
+  assert.equal(proTags.beam.characteristic, "薄框 · 手感");
+  assert.equal(proTags.beam.familyPosition, "本系均厚 -0.5 mm");
+
+  const extended = findProfile("Blade 104 V10");
+  const extendedTags = Object.fromEntries(extended.specTags.map((tag) => [tag.key, tag]));
+  assert.equal(extendedTags.head.characteristic, "扩展甜区 · 均衡");
+  assert.equal(extendedTags.head.familyPosition, "本系 +4 in²");
+  assert.equal(extendedTags.length.characteristic, "加长 · 增压");
+  assert.equal(extendedTags.length.familyPosition, "本系 +0.5 in");
+});
+
 test("keeps sparse and empty specifications explicit instead of inventing traits", () => {
   const nova = findProfile("Nova ELT");
   assert.equal(nova.knownSpecCount, 2);
@@ -88,6 +116,8 @@ test("keeps sparse and empty specifications explicit instead of inventing traits
     const tag = nova.specTags.find((item) => item.key === key);
     assert.equal(tag.known, false);
     assert.equal(tag.mainstream, false);
+    assert.equal(tag.characteristic, "官网未公开");
+    assert.equal(tag.familyPosition, "无法同系比较");
   }
 
   const empty = buildRacketSpecInsights(catalogFamilies[0], {
