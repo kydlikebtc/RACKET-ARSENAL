@@ -117,6 +117,11 @@ import {
   type DecisionRoomState,
   type TrialFeedback,
 } from "./decision-state";
+import {
+  DECISION_STORAGE_KEY,
+  parseStoredDecision,
+  serializeStoredDecision,
+} from "./decision-storage";
 
 type Racket = DeepRacket;
 
@@ -520,8 +525,6 @@ const trialMetricLabels: Record<"control" | "power" | "comfort", string> = {
 
 const trialVerdicts: TrialFeedbackDraft["verdict"][] = ["保留候选", "继续观察", "淘汰", "最终选择"];
 
-const decisionSignInHref = `/signin-with-chatgpt?return_to=${encodeURIComponent("/#compare")}`;
-
 type PaikuHistoryState = {
   paiku?: true;
   paikuHistoryIndex?: number;
@@ -914,9 +917,7 @@ export default function RacketApp() {
   const [decisionCandidates, setDecisionCandidates] = useState<Record<string, { status: DecisionCandidateStatus; note: string }>>({});
   const [savedDecisionRoom, setSavedDecisionRoom] = useState<DecisionRoomState | null>(null);
   const [decisionFeedback, setDecisionFeedback] = useState<TrialFeedback[]>([]);
-  const [decisionAuth, setDecisionAuth] = useState<"loading" | "anonymous" | "authenticated" | "error">("loading");
-  const [decisionDisplayName, setDecisionDisplayName] = useState("");
-  const [decisionSaving, setDecisionSaving] = useState(false);
+  const [decisionStorageStatus, setDecisionStorageStatus] = useState<"loading" | "available" | "memory-only">("loading");
   const [feedbackRacketId, setFeedbackRacketId] = useState<string | null>(null);
   const [trialFeedbackDraft, setTrialFeedbackDraft] = useState<TrialFeedbackDraft>(emptyTrialFeedbackDraft);
   const [tourFilter, setTourFilter] = useState<Tour>("ATP");
@@ -2171,40 +2172,43 @@ export default function RacketApp() {
   useEffect(() => {
     if (!sessionReady || decisionHydratedRef.current) return;
     decisionHydratedRef.current = true;
-    let cancelled = false;
-    void fetch("/api/decision-room", { headers: { Accept: "application/json" } })
-      .then(async (response) => {
-        const payload = await response.json() as {
-          authenticated?: boolean;
-          displayName?: string;
-          room?: unknown;
-          feedback?: TrialFeedback[];
-          error?: string;
-        };
-        if (!response.ok) throw new Error(payload.error ?? "暂时无法读取决策室。");
-        if (cancelled) return;
-        if (!payload.authenticated) {
-          setDecisionAuth("anonymous");
-          return;
-        }
-        const room = normalizeDecisionRoom(payload.room ?? { baselineId: null, slots: [] });
-        setDecisionAuth("authenticated");
-        setDecisionDisplayName(payload.displayName?.trim() || "网球玩家");
-        setSavedDecisionRoom(room);
-        setDecisionFeedback(Array.isArray(payload.feedback) ? payload.feedback : []);
-        setPrescriptionBaselineId((current) => current || room.baselineId || "");
-        setDecisionCandidates((current) => ({
-          ...Object.fromEntries(room.slots.map((slot) => [slot.racketId, { status: slot.status, note: slot.note }])),
-          ...current,
-        }));
-      })
-      .catch(() => {
-        if (!cancelled) setDecisionAuth("error");
-      });
-    return () => {
-      cancelled = true;
-    };
+    let stored: ReturnType<typeof parseStoredDecision>;
+    let status: "available" | "memory-only" = "available";
+    try {
+      stored = parseStoredDecision(window.localStorage.getItem(DECISION_STORAGE_KEY));
+    } catch {
+      stored = parseStoredDecision(null);
+      status = "memory-only";
+    }
+    const frame = window.requestAnimationFrame(() => {
+      setSavedDecisionRoom(stored.room);
+      setDecisionFeedback(stored.feedback);
+      setPrescriptionBaselineId((current) => current || stored.room.baselineId || "");
+      setDecisionCandidates((current) => ({
+        ...Object.fromEntries(stored.room.slots.map((slot) => [slot.racketId, { status: slot.status, note: slot.note }])),
+        ...current,
+      }));
+      setDecisionStorageStatus(status);
+    });
+    return () => window.cancelAnimationFrame(frame);
   }, [sessionReady]);
+
+  useEffect(() => {
+    if (!sessionReady || decisionStorageStatus === "loading") return;
+    let nextStatus: "available" | "memory-only" = "available";
+    let room: DecisionRoomState | null = null;
+    try {
+      room = normalizeDecisionRoom(currentDecisionRoom);
+      window.localStorage.setItem(DECISION_STORAGE_KEY, serializeStoredDecision({ room, feedback: decisionFeedback }));
+    } catch {
+      nextStatus = "memory-only";
+    }
+    const frame = window.requestAnimationFrame(() => {
+      if (room) setSavedDecisionRoom(room);
+      if (decisionStorageStatus !== nextStatus) setDecisionStorageStatus(nextStatus);
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [sessionReady, decisionStorageStatus, currentDecisionRoom, decisionFeedback]);
 
   useEffect(() => {
     if (!sessionReady) return;
@@ -3046,105 +3050,66 @@ export default function RacketApp() {
     const slots = ids.reduce<CompareSlots>((current, id) => addCompareId(current, id).slots, []);
     setPrescriptionBaselineId(savedDecisionRoom.baselineId ?? "");
     setDecisionCandidates(Object.fromEntries(savedDecisionRoom.slots.map((slot) => [slot.racketId, { status: slot.status, note: slot.note }])));
-    commitCompareSlots(slots, "load-recommended", `已载入 ${ids.length} 把长期保存的决策候选`);
+    commitCompareSlots(slots, "load-recommended", `已载入 ${ids.length} 把本机保存的决策候选`);
   };
 
-  const saveDecisionRoom = async () => {
-    if (decisionAuth === "anonymous") {
-      window.location.assign(decisionSignInHref);
-      return;
-    }
-    if (decisionAuth !== "authenticated") {
-      setLiveMessage("决策室保存服务暂时不可用，请稍后再试");
-      return;
-    }
-    setDecisionSaving(true);
+  const saveDecisionRoom = () => {
     try {
       const room = normalizeDecisionRoom(currentDecisionRoom);
-      const response = await fetch("/api/decision-room", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify({ room }),
-      });
-      const payload = await response.json() as { room?: unknown; feedback?: TrialFeedback[]; error?: string };
-      if (!response.ok) throw new Error(payload.error ?? "保存失败");
-      const savedRoom = normalizeDecisionRoom(payload.room ?? room);
-      setSavedDecisionRoom(savedRoom);
-      if (Array.isArray(payload.feedback)) setDecisionFeedback(payload.feedback);
-      setLiveMessage(`已为 ${decisionDisplayName || "你"} 长期保存当前决策室`);
-    } catch (error) {
-      setLiveMessage(error instanceof Error ? error.message : "暂时无法保存决策室");
-    } finally {
-      setDecisionSaving(false);
+      window.localStorage.setItem(DECISION_STORAGE_KEY, serializeStoredDecision({ room, feedback: decisionFeedback }));
+      setSavedDecisionRoom(room);
+      setDecisionStorageStatus("available");
+      setLiveMessage("当前决策室已保存到本机");
+    } catch {
+      setDecisionStorageStatus("memory-only");
+      setLiveMessage("当前浏览器无法持久保存，本页仍可继续使用决策室");
     }
   };
 
   const openTrialFeedback = (racketId: string) => {
-    if (decisionAuth === "anonymous") {
-      window.location.assign(decisionSignInHref);
-      return;
-    }
-    if (decisionAuth !== "authenticated") {
-      setLiveMessage("试打记录服务暂时不可用，请稍后再试");
-      return;
-    }
     setFeedbackRacketId(racketId);
     setTrialFeedbackDraft(emptyTrialFeedbackDraft);
     window.requestAnimationFrame(() => document.getElementById("trial-feedback-title")?.focus({ preventScroll: true }));
   };
 
-  const submitTrialFeedback = async () => {
-    if (!feedbackRacketId || decisionAuth !== "authenticated") return;
-    setDecisionSaving(true);
+  const submitTrialFeedback = () => {
+    if (!feedbackRacketId) return;
+    const status: DecisionCandidateStatus = trialFeedbackDraft.verdict === "最终选择"
+      ? "final"
+      : trialFeedbackDraft.verdict === "淘汰"
+        ? "eliminated"
+        : "trial";
+    const nextRoom = normalizeDecisionRoom({
+      ...currentDecisionRoom,
+      slots: currentDecisionRoom.slots.map((slot) => ({
+        ...slot,
+        status: slot.racketId === feedbackRacketId
+          ? status
+          : status === "final" && slot.status === "final"
+            ? "candidate"
+            : slot.status,
+      })),
+    });
+    const feedback: TrialFeedback = {
+      id: Date.now(),
+      racketId: feedbackRacketId,
+      ...trialFeedbackDraft,
+      createdAt: new Date().toISOString(),
+    };
+    const nextFeedback = [feedback, ...decisionFeedback].slice(0, 12);
+    setDecisionFeedback(nextFeedback);
+    setDecisionCandidates(Object.fromEntries(nextRoom.slots.map((slot) => [slot.racketId, { status: slot.status, note: slot.note }])));
+    setSavedDecisionRoom(nextRoom);
     try {
-      const response = await fetch("/api/decision-room", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify({ feedback: { racketId: feedbackRacketId, ...trialFeedbackDraft } }),
-      });
-      const payload = await response.json() as { recentFeedback?: TrialFeedback[]; error?: string };
-      if (!response.ok) throw new Error(payload.error ?? "试打反馈保存失败");
-      if (Array.isArray(payload.recentFeedback)) setDecisionFeedback(payload.recentFeedback);
-      const status: DecisionCandidateStatus = trialFeedbackDraft.verdict === "最终选择"
-        ? "final"
-        : trialFeedbackDraft.verdict === "淘汰"
-          ? "eliminated"
-          : "trial";
-      const nextRoom = normalizeDecisionRoom({
-        ...currentDecisionRoom,
-        slots: currentDecisionRoom.slots.map((slot) => ({
-          ...slot,
-          status: slot.racketId === feedbackRacketId
-            ? status
-            : status === "final" && slot.status === "final"
-              ? "candidate"
-              : slot.status,
-        })),
-      });
-      setDecisionCandidates(Object.fromEntries(nextRoom.slots.map((slot) => [slot.racketId, { status: slot.status, note: slot.note }])));
-      let roomSaved = false;
-      try {
-        const roomResponse = await fetch("/api/decision-room", {
-          method: "PUT",
-          headers: { "Content-Type": "application/json", Accept: "application/json" },
-          body: JSON.stringify({ room: nextRoom }),
-        });
-        const roomPayload = await roomResponse.json() as { room?: unknown };
-        if (roomResponse.ok) {
-          setSavedDecisionRoom(normalizeDecisionRoom(roomPayload.room ?? nextRoom));
-          roomSaved = true;
-        }
-      } catch {
-        roomSaved = false;
-      }
-      setFeedbackRacketId(null);
-      setTrialFeedbackDraft(emptyTrialFeedbackDraft);
-      setLiveMessage(roomSaved ? "试打反馈已保存，候选状态已同步更新" : "试打反馈已保存；请点击“保存决策”同步候选状态");
-    } catch (error) {
-      setLiveMessage(error instanceof Error ? error.message : "暂时无法保存试打反馈");
-    } finally {
-      setDecisionSaving(false);
+      window.localStorage.setItem(DECISION_STORAGE_KEY, serializeStoredDecision({ room: nextRoom, feedback: nextFeedback }));
+      setDecisionStorageStatus("available");
+      setLiveMessage("试打反馈与候选状态已保存到本机");
+    } catch {
+      setDecisionStorageStatus("memory-only");
+      setLiveMessage("试打反馈已保留在本页，当前浏览器无法持久保存");
     }
+    setFeedbackRacketId(null);
+    setTrialFeedbackDraft(emptyTrialFeedbackDraft);
   };
 
   const shareCurrentView = async (label: string) => {
@@ -3853,16 +3818,14 @@ export default function RacketApp() {
               title="选拍决策室"
               action={(
                 <div className="compare-title-actions">
-                  {decisionAuth === "anonymous"
-                    ? <a className="text-action" href={decisionSignInHref}>登录保存</a>
-                    : <button className="text-action" onClick={() => void saveDecisionRoom()} disabled={decisionSaving || decisionAuth !== "authenticated"}>{decisionSaving ? "保存中…" : decisionAuth === "authenticated" ? "保存决策" : "正在连接…"}</button>}
+                  <button className="text-action" onClick={saveDecisionRoom}>{decisionStorageStatus === "loading" ? "正在读取…" : "保存到本机"}</button>
                   {compared.length > 0 && <button className="text-action" onClick={copyCompareLink} aria-label={`复制当前 ${compared.length} 把候选球拍的决策链接`}>分享</button>}
                   {compared.length > 0 && <button className="text-action" onClick={clearComparison} aria-label={`清空当前 ${compared.length} 把决策候选`}>清空</button>}
                 </div>
               )}
             />
             <section className="decision-workflow" aria-labelledby="decision-workflow-title">
-              <div className="decision-workflow__heading"><div><span>Decision loop</span><h2 id="decision-workflow-title">把参数变成可执行的换拍决定</h2></div><small>{decisionAuth === "authenticated" ? `${decisionDisplayName || "你"}的记录已连接` : decisionAuth === "anonymous" ? "登录后可跨会话保存" : "正在连接决策记录"}</small></div>
+              <div className="decision-workflow__heading"><div><span>Decision loop</span><h2 id="decision-workflow-title">把参数变成可执行的换拍决定</h2></div><small>{decisionStorageStatus === "loading" ? "正在读取本机记录" : decisionStorageStatus === "available" ? "当前浏览器自动保存" : "仅在本页临时保留"}</small></div>
               <ol>
                 <li className={prescriptionBaseline ? "is-complete" : ""}><i>{prescriptionBaseline ? "✓" : "1"}</i><span><b>当前球拍</b><small>{prescriptionBaseline?.model ?? "可跳过"}</small></span></li>
                 <li className={compared.length >= 2 ? "is-complete" : ""}><i>{compared.length >= 2 ? "✓" : "2"}</i><span><b>收敛候选</b><small>{compared.length}/3 把</small></span></li>
@@ -3925,7 +3888,7 @@ export default function RacketApp() {
                 </div>
 
                 {feedbackRacketId && deepRacketById.get(feedbackRacketId) && (
-                  <form className="trial-feedback-card" onSubmit={(event) => { event.preventDefault(); void submitTrialFeedback(); }}>
+                  <form className="trial-feedback-card" onSubmit={(event) => { event.preventDefault(); submitTrialFeedback(); }}>
                     <header>
                       <div><span>Trial log</span><h2 id="trial-feedback-title" tabIndex={-1}>记录 {deepRacketById.get(feedbackRacketId)?.model} 试打</h2><p>凭实际击球感受打分，系统会把结论带回候选状态。</p></div>
                       <button type="button" onClick={() => setFeedbackRacketId(null)} aria-label="关闭试打记录">×</button>
@@ -3944,7 +3907,7 @@ export default function RacketApp() {
                       <label><span>本次结论</span><select value={trialFeedbackDraft.verdict} onChange={(event) => setTrialFeedbackDraft((current) => ({ ...current, verdict: event.target.value as TrialFeedbackDraft["verdict"] }))}>{trialVerdicts.map((verdict) => <option key={verdict}>{verdict}</option>)}</select></label>
                       <label><span>场上感受</span><textarea value={trialFeedbackDraft.note} maxLength={240} rows={3} placeholder="记录底线、发球、网前或手臂负担的真实感受" onChange={(event) => setTrialFeedbackDraft((current) => ({ ...current, note: event.target.value }))} /></label>
                     </div>
-                    <footer><small>试打记录仅保存到你的个人决策室。</small><div><button type="button" onClick={() => setFeedbackRacketId(null)}>取消</button><button className="app-button app-button--primary" type="submit" disabled={decisionSaving}>{decisionSaving ? "保存中…" : "保存试打"}</button></div></footer>
+                    <footer><small>试打记录仅保存在当前浏览器。</small><div><button type="button" onClick={() => setFeedbackRacketId(null)}>取消</button><button className="app-button app-button--primary" type="submit">保存试打</button></div></footer>
                   </form>
                 )}
 

@@ -2,10 +2,10 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-const [page, css, route, hosting] = await Promise.all([
+const [page, css, storage, hosting] = await Promise.all([
   readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
   readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
-  readFile(new URL("../app/api/decision-room/route.ts", import.meta.url), "utf8"),
+  readFile(new URL("../app/decision-storage.ts", import.meta.url), "utf8"),
   readFile(new URL("../.openai/hosting.json", import.meta.url), "utf8"),
 ]);
 
@@ -30,14 +30,15 @@ test("gives every candidate an actionable status, note, and trial record", () =>
   assert.match(page, /className="trial-feedback-history"/);
 });
 
-test("persists private decision rooms and trial feedback through the platform database", () => {
-  assert.match(route, /export async function GET/);
-  assert.match(route, /export async function PUT/);
-  assert.match(route, /export async function POST/);
-  assert.match(route, /getChatGPTUser/);
-  assert.match(route, /private, no-store/);
-  assert.match(route, /await d1\.batch\(statements\)/);
-  assert.match(hosting, /"d1"\s*:\s*"DB"/);
+test("keeps decision rooms and trial feedback on the device without a sign-in flow", () => {
+  assert.match(storage, /DECISION_STORAGE_KEY/);
+  assert.match(storage, /parseStoredDecision/);
+  assert.match(storage, /serializeStoredDecision/);
+  assert.match(page, /window\.localStorage\.getItem\(DECISION_STORAGE_KEY\)/);
+  assert.match(page, /window\.localStorage\.setItem\(DECISION_STORAGE_KEY/);
+  assert.match(page, /当前浏览器自动保存/);
+  assert.doesNotMatch(page, /signin-with-chatgpt|\/api\/decision-room|decisionAuth|登录保存/);
+  assert.match(hosting, /"d1"\s*:\s*null/);
 });
 
 test("keeps the decision workflow touchable and collapses it cleanly on phones", () => {

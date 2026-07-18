@@ -1,21 +1,15 @@
 import assert from "node:assert/strict";
-import fs from "node:fs";
-import path from "node:path";
 import test from "node:test";
-import { fileURLToPath } from "node:url";
 
 import {
   DecisionValidationError,
-  decisionOwnerKey,
   normalizeDecisionRoom,
   normalizeDecisionRoomRequest,
-  normalizeOwnerEmail,
   normalizeTrialFeedback,
   normalizeTrialFeedbackRequest,
 } from "../app/decision-state.ts";
 import { deepRackets } from "../app/racket-profiles.ts";
 
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const racketIds = deepRackets.slice(0, 7).map((racket) => racket.id);
 
 function expectValidationError(callback, messagePattern) {
@@ -177,42 +171,4 @@ test("trial feedback accepts only known rackets and integer 1-5 ratings", () => 
       }),
     /试打结论/,
   );
-});
-
-test("owner identity is a normalized one-way SHA-256 key", async () => {
-  assert.equal(normalizeOwnerEmail("  Player@Example.COM  "), "player@example.com");
-  const first = await decisionOwnerKey("  Player@Example.COM  ");
-  const second = await decisionOwnerKey("player@example.com");
-  assert.equal(first, second);
-  assert.match(first, /^[a-f0-9]{64}$/);
-  assert.ok(!first.includes("player"));
-});
-
-test("decision API is auth-gated, D1-backed, and never trusts client ownership", () => {
-  const hosting = JSON.parse(
-    fs.readFileSync(path.join(root, ".openai/hosting.json"), "utf8"),
-  );
-  const schema = fs.readFileSync(path.join(root, "db/schema.ts"), "utf8");
-  const route = fs.readFileSync(
-    path.join(root, "app/api/decision-room/route.ts"),
-    "utf8",
-  );
-
-  assert.equal(hosting.d1, "DB");
-  assert.match(schema, /decision_rooms/);
-  assert.match(schema, /decision_candidates/);
-  assert.match(schema, /trial_feedback/);
-  assert.match(schema, /BETWEEN 1 AND 5/);
-  assert.match(route, /getChatGPTUser\(\)/);
-  assert.match(route, /decisionOwnerKey\(user\.email\)/);
-  assert.match(route, /status: 401/);
-  assert.match(route, /authenticated: false/);
-  assert.match(route, /normalizeDecisionRoomRequest/);
-  assert.match(route, /normalizeTrialFeedbackRequest/);
-  assert.match(route, /RECENT_FEEDBACK_LIMIT/);
-  assert.match(route, /private, no-store/);
-  assert.match(route, /content-type/);
-  assert.doesNotMatch(route, /localStorage|sessionStorage/);
-  assert.doesNotMatch(route, /user\.displayName/);
-  assert.doesNotMatch(route, /payload\.owner|payload\.email/);
 });

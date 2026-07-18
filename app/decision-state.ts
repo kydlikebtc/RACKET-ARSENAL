@@ -58,24 +58,6 @@ const FEEDBACK_KEYS = [
   "note",
 ] as const;
 
-export function normalizeOwnerEmail(email: string) {
-  return email.trim().normalize("NFKC").toLowerCase();
-}
-
-export async function decisionOwnerKey(email: string) {
-  const normalizedEmail = normalizeOwnerEmail(email);
-  if (!normalizedEmail) {
-    throw new Error("无法确认当前登录用户。");
-  }
-  const digest = await crypto.subtle.digest(
-    "SHA-256",
-    new TextEncoder().encode(normalizedEmail),
-  );
-  return Array.from(new Uint8Array(digest), (byte) =>
-    byte.toString(16).padStart(2, "0"),
-  ).join("");
-}
-
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return (
     typeof value === "object" &&
