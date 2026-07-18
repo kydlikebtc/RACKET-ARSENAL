@@ -32,6 +32,7 @@ import {
 import { tourPlayers, tourRankAsOf, tourSources, type Tour, type TourPlayer } from "./tour-data";
 import { HONESTY_NOTES } from "./honesty-notes";
 import { buildSimilarRackets } from "./similar-rackets";
+import { buildCompareDiffInsights } from "./compare-insights";
 import { tourCatalogTargets, tourRacketTargetId } from "./tour-links";
 import { catalogReleaseYear as parseCatalogReleaseYear, catalogSearchHistoryMode, matchesCatalogFamilySearch, matchesCatalogRacketSearch, matchesCatalogReleaseYearFilter } from "./catalog-search";
 import {
@@ -1076,6 +1077,7 @@ export default function RacketApp() {
   const selectedFamily = selectedFamilyId ? catalogFamilies.find((family) => family.id === selectedFamilyId) ?? null : null;
   const compareIds = useMemo(() => compareSlotIds(compareSlots), [compareSlots]);
   const compared = compareIds.map((id) => deepRackets.find((racket) => racket.id === id)).filter(Boolean) as Racket[];
+  const compareInsights = useMemo(() => buildCompareDiffInsights(compareIds.map((id) => deepRacketById.get(id)).filter((racket): racket is Racket => Boolean(racket))), [compareIds]);
   const compareSlotRackets = ([0, 1, 2] as const).map((slot) => {
     const entry = compareSlots.find((item) => item.slot === slot);
     return { slot, racket: entry ? deepRacketById.get(entry.id) ?? null : null };
@@ -3442,20 +3444,20 @@ export default function RacketApp() {
     goToView("compare");
   };
 
-  const comparisonRows: { label: string; value: (racket: Racket) => React.ReactNode }[] = [
-    { label: "定位 Type", value: (racket) => racket.familyType ?? "—" },
-    { label: "代际", value: (racket) => racket.generation ?? "—" },
-    { label: "发行", value: (racket) => racket.releaseDate ?? racket.year },
-    { label: "规格特点", value: (racket) => <RacketSpecTags racket={racket} compact showSpecs={false} /> },
-    { label: "适合阶段", value: (racket) => racket.stages.join(" · ") },
-    { label: "打法风格", value: (racket) => racket.styles.join(" · ") },
-    { label: "裸拍重量", value: (racket) => formatNumberSpec(officialWeight(racket), "g") },
-    { label: "拍面", value: (racket) => formatNumberSpec(officialHead(racket), "in²") },
-    { label: "线床", value: (racket) => officialPattern(racket) ?? "—" },
-    { label: "平衡点", value: officialBalance },
-    { label: "框厚", value: officialBeam },
-    { label: "长度", value: officialLength },
-    ...radarKeys.map((key) => ({ label: scoreLabels[key], value: (racket: Racket) => <b>{racket.scores[key]}</b> })),
+  const comparisonRows: { key: string; rowKind: "meta" | "spec" | "score"; scoreKey?: ScoreKey; label: string; value: (racket: Racket) => React.ReactNode }[] = [
+    { key: "type", rowKind: "meta", label: "定位 Type", value: (racket) => racket.familyType ?? "—" },
+    { key: "generation", rowKind: "meta", label: "代际", value: (racket) => racket.generation ?? "—" },
+    { key: "release", rowKind: "meta", label: "发行", value: (racket) => racket.releaseDate ?? racket.year },
+    { key: "traits", rowKind: "meta", label: "规格特点", value: (racket) => <RacketSpecTags racket={racket} compact showSpecs={false} /> },
+    { key: "stages", rowKind: "meta", label: "适合阶段", value: (racket) => racket.stages.join(" · ") },
+    { key: "styles", rowKind: "meta", label: "打法风格", value: (racket) => racket.styles.join(" · ") },
+    { key: "weight", rowKind: "spec", label: "裸拍重量", value: (racket) => formatNumberSpec(officialWeight(racket), "g") },
+    { key: "head", rowKind: "spec", label: "拍面", value: (racket) => formatNumberSpec(officialHead(racket), "in²") },
+    { key: "pattern", rowKind: "spec", label: "线床", value: (racket) => officialPattern(racket) ?? "—" },
+    { key: "balance", rowKind: "spec", label: "平衡点", value: officialBalance },
+    { key: "beam", rowKind: "spec", label: "框厚", value: officialBeam },
+    { key: "length", rowKind: "spec", label: "长度", value: officialLength },
+    ...radarKeys.map((key) => ({ key: `score-${key}`, rowKind: "score" as const, scoreKey: key, label: scoreLabels[key], value: (racket: Racket) => <b>{racket.scores[key]}</b> })),
   ];
   const similarRackets = useMemo(() => selected ? buildSimilarRackets(selected, deepRackets) : null, [selected]);
   const selectedGallery = selected
@@ -3919,13 +3921,29 @@ export default function RacketApp() {
                   <RadarChart chartRackets={compared} seriesSlots={compareSlots.map(({ slot }) => slot)} />
                 </section>
 
+                {compared.length >= 2 && (
+                  <section className="compare-insights" aria-labelledby="compare-insights-title">
+                    <div className="compare-insights__head"><p>白话解读</p><h2 id="compare-insights-title">差异翻译</h2><span>按官网公开规格的确定性规则生成</span></div>
+                    {compareInsights.status === "no-comparable-specs"
+                      ? <p className="compare-insights__empty">两把球拍的公开规格不足以生成差异解读。</p>
+                      : compareInsights.status === "no-significant-diff"
+                        ? <p className="compare-insights__empty">六项公开规格均处于相近区间，无显著差异可解读。</p>
+                        : <ul className="compare-insights__list">{compareInsights.insights.map((insight) => <li key={insight.key}>{insight.sentence}</li>)}</ul>}
+                    {compareInsights.excludedLabels.length > 0 && <p className="compare-insights__excluded">以下参数官网未公开或无法归一比较，未参与解读：{compareInsights.excludedLabels.join("、")}</p>}
+                  </section>
+                )}
+
                 <p className="compare-scroll-hint" id="compare-scroll-hint">横向滑动或使用方向键，查看全部球拍参数</p>
                 <div ref={compareTableScrollRef} className="compare-spec-table-scroll" role="region" aria-label="球拍规格对比表" aria-describedby="compare-scroll-hint" tabIndex={compareTableScrollable ? 0 : -1}>
                   <table className="compare-spec-table">
                     <thead><tr><th scope="col">属性</th>{compareSlotRackets.map(({ slot, racket }) => <th scope="col" className={racket ? undefined : "is-empty"} key={slot}>{racket?.model ?? `空槽 ${slot + 1}`}</th>)}</tr></thead>
-                    <tbody>{comparisonRows.map((row) => <tr key={row.label}><th scope="row">{row.label}</th>{compareSlotRackets.map(({ slot, racket }) => <td key={slot} className={racket ? undefined : "is-empty"}>{racket ? row.value(racket) : "—"}</td>)}</tr>)}</tbody>
+                    <tbody>{comparisonRows.map((row) => {
+                      const isMaxDiffRow = row.rowKind === "spec" && compareInsights.highlightKey === row.key;
+                      return <tr key={row.key} className={isMaxDiffRow ? "is-max-diff" : undefined}><th scope="row">{row.label}{isMaxDiffRow && <i className="compare-max-diff-badge">差异最大</i>}</th>{compareSlotRackets.map(({ slot, racket }) => <td key={slot} className={racket ? undefined : "is-empty"}>{racket ? row.value(racket) : "—"}</td>)}</tr>;
+                    })}</tbody>
                   </table>
                 </div>
+                {compared.length >= 2 && <p className="compare-honesty-note">{HONESTY_NOTES.compare}</p>}
                 <div className="compare-buy-grid" style={{ "--compare-count": 3 } as CSSProperties}>
                   {compareSlotRackets.map(({ slot, racket }) => racket
                     ? <a key={slot} href={racket.buyUrl} target="_blank" rel="noreferrer" aria-label={`前往 ${racket.brand} 官网查看 ${racket.model}，新标签页打开`}>前往 {racket.brand} 官网 <span aria-hidden="true">↗</span></a>
