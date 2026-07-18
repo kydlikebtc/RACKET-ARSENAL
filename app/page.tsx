@@ -106,6 +106,22 @@ import {
   settleMatchJourney as recordSettledMatchJourney,
   type MatchJourneyLifecycle,
 } from "./match-lifecycle";
+import {
+  buildSwapPrescription,
+  prescriptionDeltaSummary,
+  type PrescriptionResult,
+} from "./prescription-engine";
+import {
+  normalizeDecisionRoom,
+  type DecisionCandidateStatus,
+  type DecisionRoomState,
+  type TrialFeedback,
+} from "./decision-state";
+import {
+  DECISION_STORAGE_KEY,
+  parseStoredDecision,
+  serializeStoredDecision,
+} from "./decision-storage";
 
 type Racket = DeepRacket;
 
@@ -472,11 +488,42 @@ function recommendationReason(racket: Racket, stage: Stage, style: PlayStyle, pr
 
 const appTabs: { id: AppView; label: string; icon: string }[] = [
   { id: "discover", label: "发现", icon: "◉" },
-  { id: "match", label: "匹配", icon: "◇" },
+  { id: "match", label: "处方", icon: "◇" },
   { id: "armory", label: "球拍库", icon: "▦" },
   { id: "tour", label: "球星", icon: "★" },
-  { id: "compare", label: "对比", icon: "⇄" },
+  { id: "compare", label: "决策", icon: "⇄" },
 ];
+
+const decisionStatusLabels: Record<DecisionCandidateStatus, string> = {
+  candidate: "候选",
+  trial: "试打中",
+  eliminated: "已淘汰",
+  final: "最终选择",
+};
+
+type TrialFeedbackDraft = {
+  control: number;
+  power: number;
+  comfort: number;
+  verdict: "保留候选" | "继续观察" | "淘汰" | "最终选择";
+  note: string;
+};
+
+const emptyTrialFeedbackDraft: TrialFeedbackDraft = {
+  control: 3,
+  power: 3,
+  comfort: 3,
+  verdict: "保留候选",
+  note: "",
+};
+
+const trialMetricLabels: Record<"control" | "power" | "comfort", string> = {
+  control: "控制",
+  power: "出球",
+  comfort: "舒适",
+};
+
+const trialVerdicts: TrialFeedbackDraft["verdict"][] = ["保留候选", "继续观察", "淘汰", "最终选择"];
 
 type PaikuHistoryState = {
   paiku?: true;
@@ -601,6 +648,34 @@ function ViewTitle({ id, eyebrow, title, action }: { id: string; eyebrow: string
       <div><p>{eyebrow}</p><h1 id={id} tabIndex={-1}>{title}</h1></div>
       {action}
     </header>
+  );
+}
+
+function PrescriptionBaselinePicker({
+  value,
+  onChange,
+  compact = false,
+}: {
+  value: string;
+  onChange: (id: string) => void;
+  compact?: boolean;
+}) {
+  const selectedRacket = value ? deepRacketById.get(value) : null;
+  return (
+    <label className={`prescription-baseline${compact ? " prescription-baseline--compact" : ""}`}>
+      <span><small>处方基准</small><b>{selectedRacket ? "从当前球拍开始" : "还没有当前球拍也可以"}</b></span>
+      <select value={value} onChange={(event) => onChange(event.target.value)} aria-label="选择当前使用的球拍">
+        <option value="">我还没有 / 暂不确定</option>
+        {catalogBrands.map((brand) => (
+          <optgroup key={brand} label={brand}>
+            {deepRackets.filter((racket) => racket.brand === brand).map((racket) => (
+              <option key={racket.id} value={racket.id}>{racket.model}</option>
+            ))}
+          </optgroup>
+        ))}
+      </select>
+      <i aria-hidden="true">›</i>
+    </label>
   );
 }
 
@@ -838,6 +913,13 @@ export default function RacketApp() {
   const [compareSlots, setCompareSlots] = useState<CompareSlots>([]);
   const [compareUndo, setCompareUndo] = useState<CompareUndo | null>(null);
   const [pendingCompareId, setPendingCompareId] = useState<string | null>(null);
+  const [prescriptionBaselineId, setPrescriptionBaselineId] = useState("");
+  const [decisionCandidates, setDecisionCandidates] = useState<Record<string, { status: DecisionCandidateStatus; note: string }>>({});
+  const [savedDecisionRoom, setSavedDecisionRoom] = useState<DecisionRoomState | null>(null);
+  const [decisionFeedback, setDecisionFeedback] = useState<TrialFeedback[]>([]);
+  const [decisionStorageStatus, setDecisionStorageStatus] = useState<"loading" | "available" | "memory-only">("loading");
+  const [feedbackRacketId, setFeedbackRacketId] = useState<string | null>(null);
+  const [trialFeedbackDraft, setTrialFeedbackDraft] = useState<TrialFeedbackDraft>(emptyTrialFeedbackDraft);
   const [tourFilter, setTourFilter] = useState<Tour>("ATP");
   const [matchRouteNotice, setMatchRouteNotice] = useState<"missing-result" | null>(null);
   const [liveMessage, setLiveMessage] = useState("");
@@ -892,6 +974,7 @@ export default function RacketApp() {
   const overlayHistoryLastPersistRef = useRef(Number.NEGATIVE_INFINITY);
   const persistedMatchSignatureRef = useRef("");
   const persistedCompareSignatureRef = useRef("");
+  const decisionHydratedRef = useRef(false);
 
   const matchScreen = snapshotMatchScreen(matchFlow);
   const matchStep = matchScreen.kind === "question" ? matchScreen.draft.step : matchScreen.kind === "result" ? 3 : 0;
@@ -902,9 +985,20 @@ export default function RacketApp() {
   const profileStage = matchFlow.committed?.stage ?? matchStage;
   const profileStyle = matchFlow.committed?.style ?? matchStyle;
   const profilePriority = matchFlow.committed?.priority ?? priority;
-  const recommendations = useMemo(() => {
-    return buildRecommendations(deepRackets, profileStage, profileStyle, profilePriority);
-  }, [profileStage, profileStyle, profilePriority]);
+  const prescriptionBaseline = prescriptionBaselineId ? deepRacketById.get(prescriptionBaselineId) ?? null : null;
+  const generalRecommendations = useMemo(() => (
+    buildRecommendations(deepRackets, profileStage, profileStyle, profilePriority)
+  ), [profileStage, profileStyle, profilePriority]);
+  const prescriptionResults = useMemo(() => (
+    buildSwapPrescription(deepRackets, prescriptionBaseline, profileStage, profileStyle, profilePriority, 3)
+  ), [prescriptionBaseline, profileStage, profileStyle, profilePriority]);
+  const prescriptionResultById = useMemo(
+    () => new Map(prescriptionResults.map((result) => [result.racket.id, result])),
+    [prescriptionResults],
+  );
+  const recommendations = prescriptionBaseline
+    ? prescriptionResults.map(({ racket, match }) => ({ racket, match }))
+    : generalRecommendations;
 
   const filteredFamilies = useMemo(() => {
     return catalogFamilies
@@ -1005,6 +1099,17 @@ export default function RacketApp() {
   const availableCompareSuggestions = compareSuggestionRackets
     .filter((racket) => !compareIds.includes(racket.id))
     .slice(0, Math.max(0, 3 - compared.length));
+  const currentDecisionRoom = useMemo<DecisionRoomState>(() => ({
+    baselineId: prescriptionBaseline?.id ?? null,
+    slots: compareSlots.map(({ id }) => ({
+      racketId: id,
+      status: decisionCandidates[id]?.status ?? "candidate",
+      note: decisionCandidates[id]?.note ?? "",
+    })),
+  }), [compareSlots, decisionCandidates, prescriptionBaseline]);
+  const savedDecisionSlotIds = savedDecisionRoom?.slots.map((slot) => slot.racketId).filter((id) => deepRacketById.has(id)) ?? [];
+  const currentDecisionFeedback = decisionFeedback.filter((item) => compareIds.includes(item.racketId));
+  const finalDecisionRacket = compared.find((racket) => decisionCandidates[racket.id]?.status === "final") ?? null;
 
   const formatCurrentRoute = useCallback((route: AppRoute, filters: ArmoryFilterState = armoryFiltersRef.current) => {
     if (route.view === "armory") return formatArmoryRouteState(route, filters, armoryFilterConfig);
@@ -2065,6 +2170,47 @@ export default function RacketApp() {
   }, [sessionReady, catalogScope, catalogBrand, catalogType, catalogGeneration, catalogReleaseYear, catalogSearch, catalogSort, writeSessionDomain]);
 
   useEffect(() => {
+    if (!sessionReady || decisionHydratedRef.current) return;
+    decisionHydratedRef.current = true;
+    let stored: ReturnType<typeof parseStoredDecision>;
+    let status: "available" | "memory-only" = "available";
+    try {
+      stored = parseStoredDecision(window.localStorage.getItem(DECISION_STORAGE_KEY));
+    } catch {
+      stored = parseStoredDecision(null);
+      status = "memory-only";
+    }
+    const frame = window.requestAnimationFrame(() => {
+      setSavedDecisionRoom(stored.room);
+      setDecisionFeedback(stored.feedback);
+      setPrescriptionBaselineId((current) => current || stored.room.baselineId || "");
+      setDecisionCandidates((current) => ({
+        ...Object.fromEntries(stored.room.slots.map((slot) => [slot.racketId, { status: slot.status, note: slot.note }])),
+        ...current,
+      }));
+      setDecisionStorageStatus(status);
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [sessionReady]);
+
+  useEffect(() => {
+    if (!sessionReady || decisionStorageStatus === "loading") return;
+    let nextStatus: "available" | "memory-only" = "available";
+    let room: DecisionRoomState | null = null;
+    try {
+      room = normalizeDecisionRoom(currentDecisionRoom);
+      window.localStorage.setItem(DECISION_STORAGE_KEY, serializeStoredDecision({ room, feedback: decisionFeedback }));
+    } catch {
+      nextStatus = "memory-only";
+    }
+    const frame = window.requestAnimationFrame(() => {
+      if (room) setSavedDecisionRoom(room);
+      if (decisionStorageStatus !== nextStatus) setDecisionStorageStatus(nextStatus);
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [sessionReady, decisionStorageStatus, currentDecisionRoom, decisionFeedback]);
+
+  useEffect(() => {
     if (!sessionReady) return;
     const reconcileSharedCompare = () => {
       let stored: unknown | null = null;
@@ -2686,7 +2832,20 @@ export default function RacketApp() {
   const clearComparison = () => {
     if (compareIds.length === 0) return;
     pendingCompareFocusRef.current = "undo";
-    commitCompareSlots([], "clear", `已清空 ${compareIds.length} 把球拍`);
+    commitCompareSlots([], "clear", `已清空 ${compareIds.length} 把决策候选`);
+  };
+
+  const changePrescriptionBaseline = (id: string) => {
+    const normalizedId = id && deepRacketById.has(id) ? id : "";
+    setPrescriptionBaselineId(normalizedId);
+    if (normalizedId && compareIds.includes(normalizedId)) {
+      const change = removeCompareId(compareSlots, normalizedId);
+      commitCompareSlots(change.slots, "remove", "当前球拍已设为处方基准，并从候选中移出");
+      return;
+    }
+    setLiveMessage(normalizedId
+      ? `已用 ${deepRacketById.get(normalizedId)?.model ?? "当前球拍"} 作为换拍基准`
+      : "已切换为无当前球拍的通用处方");
   };
 
   const undoCompareChange = () => {
@@ -2850,10 +3009,107 @@ export default function RacketApp() {
     url.hash = formatCompareRouteState({ view: "compare" }, compareSlotsRef.current);
     try {
       await navigator.clipboard.writeText(url.href);
-      setLiveMessage(`已复制 ${compareIds.length} 把球拍的对比链接`);
+      setLiveMessage(`已复制 ${compareIds.length} 把候选球拍的决策链接`);
     } catch {
       setLiveMessage("浏览器未允许复制，请直接复制地址栏链接");
     }
+  };
+
+  const updateDecisionCandidateStatus = (racketId: string, status: DecisionCandidateStatus) => {
+    if (!compareIds.includes(racketId)) return;
+    setDecisionCandidates((current) => {
+      const next = { ...current };
+      if (status === "final") {
+        for (const id of compareIds) {
+          if (id !== racketId && next[id]?.status === "final") next[id] = { ...next[id], status: "candidate" };
+        }
+      }
+      next[racketId] = { status, note: next[racketId]?.note ?? "" };
+      return next;
+    });
+    setLiveMessage(`${deepRacketById.get(racketId)?.model ?? "候选球拍"} 已标记为${decisionStatusLabels[status]}`);
+  };
+
+  const updateDecisionCandidateNote = (racketId: string, note: string) => {
+    if (!compareIds.includes(racketId)) return;
+    setDecisionCandidates((current) => ({
+      ...current,
+      [racketId]: {
+        status: current[racketId]?.status ?? "candidate",
+        note: note.slice(0, 120),
+      },
+    }));
+  };
+
+  const loadSavedDecision = () => {
+    if (!savedDecisionRoom) return;
+    const ids = savedDecisionRoom.slots
+      .filter((slot) => slot.status !== "eliminated" && deepRacketById.has(slot.racketId))
+      .slice(0, 3)
+      .map((slot) => slot.racketId);
+    const slots = ids.reduce<CompareSlots>((current, id) => addCompareId(current, id).slots, []);
+    setPrescriptionBaselineId(savedDecisionRoom.baselineId ?? "");
+    setDecisionCandidates(Object.fromEntries(savedDecisionRoom.slots.map((slot) => [slot.racketId, { status: slot.status, note: slot.note }])));
+    commitCompareSlots(slots, "load-recommended", `已载入 ${ids.length} 把本机保存的决策候选`);
+  };
+
+  const saveDecisionRoom = () => {
+    try {
+      const room = normalizeDecisionRoom(currentDecisionRoom);
+      window.localStorage.setItem(DECISION_STORAGE_KEY, serializeStoredDecision({ room, feedback: decisionFeedback }));
+      setSavedDecisionRoom(room);
+      setDecisionStorageStatus("available");
+      setLiveMessage("当前决策室已保存到本机");
+    } catch {
+      setDecisionStorageStatus("memory-only");
+      setLiveMessage("当前浏览器无法持久保存，本页仍可继续使用决策室");
+    }
+  };
+
+  const openTrialFeedback = (racketId: string) => {
+    setFeedbackRacketId(racketId);
+    setTrialFeedbackDraft(emptyTrialFeedbackDraft);
+    window.requestAnimationFrame(() => document.getElementById("trial-feedback-title")?.focus({ preventScroll: true }));
+  };
+
+  const submitTrialFeedback = () => {
+    if (!feedbackRacketId) return;
+    const status: DecisionCandidateStatus = trialFeedbackDraft.verdict === "最终选择"
+      ? "final"
+      : trialFeedbackDraft.verdict === "淘汰"
+        ? "eliminated"
+        : "trial";
+    const nextRoom = normalizeDecisionRoom({
+      ...currentDecisionRoom,
+      slots: currentDecisionRoom.slots.map((slot) => ({
+        ...slot,
+        status: slot.racketId === feedbackRacketId
+          ? status
+          : status === "final" && slot.status === "final"
+            ? "candidate"
+            : slot.status,
+      })),
+    });
+    const feedback: TrialFeedback = {
+      id: Date.now(),
+      racketId: feedbackRacketId,
+      ...trialFeedbackDraft,
+      createdAt: new Date().toISOString(),
+    };
+    const nextFeedback = [feedback, ...decisionFeedback].slice(0, 12);
+    setDecisionFeedback(nextFeedback);
+    setDecisionCandidates(Object.fromEntries(nextRoom.slots.map((slot) => [slot.racketId, { status: slot.status, note: slot.note }])));
+    setSavedDecisionRoom(nextRoom);
+    try {
+      window.localStorage.setItem(DECISION_STORAGE_KEY, serializeStoredDecision({ room: nextRoom, feedback: nextFeedback }));
+      setDecisionStorageStatus("available");
+      setLiveMessage("试打反馈与候选状态已保存到本机");
+    } catch {
+      setDecisionStorageStatus("memory-only");
+      setLiveMessage("试打反馈已保留在本页，当前浏览器无法持久保存");
+    }
+    setFeedbackRacketId(null);
+    setTrialFeedbackDraft(emptyTrialFeedbackDraft);
   };
 
   const shareCurrentView = async (label: string) => {
@@ -3180,7 +3436,7 @@ export default function RacketApp() {
   const compareTopMatches = () => {
     const ids = recommendations.slice(0, 2).map(({ racket }) => racket.id);
     const slots = ids.reduce<CompareSlots>((current, id) => addCompareId(current, id).slots, []);
-    commitCompareSlots(slots, "load-recommended", "已装载匹配指数最高的两把球拍");
+    commitCompareSlots(slots, "load-recommended", "已把处方前两名放入决策室");
     goToView("compare");
   };
 
@@ -3210,9 +3466,9 @@ export default function RacketApp() {
       ? `${matchFlow.draft.step + 1}/3`
       : null;
   const tabAriaLabel = (tab: (typeof appTabs)[number]) => tab.id === "compare" && compareIds.length > 0
-    ? `对比，已选 ${compareIds.length} 把`
+    ? `决策室，已有 ${compareIds.length} 把候选`
     : tab.id === "match" && matchFlow.draft
-      ? `匹配，有未完成草稿，第 ${matchFlow.draft.step + 1}/3 步`
+      ? `换拍处方，有未完成草稿，第 ${matchFlow.draft.step + 1}/3 步`
       : tab.label;
 
   return (
@@ -3247,7 +3503,7 @@ export default function RacketApp() {
               id="discover-title"
               eyebrow={hasCompletedMatch ? `${profileStage} · ${profileStyle} · ${profilePriority}优先` : "为你的打法准备"}
               title="今天，想怎么赢？"
-              action={<button className="profile-button" data-focus-key="discover-match-profile" onClick={openMatchProfile} aria-label={matchFlow.draft ? "继续未完成的匹配档案" : hasCompletedMatch ? "调整我的匹配档案" : "开始建立匹配档案"}><span aria-hidden="true">◇</span><b>{matchFlow.draft ? "继续匹配" : hasCompletedMatch ? "调整档案" : "开始匹配"}</b></button>}
+              action={<button className="profile-button" data-focus-key="discover-match-profile" onClick={openMatchProfile} aria-label={matchFlow.draft ? "继续未完成的换拍处方" : hasCompletedMatch ? "调整我的换拍处方" : "开始建立换拍处方"}><span aria-hidden="true">◇</span><b>{matchFlow.draft ? "继续处方" : hasCompletedMatch ? "调整处方" : "生成处方"}</b></button>}
             />
 
             {matchFlow.draft && (
@@ -3260,7 +3516,7 @@ export default function RacketApp() {
                   : sessionPersistence === "memory-only"
                     ? "进度仅保留在本页；刷新或关闭页面后会丢失。"
                     : "进度已保存在本机，可以从上次的问题继续。"}</p>
-                <button data-focus-key="discover-match-draft" onClick={openMatchProfile}>继续匹配 <span aria-hidden="true">›</span></button>
+                <button data-focus-key="discover-match-draft" onClick={openMatchProfile}>继续换拍处方 <span aria-hidden="true">›</span></button>
               </div>
             )}
 
@@ -3303,7 +3559,7 @@ export default function RacketApp() {
                   <span>3 步 · 约 30 秒</span>
                   <h2>先建立你的打法档案</h2>
                   <p>告诉我们阶段、常用赢分方式和优先方向，再从 {catalogModelCount} 款球拍里生成真实的候选清单。</p>
-                  <div><button className="app-button app-button--primary" data-focus-key="discover-match-start" onClick={openMatchProfile}>{matchFlow.draft ? "继续匹配" : "开始匹配"} <span aria-hidden="true">→</span></button><button className="app-button app-button--soft" onClick={browseFullCatalog}>先浏览拍库</button></div>
+                  <div><button className="app-button app-button--primary" data-focus-key="discover-match-start" onClick={openMatchProfile}>{matchFlow.draft ? "继续处方" : "开始换拍处方"} <span aria-hidden="true">→</span></button><button className="app-button app-button--soft" onClick={browseFullCatalog}>先浏览拍库</button></div>
                 </div>
                 <ol className="match-onboarding__steps"><li><b>01</b><span>打球阶段</span></li><li><b>02</b><span>打法风格</span></li><li><b>03</b><span>属性优先</span></li></ol>
               </section>
@@ -3313,7 +3569,7 @@ export default function RacketApp() {
               <div><span aria-hidden="true">◎</span><p>选拍提示</p></div>
               <h2>参数只是起点，动作与目标才决定答案。</h2>
               <p>先锁定阶段和打法，再用控制、力量、旋转、手感、容错与灵活六个维度确认取舍。</p>
-              <button data-focus-key="discover-match-insight" onClick={openMatchProfile}>{matchFlow.draft ? "继续未完成匹配" : hasCompletedMatch ? "调整匹配档案" : "开始 3 步匹配"} <span aria-hidden="true">→</span></button>
+              <button data-focus-key="discover-match-insight" onClick={openMatchProfile}>{matchFlow.draft ? "继续未完成处方" : hasCompletedMatch ? "调整换拍处方" : "开始 3 步换拍处方"} <span aria-hidden="true">→</span></button>
             </section>
 
             <div className="discover-shortcuts">
@@ -3331,8 +3587,8 @@ export default function RacketApp() {
           <section className="app-view match-view" aria-labelledby="match-title">
             <ViewTitle
               id="match-title"
-              eyebrow="三步找到你的方向"
-              title="打法匹配"
+              eyebrow="从当前球拍出发 · 三步收敛"
+              title="换拍处方"
               action={!matchRouteNotice && (matchStep > 0 || matchFlow.draft) ? (
                 <div className="match-title-actions">
                   {matchStep > 0 && <button className="round-action" onClick={goToPreviousMatchStep} aria-label="返回上一步">‹</button>}
@@ -3343,13 +3599,17 @@ export default function RacketApp() {
             <div
               className="match-progress"
               role={matchRouteNotice ? "status" : "progressbar"}
-              aria-label={matchRouteNotice ? "匹配结果不可用" : matchStep >= 3 ? "匹配完成" : `匹配进度 ${matchStep + 1} / 3`}
+              aria-label={matchRouteNotice ? "换拍处方不可用" : matchStep >= 3 ? "换拍处方完成" : `换拍处方进度 ${matchStep + 1} / 3`}
               aria-valuemin={matchRouteNotice ? undefined : 1}
               aria-valuemax={matchRouteNotice ? undefined : 3}
               aria-valuenow={matchRouteNotice ? undefined : Math.min(matchStep + 1, 3)}
             >
               {[0, 1, 2].map((step) => <i key={step} className={!matchRouteNotice && matchStep >= step ? "is-active" : ""} />)}
             </div>
+
+            {!matchRouteNotice && (
+              <PrescriptionBaselinePicker value={prescriptionBaselineId} onChange={changePrescriptionBaseline} compact={matchStep < 3} />
+            )}
 
             {sessionPersistence === "memory-only" && !matchRouteNotice && (
               <p className="match-storage-warning" role="status">当前浏览器不允许持久保存；刷新或关闭页面后，本次进度可能丢失。</p>
@@ -3359,9 +3619,9 @@ export default function RacketApp() {
               <section className="match-recovery" role="status">
                 <span aria-hidden="true">◇</span>
                 <p>这是一条仅包含结果位置的链接</p>
-                <h2 ref={matchHeadingRef} tabIndex={-1}>这份匹配结果不在当前设备</h2>
-                <p>打法档案保存在生成它的浏览器中，不会把私人答案写进分享链接。你可以用 3 个问题在本机重新生成。</p>
-                <div><button className="app-button app-button--primary" onClick={restartMatchProfile}>重新开始匹配</button><button className="app-button app-button--soft" onClick={exitMatchRecovery}>返回发现</button></div>
+                <h2 ref={matchHeadingRef} tabIndex={-1}>这份处方结果不在当前设备</h2>
+                <p>打法答案不会写进分享链接。你可以选择当前球拍，再用 3 个问题重新生成换拍处方。</p>
+                <div><button className="app-button app-button--primary" onClick={restartMatchProfile}>重新生成处方</button><button className="app-button app-button--soft" onClick={exitMatchRecovery}>返回发现</button></div>
               </section>
             ) : matchStep < 3 ? (
               <section className="match-question">
@@ -3384,9 +3644,9 @@ export default function RacketApp() {
             ) : (
               <section className="match-results-app">
                 <div className="match-result-hero">
-                  <span>匹配完成</span>
+                  <span>{prescriptionBaseline ? `从 ${prescriptionBaseline.model} 出发` : "换拍处方已生成"}</span>
                   <h2 ref={matchHeadingRef} tabIndex={-1}>{profileStage} · {profileStyle}</h2>
-                  <p>优先方向：{profilePriority}。候选按匹配指数排序，并优先展示不同拍系。</p>
+                  <p>优先方向：{profilePriority}。{prescriptionBaseline ? "每个候选都会说明相对当前球拍的收益、取舍与适应成本。" : "选择你当前使用的球拍，可查看更具体的迁移差异。"}</p>
                   <button onClick={restartMatchProfile}>修改答案</button>
                 </div>
                 <div className="match-result-list">
@@ -3395,14 +3655,19 @@ export default function RacketApp() {
                       <span className="match-result-card__rank">{index + 1}</span>
                       <button className="match-result-card__main" data-focus-key={`match-result-open-${racket.id}`} onClick={() => openRacket(racket.id)}>
                         <RacketPhoto racket={racket} variant="thumb" />
-                        <span className="match-result-card__copy"><small>{racket.brand}</small><strong>{racket.model}</strong><span>{recommendationReason(racket, profileStage, profileStyle, profilePriority)}</span></span>
+                        <span className="match-result-card__copy">
+                          <small>{prescriptionResultById.get(racket.id)?.role ?? racket.brand}</small>
+                          <strong>{racket.model}</strong>
+                          <span>{prescriptionResultById.get(racket.id)?.gains.join("；") ?? recommendationReason(racket, profileStage, profileStyle, profilePriority)}</span>
+                          {prescriptionBaseline && prescriptionResultById.get(racket.id) && <em>{prescriptionDeltaSummary(prescriptionResultById.get(racket.id) as PrescriptionResult)} · 适应成本 {prescriptionResultById.get(racket.id)?.adaptation}</em>}
+                        </span>
                       </button>
                       <div className="match-result-card__score"><b>{Math.round(match)}</b><small>指数</small></div>
-                      <button className="match-result-card__add" data-focus-key={`match-result-compare-${racket.id}`} onClick={() => requestCompare(racket.id)} aria-pressed={compareIds.includes(racket.id)} aria-label={!compareIds.includes(racket.id) && compareIds.length >= 3 ? `管理已满的球拍对比，当前无法加入 ${racket.model}` : `${compareIds.includes(racket.id) ? "移出" : "加入"} ${racket.model} 对比`}>{compareIds.includes(racket.id) ? "✓" : compareIds.length >= 3 ? "⇄" : "+"}</button>
+                      <button className="match-result-card__add" data-focus-key={`match-result-compare-${racket.id}`} onClick={() => requestCompare(racket.id)} aria-pressed={compareIds.includes(racket.id)} aria-label={!compareIds.includes(racket.id) && compareIds.length >= 3 ? `决策室已有三把候选，管理后再加入 ${racket.model}` : `${compareIds.includes(racket.id) ? "移出" : "加入"} ${racket.model} 决策室`}>{compareIds.includes(racket.id) ? "✓" : compareIds.length >= 3 ? "⇄" : "+"}</button>
                     </article>
                   ))}
                 </div>
-                <div className="match-results-actions"><button className="app-button app-button--primary" onClick={compareIds.length > 0 ? () => goToView("compare") : compareTopMatches}>{compareIds.length > 0 ? `查看已选对比 ${compareIds.length}/3` : "对比前两名"}</button><button className="app-button app-button--soft" onClick={browseFullCatalog}>浏览完整拍库</button></div>
+                <div className="match-results-actions"><button className="app-button app-button--primary" onClick={compareIds.length > 0 ? () => goToView("compare") : compareTopMatches}>{compareIds.length > 0 ? `进入决策室 ${compareIds.length}/3` : "把前两名放入决策室"}</button><button className="app-button app-button--soft" onClick={browseFullCatalog}>浏览完整拍库</button></div>
               </section>
             )}
           </section>
@@ -3549,24 +3814,36 @@ export default function RacketApp() {
           <section className="app-view compare-view" aria-labelledby="compare-title">
             <ViewTitle
               id="compare-title"
-              eyebrow={compared.length > 0 ? `${compared.length}/3 已装载` : "最多同时装载三把"}
-              title="球拍对比"
-              action={compared.length > 0 ? (
+              eyebrow={finalDecisionRacket ? `最终选择 · ${finalDecisionRacket.model}` : compared.length > 0 ? `${compared.length}/3 个候选` : "从处方到试打结论"}
+              title="选拍决策室"
+              action={(
                 <div className="compare-title-actions">
-                  <button className="text-action" onClick={copyCompareLink} aria-label={`复制当前 ${compared.length} 把球拍的对比链接`}>复制对比</button>
-                  <button className="text-action" onClick={clearComparison} aria-label={`清空当前 ${compared.length} 把球拍的对比`}>清空</button>
+                  <button className="text-action" onClick={saveDecisionRoom}>{decisionStorageStatus === "loading" ? "正在读取…" : "保存到本机"}</button>
+                  {compared.length > 0 && <button className="text-action" onClick={copyCompareLink} aria-label={`复制当前 ${compared.length} 把候选球拍的决策链接`}>分享</button>}
+                  {compared.length > 0 && <button className="text-action" onClick={clearComparison} aria-label={`清空当前 ${compared.length} 把决策候选`}>清空</button>}
                 </div>
-              ) : undefined}
+              )}
             />
+            <section className="decision-workflow" aria-labelledby="decision-workflow-title">
+              <div className="decision-workflow__heading"><div><span>Decision loop</span><h2 id="decision-workflow-title">把参数变成可执行的换拍决定</h2></div><small>{decisionStorageStatus === "loading" ? "正在读取本机记录" : decisionStorageStatus === "available" ? "当前浏览器自动保存" : "仅在本页临时保留"}</small></div>
+              <ol>
+                <li className={prescriptionBaseline ? "is-complete" : ""}><i>{prescriptionBaseline ? "✓" : "1"}</i><span><b>当前球拍</b><small>{prescriptionBaseline?.model ?? "可跳过"}</small></span></li>
+                <li className={compared.length >= 2 ? "is-complete" : ""}><i>{compared.length >= 2 ? "✓" : "2"}</i><span><b>收敛候选</b><small>{compared.length}/3 把</small></span></li>
+                <li className={currentDecisionFeedback.length > 0 ? "is-complete" : ""}><i>{currentDecisionFeedback.length > 0 ? "✓" : "3"}</i><span><b>完成试打</b><small>{currentDecisionFeedback.length} 条反馈</small></span></li>
+                <li className={finalDecisionRacket ? "is-complete" : ""}><i>{finalDecisionRacket ? "✓" : "4"}</i><span><b>作出选择</b><small>{finalDecisionRacket?.model ?? "等待结论"}</small></span></li>
+              </ol>
+              <PrescriptionBaselinePicker value={prescriptionBaselineId} onChange={changePrescriptionBaseline} compact />
+              {savedDecisionRoom && savedDecisionSlotIds.length > 0 && compareIds.length === 0 && <button className="decision-workflow__restore" onClick={loadSavedDecision}>载入上次保存的 {savedDecisionSlotIds.length} 把候选 <span aria-hidden="true">›</span></button>}
+            </section>
             {compared.length === 0 ? (
               <div className="compare-empty-app">
                 <div className="compare-empty-app__icon" aria-hidden="true">⇄</div>
-                <h2>先加入想比较的球拍</h2>
-                <p>从球拍库或推荐列表加入 2–3 把，雷达图会在同一刻度重叠显示差异。</p>
+                <h2>先建立 2–3 把决策候选</h2>
+                <p>从换拍处方或完整拍库加入候选，再用重叠雷达、试打状态与备注逐步收敛。</p>
                 <button className="app-button app-button--primary" data-compare-browse onClick={browseForCompare}>去球拍库选择</button>
-                <small className="compare-suggestions__label">{hasCompletedMatch ? "按你的打法快速添加" : "也可以先用三种典型取向体验对比"}</small>
+                <small className="compare-suggestions__label">{hasCompletedMatch ? "按你的换拍处方快速开始" : "也可以先用三种典型取向体验决策流程"}</small>
                 <div className="compare-suggestions">
-                  {compareSuggestionRackets.map((racket) => <button key={racket.id} onClick={() => toggleCompare(racket.id)} aria-label={`加入 ${racket.model} 对比`}><RacketPhoto racket={racket} variant="thumb" /><span><b>{racket.model}</b><small>+ 加入</small></span></button>)}
+                  {compareSuggestionRackets.map((racket) => <button key={racket.id} onClick={() => toggleCompare(racket.id)} aria-label={`加入 ${racket.model} 决策室`}><RacketPhoto racket={racket} variant="thumb" /><span><b>{racket.model}</b><small>+ 候选</small></span></button>)}
                 </div>
               </div>
             ) : (
@@ -3581,27 +3858,63 @@ export default function RacketApp() {
                 {compared.length === 1 && <div className="compare-guidance"><span>还差一把</span><p role="status">加入第二把后，六维轮廓与规格差异才会形成真正的重叠对比。</p><button onClick={browseForCompare}>去拍库添加</button></div>}
                 {availableCompareSuggestions.length > 0 && compared.length < 3 && (
                   <section className="compare-continue" aria-labelledby="compare-continue-title">
-                    <div><small>{hasCompletedMatch ? "按你的打法" : "典型取向"}</small><h2 id="compare-continue-title">快速补齐对比</h2></div>
+                    <div><small>{hasCompletedMatch ? "按你的打法" : "典型取向"}</small><h2 id="compare-continue-title">快速补齐候选</h2></div>
                     <div className="compare-suggestions">
-                      {availableCompareSuggestions.map((racket) => <button key={racket.id} onClick={() => toggleCompare(racket.id)} aria-label={`加入 ${racket.model} 对比`}><RacketPhoto racket={racket} variant="thumb" /><span><b>{racket.model}</b><small>+ 加入</small></span></button>)}
+                      {availableCompareSuggestions.map((racket) => <button key={racket.id} onClick={() => toggleCompare(racket.id)} aria-label={`加入 ${racket.model} 决策室`}><RacketPhoto racket={racket} variant="thumb" /><span><b>{racket.model}</b><small>+ 候选</small></span></button>)}
                     </div>
                   </section>
                 )}
+                <div className="compare-product-grid">
+                  {compareSlotRackets.map(({ slot, racket }) => {
+                    if (racket) {
+                      const candidate = decisionCandidates[racket.id] ?? { status: "candidate" as const, note: "" };
+                      return (
+                        <article key={racket.id} className={`decision-candidate decision-candidate--${candidate.status}`} data-compare-slot={slot}>
+                          <span className="decision-candidate__status">{decisionStatusLabels[candidate.status]}</span>
+                          <button className={`compare-product-grid__remove${pendingCompareRacket ? " is-replace" : ""}`} data-compare-remove-id={racket.id} onClick={() => pendingCompareRacket ? replacePendingCompare(racket.id) : toggleCompare(racket.id)} aria-label={pendingCompareRacket ? `用 ${pendingCompareRacket.model} 替换 ${racket.model}` : `从决策室移除 ${racket.model}`}>{pendingCompareRacket ? "⇄" : "×"}</button>
+                          <button className="compare-product-grid__main" data-focus-key={`compare-slot-${slot}-${racket.id}`} disabled={Boolean(pendingCompareRacket)} onClick={() => openRacket(racket.id)} aria-label={pendingCompareRacket ? `请先选择是否用 ${pendingCompareRacket.model} 替换 ${racket.model}` : `查看 ${racket.model} 深度档案`} title={pendingCompareRacket ? "请先完成或取消本次替换" : undefined}><RacketPhoto racket={racket} variant="thumb" /><span>{racket.brand}</span><h3>{racket.model}</h3></button>
+                          <div className="decision-candidate__tools">
+                            <label><span>决策状态</span><select value={candidate.status} disabled={Boolean(pendingCompareRacket)} onChange={(event) => updateDecisionCandidateStatus(racket.id, event.target.value as DecisionCandidateStatus)} aria-label={`${racket.model} 的决策状态`}>{Object.entries(decisionStatusLabels).map(([status, label]) => <option key={status} value={status}>{label}</option>)}</select></label>
+                            <button type="button" onClick={() => openTrialFeedback(racket.id)} disabled={Boolean(pendingCompareRacket)}>记录试打</button>
+                          </div>
+                          <label className="decision-candidate__note"><span>一句话判断</span><textarea value={candidate.note} maxLength={120} rows={2} placeholder="例如：发球更省力，但反手需要适应" onChange={(event) => updateDecisionCandidateNote(racket.id, event.target.value)} aria-label={`${racket.model} 的决策备注`} /></label>
+                        </article>
+                      );
+                    }
+                    return slot === firstEmptyCompareSlot
+                      ? <button key={slot} className="compare-add-slot" onClick={browseForCompare} aria-label="从球拍库添加下一个决策候选"><span>＋</span><b>候选 {slot + 1} · 添加</b></button>
+                      : <div key={slot} className="compare-add-slot compare-add-slot--queued" role="note" aria-label={`候选位 ${slot + 1}，将在前一空位加入后开放`}><span>·</span><b>候选 {slot + 1} · 待填</b></div>;
+                  })}
+                </div>
+
+                {feedbackRacketId && deepRacketById.get(feedbackRacketId) && (
+                  <form className="trial-feedback-card" onSubmit={(event) => { event.preventDefault(); submitTrialFeedback(); }}>
+                    <header>
+                      <div><span>Trial log</span><h2 id="trial-feedback-title" tabIndex={-1}>记录 {deepRacketById.get(feedbackRacketId)?.model} 试打</h2><p>凭实际击球感受打分，系统会把结论带回候选状态。</p></div>
+                      <button type="button" onClick={() => setFeedbackRacketId(null)} aria-label="关闭试打记录">×</button>
+                    </header>
+                    <div className="trial-feedback-card__ratings">
+                      {(["control", "power", "comfort"] as const).map((metric) => (
+                        <fieldset key={metric}>
+                          <legend>{trialMetricLabels[metric]} <b>{trialFeedbackDraft[metric]}/5</b></legend>
+                          <div role="radiogroup" aria-label={`${trialMetricLabels[metric]}评分`}>
+                            {[1, 2, 3, 4, 5].map((score) => <button key={score} type="button" role="radio" aria-checked={trialFeedbackDraft[metric] === score} onClick={() => setTrialFeedbackDraft((current) => ({ ...current, [metric]: score }))}>{score}</button>)}
+                          </div>
+                        </fieldset>
+                      ))}
+                    </div>
+                    <div className="trial-feedback-card__details">
+                      <label><span>本次结论</span><select value={trialFeedbackDraft.verdict} onChange={(event) => setTrialFeedbackDraft((current) => ({ ...current, verdict: event.target.value as TrialFeedbackDraft["verdict"] }))}>{trialVerdicts.map((verdict) => <option key={verdict}>{verdict}</option>)}</select></label>
+                      <label><span>场上感受</span><textarea value={trialFeedbackDraft.note} maxLength={240} rows={3} placeholder="记录底线、发球、网前或手臂负担的真实感受" onChange={(event) => setTrialFeedbackDraft((current) => ({ ...current, note: event.target.value }))} /></label>
+                    </div>
+                    <footer><small>试打记录仅保存在当前浏览器。</small><div><button type="button" onClick={() => setFeedbackRacketId(null)}>取消</button><button className="app-button app-button--primary" type="submit">保存试打</button></div></footer>
+                  </form>
+                )}
+
                 <section className="compare-radar-card">
                   <div><p>六维轮廓</p><h2>{compared.length > 1 ? "重叠雷达图" : "单拍雷达图"}</h2><span>官网硬规格与拍系定位生成的相对评估；非实验室测量。</span></div>
                   <RadarChart chartRackets={compared} seriesSlots={compareSlots.map(({ slot }) => slot)} />
                 </section>
-
-                <div className="compare-product-grid">
-                  {compareSlotRackets.map(({ slot, racket }) => racket ? (
-                    <article key={racket.id} data-compare-slot={slot}>
-                      <button className={`compare-product-grid__remove${pendingCompareRacket ? " is-replace" : ""}`} data-compare-remove-id={racket.id} onClick={() => pendingCompareRacket ? replacePendingCompare(racket.id) : toggleCompare(racket.id)} aria-label={pendingCompareRacket ? `用 ${pendingCompareRacket.model} 替换 ${racket.model}` : `从对比中移除 ${racket.model}`}>{pendingCompareRacket ? "⇄" : "×"}</button>
-                      <button className="compare-product-grid__main" data-focus-key={`compare-slot-${slot}-${racket.id}`} disabled={Boolean(pendingCompareRacket)} onClick={() => openRacket(racket.id)} aria-label={pendingCompareRacket ? `请先选择是否用 ${pendingCompareRacket.model} 替换 ${racket.model}` : `查看 ${racket.model} 深度档案`} title={pendingCompareRacket ? "请先完成或取消本次替换" : undefined}><RacketPhoto racket={racket} variant="thumb" /><span>{racket.brand}</span><h3>{racket.model}</h3></button>
-                    </article>
-                  ) : slot === firstEmptyCompareSlot
-                    ? <button key={slot} className="compare-add-slot" onClick={browseForCompare} aria-label={`从球拍库为下一个对比槽添加球拍`}><span>＋</span><b>槽 {slot + 1} · 添加</b></button>
-                    : <div key={slot} className="compare-add-slot compare-add-slot--queued" role="note" aria-label={`对比槽 ${slot + 1}，将在前一空槽加入后开放`}><span>·</span><b>槽 {slot + 1} · 待填</b></div>)}
-                </div>
 
                 <p className="compare-scroll-hint" id="compare-scroll-hint">横向滑动或使用方向键，查看全部球拍参数</p>
                 <div ref={compareTableScrollRef} className="compare-spec-table-scroll" role="region" aria-label="球拍规格对比表" aria-describedby="compare-scroll-hint" tabIndex={compareTableScrollable ? 0 : -1}>
@@ -3615,6 +3928,15 @@ export default function RacketApp() {
                     ? <a key={slot} href={racket.buyUrl} target="_blank" rel="noreferrer" aria-label={`前往 ${racket.brand} 官网查看 ${racket.model}，新标签页打开`}>前往 {racket.brand} 官网 <span aria-hidden="true">↗</span></a>
                     : <span className="compare-buy-grid__empty" key={slot}>空槽 {slot + 1}</span>)}
                 </div>
+                {currentDecisionFeedback.length > 0 && (
+                  <section className="trial-feedback-history" aria-labelledby="trial-feedback-history-title">
+                    <div><span>Trial history</span><h2 id="trial-feedback-history-title">最近试打记录</h2><small>用场上反馈校正参数判断</small></div>
+                    <ol>{currentDecisionFeedback.slice(0, 6).map((item, index) => {
+                      const racket = deepRacketById.get(item.racketId);
+                      return <li key={item.id ?? `${item.racketId}-${index}`}><header><b>{racket?.model ?? "球拍"}</b><span>{item.verdict}</span></header><div><span>控制 {item.control}/5</span><span>出球 {item.power}/5</span><span>舒适 {item.comfort}/5</span></div>{item.note && <p>{item.note}</p>}<small>{item.createdAt ? new Date(`${item.createdAt.replace(" ", "T")}Z`).toLocaleDateString("zh-CN") : "刚刚记录"}</small></li>;
+                    })}</ol>
+                  </section>
+                )}
               </div>
             )}
           </section>
@@ -3622,9 +3944,9 @@ export default function RacketApp() {
       </main>
 
       {!selected && !selectedFamily && activeView !== "compare" && compareIds.length > 0 && (
-        <button className="compare-tray" onClick={() => goToView("compare")} aria-label={`查看球拍对比，当前 ${compared.length}/3`}>
+        <button className="compare-tray" onClick={() => goToView("compare")} aria-label={`打开选拍决策室，当前 ${compared.length}/3 把候选`}>
           <span className="compare-tray__photos">{compareSlotRackets.map(({ slot, racket }) => racket ? <RacketPhoto key={slot} racket={racket} variant="thumb" /> : <i key={slot}>+</i>)}</span>
-          <span><b>对比 {compared.length}/3</b><small>查看重叠雷达图</small></span>
+          <span><b>决策 {compared.length}/3</b><small>比较差异并记录试打</small></span>
           <strong>继续 <span aria-hidden="true">›</span></strong>
         </button>
       )}

@@ -24,10 +24,10 @@ test("server-renders the app experience", async () => {
   assert.match(html, /今天，想怎么赢/);
   assert.match(html, /先建立你的打法档案/);
   assert.doesNotMatch(html, /你的首选/);
-  assert.match(html, />匹配</);
+  assert.match(html, />处方</);
   assert.match(html, /球拍库/);
   assert.match(html, />球星</);
-  assert.match(html, />对比</);
+  assert.match(html, />决策</);
   assert.match(html, /ATP \+ WTA 前 8/);
   assert.match(html, /259(?:<!-- -->)? 款现行型号/);
   assert.match(html, /259(?:<!-- -->)? 份六维深度档案/);
@@ -127,7 +127,7 @@ test("keeps racket imagery and app interactions wired", async () => {
   assert.match(page, /recordSettledMatchJourney/);
   assert.match(page, /buildColdMatchHistory/);
   assert.match(page, /paikuMatchRecovery/);
-  assert.match(page, /这份匹配结果不在当前设备/);
+  assert.match(page, /这份处方结果不在当前设备/);
   assert.match(page, /当前浏览器无法持久保存/);
   assert.match(page, /closeTopOverlayRef/);
   assert.match(page, /className="compare-spec-table"/);
