@@ -35,9 +35,49 @@ test("round-trips shareable compare slots without packing empty positions", () =
     hasExplicitSlots: true,
     rejectedSlots: [],
     rejectedCount: 0,
+    duel: false,
     canonicalHash: hash,
     shouldReplace: false,
   });
+});
+
+test("keeps a well-formed duel link canonical and strips every dirty vs marker", () => {
+  const duelHash = formatCompareRouteState({ view: "compare" }, [{ slot: 0, id: "blade" }], { duel: true });
+  assert.equal(duelHash, "#compare?r0=blade&vs=1");
+  const parsed = parseCompareRouteState(duelHash, (id) => id === "blade" ? "blade" : null);
+  assert.equal(parsed.duel, true);
+  assert.equal(parsed.canonicalHash, duelHash);
+  assert.equal(parsed.shouldReplace, false);
+
+  const roundTrip = parseCompareRouteState(
+    formatCompareRouteState(parsed.route, parsed.slots, { duel: parsed.duel }),
+    (id) => id === "blade" ? "blade" : null,
+  );
+  assert.equal(roundTrip.duel, true);
+  assert.deepEqual(roundTrip.slots, parsed.slots);
+
+  for (const dirty of ["#compare?r0=blade&vs=0", "#compare?r0=blade&vs=abc", "#compare?r0=blade&vs=1&vs=1", "#compare?vs=1"]) {
+    const cleaned = parseCompareRouteState(dirty, (id) => id === "blade" ? "blade" : null);
+    assert.equal(cleaned.duel, false, `${dirty} must not enter duel mode`);
+    assert.doesNotMatch(cleaned.canonicalHash, /vs=/, `${dirty} must lose vs`);
+    assert.equal(cleaned.shouldReplace, true, `${dirty} must self-heal`);
+  }
+
+  const rejectedOpponent = parseCompareRouteState("#compare?r0=gone&vs=1", () => null);
+  assert.equal(rejectedOpponent.duel, false, "a dead slot-0 id downgrades to a plain comparison");
+  assert.equal(rejectedOpponent.canonicalHash, "#compare");
+  assert.equal(rejectedOpponent.shouldReplace, true);
+
+  const foreignView = parseCompareRouteState("#tour?vs=1");
+  assert.equal(foreignView.duel, false);
+  assert.doesNotMatch(foreignView.canonicalHash, /vs=/);
+  assert.equal(foreignView.shouldReplace, true);
+
+  assert.equal(
+    formatCompareRouteState({ view: "tour" }, [{ slot: 0, id: "blade" }], { duel: true }),
+    "#tour",
+    "no other view may carry the duel marker",
+  );
 });
 
 test("sanitizes invalid, duplicate and legacy compare ids into one canonical link", () => {

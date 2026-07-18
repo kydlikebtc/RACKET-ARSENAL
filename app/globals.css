@@ -2298,6 +2298,55 @@ a:active {
 }
 /* === compare-insights end === */
 
+/* === compare-duel start === */
+.compare-duel-opponent {
+  background: var(--copper);
+  border-radius: 999px;
+  color: var(--surface);
+  font-size: 10px;
+  font-weight: 700;
+  left: 12px;
+  padding: 4px 9px;
+  position: absolute;
+  top: 42px;
+  z-index: 2;
+}
+
+.compare-guidance--duel span {
+  background: var(--copper);
+  color: var(--surface);
+}
+
+.compare-duel-scoreline {
+  background: color-mix(in srgb, var(--copper) 10%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--copper) 36%, transparent);
+  border-radius: 14px;
+  font-size: 12px;
+  font-weight: 650;
+  margin: 0;
+  padding: 11px 14px;
+  text-align: center;
+}
+
+.compare-duel-badge {
+  background: var(--acid);
+  border-radius: 999px;
+  color: var(--surface);
+  display: inline-block;
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 700;
+  margin-left: 6px;
+  padding: 2px 7px;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.compare-duel-badge--tie {
+  background: var(--text-faint);
+}
+/* === compare-duel end === */
+
 .compare-buy-grid {
   display: grid;
   gap: 10px;

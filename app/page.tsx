@@ -33,6 +33,7 @@ import { tourPlayers, tourRankAsOf, tourSources, type Tour, type TourPlayer } fr
 import { HONESTY_NOTES } from "./honesty-notes";
 import { buildSimilarRackets } from "./similar-rackets";
 import { buildCompareDiffInsights } from "./compare-insights";
+import { buildDuelVerdicts, duelScoreSummary } from "./compare-duel";
 import { tourCatalogTargets, tourRacketTargetId } from "./tour-links";
 import { catalogReleaseYear as parseCatalogReleaseYear, catalogSearchHistoryMode, matchesCatalogFamilySearch, matchesCatalogRacketSearch, matchesCatalogReleaseYearFilter } from "./catalog-search";
 import {
@@ -916,6 +917,7 @@ export default function RacketApp() {
   const [compareSlots, setCompareSlots] = useState<CompareSlots>([]);
   const [compareUndo, setCompareUndo] = useState<CompareUndo | null>(null);
   const [pendingCompareId, setPendingCompareId] = useState<string | null>(null);
+  const [duelOpponentId, setDuelOpponentId] = useState<string | null>(null);
   const [prescriptionBaselineId, setPrescriptionBaselineId] = useState("");
   const [decisionCandidates, setDecisionCandidates] = useState<Record<string, { status: DecisionCandidateStatus; note: string }>>({});
   const [savedDecisionRoom, setSavedDecisionRoom] = useState<DecisionRoomState | null>(null);
@@ -946,6 +948,7 @@ export default function RacketApp() {
   const familyTargetNeedsRevealRef = useRef(false);
   const matchFlowRef = useRef(matchFlow);
   const compareSlotsRef = useRef(compareSlots);
+  const duelOpponentRef = useRef<string | null>(null);
   const matchJourneyLifecycleRef = useRef<MatchJourneyLifecycle>(emptyMatchJourneyLifecycle);
   const viewScrollPositionsRef = useRef<Record<AppView, number>>({ discover: 0, match: 0, armory: 0, tour: 0, compare: 0 });
   const pendingPageFocusRef = useRef(false);
@@ -1078,6 +1081,10 @@ export default function RacketApp() {
   const compareIds = useMemo(() => compareSlotIds(compareSlots), [compareSlots]);
   const compared = compareIds.map((id) => deepRackets.find((racket) => racket.id === id)).filter(Boolean) as Racket[];
   const compareInsights = useMemo(() => buildCompareDiffInsights(compareIds.map((id) => deepRacketById.get(id)).filter((racket): racket is Racket => Boolean(racket))), [compareIds]);
+  const duelOpponent = duelOpponentId ? deepRacketById.get(duelOpponentId) ?? null : null;
+  const duelActive = Boolean(duelOpponent) && compareSlots.some(({ slot, id }) => slot === 0 && id === duelOpponentId) && compareIds.length <= 2;
+  const duelChallenger = duelActive && duelOpponent ? compared.find((racket) => racket.id !== duelOpponent.id) ?? null : null;
+  const duelVerdicts = duelActive && duelOpponent && duelChallenger ? buildDuelVerdicts(duelOpponent.scores, duelChallenger.scores) : null;
   const compareSlotRackets = ([0, 1, 2] as const).map((slot) => {
     const entry = compareSlots.find((item) => item.slot === slot);
     return { slot, racket: entry ? deepRacketById.get(entry.id) ?? null : null };
@@ -1115,12 +1122,19 @@ export default function RacketApp() {
   const currentDecisionFeedback = decisionFeedback.filter((item) => compareIds.includes(item.racketId));
   const finalDecisionRacket = compared.find((racket) => decisionCandidates[racket.id]?.status === "final") ?? null;
 
+  /** 对决态是否仍成立：对方战拍必须占据 slot 0，且严格 1v1（篮内至多 2 把）。 */
+  const duelStateActive = useCallback((slotsInput: unknown, opponentId: string | null) => {
+    if (!opponentId) return false;
+    const slots = normalizeCompareSlots(slotsInput);
+    return slots.some(({ slot, id }) => slot === 0 && id === opponentId) && slots.length <= 2;
+  }, []);
+
   const formatCurrentRoute = useCallback((route: AppRoute, filters: ArmoryFilterState = armoryFiltersRef.current) => {
     if (route.view === "armory") return formatArmoryRouteState(route, filters, armoryFilterConfig);
     if (route.view === "tour") return formatTourRouteState(route, tourFilterRef.current);
-    if (route.view === "compare") return formatCompareRouteState(route, compareSlotsRef.current);
+    if (route.view === "compare") return formatCompareRouteState(route, compareSlotsRef.current, { duel: duelStateActive(compareSlotsRef.current, duelOpponentRef.current) });
     return formatAppRoute(route);
-  }, []);
+  }, [duelStateActive]);
 
   const applyArmoryFiltersToState = useCallback((filters: ArmoryFilterState) => {
     armoryFiltersRef.current = filters;
@@ -1323,6 +1337,21 @@ export default function RacketApp() {
     compareSlotsRef.current = compareSlots;
   }, [compareSlots]);
 
+  // 对决生命周期兜底：任何绕过 commitCompareSlots 的篮子变更（撤销、跨标签同步等）
+  // 一旦破坏「对方战拍在 slot 0 且 1v1」不变量，立即退出对决并 canonical 移除 vs=1。
+  /* eslint-disable react-hooks/set-state-in-effect -- The duel invariant depends on the basket state, so the exit transition must settle here together with the canonical vs=1 removal. */
+  useEffect(() => {
+    if (!duelOpponentId) return;
+    if (duelStateActive(compareSlots, duelOpponentId)) return;
+    duelOpponentRef.current = null;
+    setDuelOpponentId(null);
+    setLiveMessage("已退出对决模式");
+    if (lastRouteRef.current.view === "compare") {
+      replacePaikuHistory(window.history.state as Record<string, unknown> | null, "", formatCurrentRoute(lastRouteRef.current));
+    }
+  }, [compareSlots, duelOpponentId, duelStateActive, formatCurrentRoute, replacePaikuHistory]);
+  /* eslint-enable react-hooks/set-state-in-effect */
+
   useEffect(() => {
     const media = window.matchMedia("(min-width: 761px)");
     const update = () => setWideModelMatrix(media.matches);
@@ -1465,6 +1494,21 @@ export default function RacketApp() {
         setLiveMessage(message);
       } else if (compareImportMessage) {
         setLiveMessage(compareImportMessage);
+      }
+      if (parsedRoute.view === "compare" && shouldImportCompareLink) {
+        if (compareRouteState.duel) {
+          const opponentSlot = compareRouteState.slots.find(({ slot }) => slot === 0);
+          const opponentRacket = opponentSlot ? deepRacketById.get(opponentSlot.id) : undefined;
+          if (opponentRacket) {
+            const entering = duelOpponentRef.current !== opponentRacket.id;
+            duelOpponentRef.current = opponentRacket.id;
+            setDuelOpponentId(opponentRacket.id);
+            if (entering) setLiveMessage(`收到球拍对决：${opponentRacket.brand} ${opponentRacket.model}，选一把球拍应战`);
+          }
+        } else if (duelOpponentRef.current && !duelStateActive(compareRouteState.slots, duelOpponentRef.current)) {
+          duelOpponentRef.current = null;
+          setDuelOpponentId(null);
+        }
       }
       let familyId = parsedRoute.familyId && catalogFamilyById.has(parsedRoute.familyId) ? parsedRoute.familyId : undefined;
       let racket = parsedRoute.racketId ? deepRacketById.get(parsedRoute.racketId) : undefined;
@@ -1758,7 +1802,7 @@ export default function RacketApp() {
       window.removeEventListener("popstate", onPopState);
       window.removeEventListener("hashchange", onHashChange);
     };
-  }, [applyArmoryFiltersToState, applyTourFilterToState, formatCurrentRoute, materializePendingMatchSettlement, pushPaikuHistory, replacePaikuHistory]);
+  }, [applyArmoryFiltersToState, applyTourFilterToState, duelStateActive, formatCurrentRoute, materializePendingMatchSettlement, pushPaikuHistory, replacePaikuHistory]);
 
   /* eslint-disable react-hooks/set-state-in-effect -- This one pre-paint transaction hydrates URL, history and local app state together so deep links never expose the wrong Tab. */
   useLayoutEffect(() => {
@@ -2059,6 +2103,15 @@ export default function RacketApp() {
       }
       compareSlotsRef.current = restoredCompareSlots;
       setCompareSlots(restoredCompareSlots);
+      if (route.view === "compare" && initialCompareRouteState.duel && !preservingSavedCompare) {
+        const duelSlot = restoredCompareSlots.find(({ slot }) => slot === 0);
+        const opponentRacket = duelSlot ? deepRacketById.get(duelSlot.id) : undefined;
+        if (opponentRacket && duelStateActive(restoredCompareSlots, opponentRacket.id)) {
+          duelOpponentRef.current = opponentRacket.id;
+          setDuelOpponentId(opponentRacket.id);
+          setLiveMessage(`收到球拍对决：${opponentRacket.brand} ${opponentRacket.model}，选一把球拍应战`);
+        }
+      }
       const savedTourFilter: Tour = (storedTour ?? saved?.tourFilter) === "WTA" ? "WTA" : "ATP";
       applyTourFilterToState(route.view === "tour" ? parseTourRouteState(window.location.hash).tour : savedTourFilter);
       const savedCatalogSource = storedCatalog ?? saved?.catalog;
@@ -2087,7 +2140,7 @@ export default function RacketApp() {
       // A browser history or storage restriction falls back to the server-rendered defaults.
     }
     setSessionReady(true);
-  }, [applyArmoryFiltersToState, applyTourFilterToState, formatCurrentRoute, pushPaikuHistory, replacePaikuHistory]);
+  }, [applyArmoryFiltersToState, applyTourFilterToState, duelStateActive, formatCurrentRoute, pushPaikuHistory, replacePaikuHistory]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
   const writeSessionDomain = useCallback((key: string, value: unknown) => {
@@ -2745,11 +2798,22 @@ export default function RacketApp() {
     const originFocus = captureFocusIdentity(originElement);
     compareSlotsRef.current = afterSlots;
     setCompareSlots(afterSlots);
+    const duelWasActive = duelStateActive(beforeSlots, duelOpponentRef.current);
+    const duelStillActive = duelStateActive(afterSlots, duelOpponentRef.current);
+    let duelExitNote = "";
+    if (duelWasActive && !duelStillActive) {
+      duelOpponentRef.current = null;
+      setDuelOpponentId(null);
+      duelExitNote = afterSlots.length > 2 ? "；对决仅限 1v1，已退出对决模式" : "；已退出对决模式";
+    } else if (!duelStillActive && duelOpponentRef.current) {
+      duelOpponentRef.current = null;
+      setDuelOpponentId(null);
+    }
     const saved = persistCompareSnapshot(afterSlots);
     setSessionPersistence(saved ? "available" : "memory-only");
     const announcedMessage = saved
-      ? message
-      : `${message}；当前浏览器无法持久保存，关闭页面后可能丢失`;
+      ? `${message}${duelExitNote}`
+      : `${message}${duelExitNote}；当前浏览器无法持久保存，关闭页面后可能丢失`;
     setPendingCompareId(null);
     setCompareUndo({ token, kind, beforeSlots, afterSlots, message: announcedMessage, originElement, originFocus });
     setLiveMessage(announcedMessage);
@@ -2762,7 +2826,7 @@ export default function RacketApp() {
     if (activeViewRef.current === "compare" || hadPendingCompare) {
       const route = parseAppRoute(window.location.hash);
       const url = route.view === "compare"
-        ? formatCompareRouteState(route, afterSlots)
+        ? formatCompareRouteState(route, afterSlots, { duel: duelStillActive })
         : window.location.href;
       replacePaikuHistory(nextHistoryState, "", url);
     }
@@ -3003,6 +3067,19 @@ export default function RacketApp() {
     try {
       await navigator.clipboard.writeText(window.location.href);
       setLiveMessage(`已复制 ${tourFilterRef.current} 榜单链接`);
+    } catch {
+      setLiveMessage("浏览器未允许复制，请直接复制地址栏链接");
+    }
+  };
+
+  const startDuel = async (id: string) => {
+    const racket = deepRacketById.get(id);
+    if (!racket) return;
+    const url = new URL(window.location.href);
+    url.hash = formatCompareRouteState({ view: "compare" }, [{ slot: 0, id: racket.id }], { duel: true });
+    try {
+      await navigator.clipboard.writeText(url.href);
+      setLiveMessage("已复制对决链接，发给朋友选拍应战");
     } catch {
       setLiveMessage("浏览器未允许复制，请直接复制地址栏链接");
     }
@@ -3860,7 +3937,9 @@ export default function RacketApp() {
                     <button onClick={cancelPendingCompare}>取消换入并返回</button>
                   </div>
                 )}
-                {compared.length === 1 && <div className="compare-guidance"><span>还差一把</span><p role="status">加入第二把后，六维轮廓与规格差异才会形成真正的重叠对比。</p><button onClick={browseForCompare}>去拍库添加</button></div>}
+                {compared.length === 1 && (duelActive && duelOpponent
+                  ? <div className="compare-guidance compare-guidance--duel"><span>应战</span><p role="status">收到球拍对决：对方选择了 <b>{duelOpponent.model}</b>。选一把球拍应战，六维逐维分出高下。</p><button onClick={browseForCompare}>去拍库选拍应战</button></div>
+                  : <div className="compare-guidance"><span>还差一把</span><p role="status">加入第二把后，六维轮廓与规格差异才会形成真正的重叠对比。</p><button onClick={browseForCompare}>去拍库添加</button></div>)}
                 {availableCompareSuggestions.length > 0 && compared.length < 3 && (
                   <section className="compare-continue" aria-labelledby="compare-continue-title">
                     <div><small>{hasCompletedMatch ? "按你的打法" : "典型取向"}</small><h2 id="compare-continue-title">快速补齐候选</h2></div>
@@ -3876,8 +3955,9 @@ export default function RacketApp() {
                       return (
                         <article key={racket.id} className={`decision-candidate decision-candidate--${candidate.status}`} data-compare-slot={slot}>
                           <span className="decision-candidate__status">{decisionStatusLabels[candidate.status]}</span>
+                          {duelActive && slot === 0 && racket.id === duelOpponentId && <span className="compare-duel-opponent">对方战拍</span>}
                           <button className={`compare-product-grid__remove${pendingCompareRacket ? " is-replace" : ""}`} data-compare-remove-id={racket.id} onClick={() => pendingCompareRacket ? replacePendingCompare(racket.id) : toggleCompare(racket.id)} aria-label={pendingCompareRacket ? `用 ${pendingCompareRacket.model} 替换 ${racket.model}` : `从决策室移除 ${racket.model}`}>{pendingCompareRacket ? "⇄" : "×"}</button>
-                          <button className="compare-product-grid__main" data-focus-key={`compare-slot-${slot}-${racket.id}`} disabled={Boolean(pendingCompareRacket)} onClick={() => openRacket(racket.id)} aria-label={pendingCompareRacket ? `请先选择是否用 ${pendingCompareRacket.model} 替换 ${racket.model}` : `查看 ${racket.model} 深度档案`} title={pendingCompareRacket ? "请先完成或取消本次替换" : undefined}><RacketPhoto racket={racket} variant="thumb" /><span>{racket.brand}</span><h3>{racket.model}</h3></button>
+                          <button className="compare-product-grid__main" data-focus-key={`compare-slot-${slot}-${racket.id}`} disabled={Boolean(pendingCompareRacket)} onClick={() => openRacket(racket.id)} aria-label={pendingCompareRacket ? `请先选择是否用 ${pendingCompareRacket.model} 替换 ${racket.model}` : `${duelActive && slot === 0 && racket.id === duelOpponentId ? "对方战拍，" : ""}查看 ${racket.model} 深度档案`} title={pendingCompareRacket ? "请先完成或取消本次替换" : undefined}><RacketPhoto racket={racket} variant="thumb" /><span>{racket.brand}</span><h3>{racket.model}</h3></button>
                           <div className="decision-candidate__tools">
                             <label><span>决策状态</span><select value={candidate.status} disabled={Boolean(pendingCompareRacket)} onChange={(event) => updateDecisionCandidateStatus(racket.id, event.target.value as DecisionCandidateStatus)} aria-label={`${racket.model} 的决策状态`}>{Object.entries(decisionStatusLabels).map(([status, label]) => <option key={status} value={status}>{label}</option>)}</select></label>
                             <button type="button" onClick={() => openTrialFeedback(racket.id)} disabled={Boolean(pendingCompareRacket)}>记录试打</button>
@@ -3933,13 +4013,25 @@ export default function RacketApp() {
                   </section>
                 )}
 
+                {duelVerdicts && duelOpponent && duelChallenger && (
+                  <p className="compare-duel-scoreline">{duelScoreSummary(duelVerdicts, duelOpponent.model, duelChallenger.model)}</p>
+                )}
                 <p className="compare-scroll-hint" id="compare-scroll-hint">横向滑动或使用方向键，查看全部球拍参数</p>
                 <div ref={compareTableScrollRef} className="compare-spec-table-scroll" role="region" aria-label="球拍规格对比表" aria-describedby="compare-scroll-hint" tabIndex={compareTableScrollable ? 0 : -1}>
                   <table className="compare-spec-table">
                     <thead><tr><th scope="col">属性</th>{compareSlotRackets.map(({ slot, racket }) => <th scope="col" className={racket ? undefined : "is-empty"} key={slot}>{racket?.model ?? `空槽 ${slot + 1}`}</th>)}</tr></thead>
                     <tbody>{comparisonRows.map((row) => {
                       const isMaxDiffRow = row.rowKind === "spec" && compareInsights.highlightKey === row.key;
-                      return <tr key={row.key} className={isMaxDiffRow ? "is-max-diff" : undefined}><th scope="row">{row.label}{isMaxDiffRow && <i className="compare-max-diff-badge">差异最大</i>}</th>{compareSlotRackets.map(({ slot, racket }) => <td key={slot} className={racket ? undefined : "is-empty"}>{racket ? row.value(racket) : "—"}</td>)}</tr>;
+                      const rowVerdict = row.rowKind === "score" && row.scoreKey && duelVerdicts ? duelVerdicts.verdicts[row.scoreKey] : null;
+                      return <tr key={row.key} className={isMaxDiffRow ? "is-max-diff" : undefined}><th scope="row">{row.label}{isMaxDiffRow && <i className="compare-max-diff-badge">差异最大</i>}</th>{compareSlotRackets.map(({ slot, racket }) => {
+                        const duelSide = rowVerdict && racket ? racket.id === duelOpponent?.id ? "a" : racket.id === duelChallenger?.id ? "b" : null : null;
+                        const duelBadge = duelSide && rowVerdict === "tie"
+                          ? <i className="compare-duel-badge compare-duel-badge--tie">战平</i>
+                          : duelSide && rowVerdict === duelSide
+                            ? <i className="compare-duel-badge">领先</i>
+                            : null;
+                        return <td key={slot} className={racket ? undefined : "is-empty"}>{racket ? row.value(racket) : "—"}{duelBadge}</td>;
+                      })}</tr>;
                     })}</tbody>
                   </table>
                 </div>
@@ -4057,7 +4149,7 @@ export default function RacketApp() {
       {selected && (
         <div className="detail-backdrop" role="presentation" onPointerDown={closeDetail}>
           <section ref={racketDialogRef} className="racket-inspector" role="dialog" aria-modal="true" aria-labelledby="inspector-title" onPointerDown={(event) => event.stopPropagation()} style={{ "--racket-accent": selected.accent } as CSSProperties}>
-            <header className="racket-inspector__header"><button data-dialog-close onClick={closeDetail} aria-label={detailReturnFamilyId ? "返回拍系详情" : "关闭详情"}>‹</button><span>{detailReturnFamilyId ? `返回 ${selected.familyName} 拍系` : selected.brand}</span><div className="inspector-header-actions"><button onClick={() => shareCurrentView(`${selected.brand} ${selected.model} 深度档案`)} aria-label={`分享 ${selected.model} 深度档案链接`}>分享</button><button data-focus-key={`dossier-header-compare-${selected.id}`} onClick={() => requestCompare(selected.id)} aria-pressed={compareIds.includes(selected.id)} aria-label={`${compareIds.includes(selected.id) ? "移出" : compareIds.length >= 3 ? "管理已满对比，当前无法加入" : "加入"} ${selected.model} 对比`}>{compareIds.includes(selected.id) ? "✓ 移出" : compareIds.length >= 3 ? "管理 3/3" : "+ 对比"}</button></div></header>
+            <header className="racket-inspector__header"><button data-dialog-close onClick={closeDetail} aria-label={detailReturnFamilyId ? "返回拍系详情" : "关闭详情"}>‹</button><span>{detailReturnFamilyId ? `返回 ${selected.familyName} 拍系` : selected.brand}</span><div className="inspector-header-actions"><button onClick={() => shareCurrentView(`${selected.brand} ${selected.model} 深度档案`)} aria-label={`分享 ${selected.model} 深度档案链接`}>分享</button><button data-focus-key={`dossier-duel-${selected.id}`} onClick={() => startDuel(selected.id)} aria-label={`发起 ${selected.model} 球拍对决，复制对决链接`}>发起对决</button><button data-focus-key={`dossier-header-compare-${selected.id}`} onClick={() => requestCompare(selected.id)} aria-pressed={compareIds.includes(selected.id)} aria-label={`${compareIds.includes(selected.id) ? "移出" : compareIds.length >= 3 ? "管理已满对比，当前无法加入" : "加入"} ${selected.model} 对比`}>{compareIds.includes(selected.id) ? "✓ 移出" : compareIds.length >= 3 ? "管理 3/3" : "+ 对比"}</button></div></header>
             <div className="racket-inspector__scroll" onScroll={(event) => persistRacketScroll(event.currentTarget.scrollTop)}>
               {selectedGallery.length > 0 ? <ProductGallery key={selected.id} images={selectedGallery} alt={`${selected.brand} ${selected.model}`} accent={selected.accent} /> : <RacketPhoto racket={selected} variant="detail" />}
               {selected.images?.length
