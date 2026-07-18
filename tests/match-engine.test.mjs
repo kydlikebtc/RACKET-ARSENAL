@@ -26,3 +26,44 @@ test("keeps every matching profile ranked and the shortlist family-diverse", () 
     }
   }
 });
+
+import { recommendationBreakdown } from "../app/page.tsx";
+
+test("breaks every recommendation score into honest additive parts", () => {
+  for (const stage of stages) {
+    for (const style of styles) {
+      for (const priority of priorities) {
+        for (const racket of deepRackets) {
+          const breakdown = recommendationBreakdown(racket, stage, style, priority);
+          const score = recommendationScore(racket, stage, style, priority);
+          const partsSum = breakdown.base + breakdown.stagePoints + breakdown.stylePoints + breakdown.priorityPoints;
+          assert.ok(Math.abs(partsSum - breakdown.raw) < 1e-9);
+          assert.ok(Math.abs(breakdown.total - score) < 1e-9);
+          assert.equal(breakdown.base, 10);
+          assert.ok([0, 22].includes(breakdown.stagePoints));
+          assert.ok([0, 28].includes(breakdown.stylePoints));
+          assert.equal(breakdown.stagePoints === 22, breakdown.stageHit);
+          assert.equal(breakdown.stylePoints === 28, breakdown.styleHit);
+          assert.equal(breakdown.priorityMode, priority === "均衡" ? "均衡" : "单项");
+          if (breakdown.raw <= 99) {
+            assert.equal(breakdown.capped, false);
+            assert.ok(Math.abs(breakdown.total - breakdown.raw) < 1e-9);
+          }
+        }
+      }
+    }
+  }
+});
+
+test("keeps the defensive 99-point cap for an out-of-range racket", () => {
+  const impossibleRacket = {
+    scores: { control: 200, power: 200, spin: 200, feel: 200, forgiveness: 200, agility: 200 },
+    stages: ["入门", "进阶", "高阶"],
+    styles: ["底线相持", "上旋进攻", "全场控制", "抢点快攻", "舒适护臂"],
+  };
+  const breakdown = recommendationBreakdown(impossibleRacket, "进阶", "底线相持", "力量");
+  assert.ok(breakdown.raw > 99);
+  assert.equal(breakdown.total, 99);
+  assert.equal(breakdown.capped, true);
+  assert.equal(recommendationScore(impossibleRacket, "进阶", "底线相持", "力量"), 99);
+});

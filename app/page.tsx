@@ -60,6 +60,7 @@ import {
   shouldResumeStoredMatchDraft,
   shouldUseMatchHistoryBack,
   snapshotMatchScreen,
+  type MatchPriority,
   type MatchQuestionStep,
   type MatchScreenSnapshot,
 } from "./match-flow";
@@ -128,6 +129,8 @@ import {
   parseStoredDecision,
   serializeStoredDecision,
 } from "./decision-storage";
+import { changedRankCount, diffRecommendationRanks } from "./match-preview";
+import { buildTourPlayerSync } from "./tour-sync";
 
 type Racket = DeepRacket;
 
@@ -197,6 +200,8 @@ const radarDash = ["none", "10 5", "2 5"];
 const compareBaselineIds = ["catalog-wilson-blade-v10-blade-100-v10", "catalog-yonex-ezone-8-ezone-100", "catalog-babolat-pure-aero-gen9-pure-aero-gen9"];
 const deepRacketById = new Map(deepRackets.map((racket) => [racket.id, racket]));
 const curatedListEntries = buildCuratedListEntries(curatedLists, deepRackets);
+const tourPlayerById = new Map(tourPlayers.map((player) => [player.id, player]));
+const resolveTourPlayerRouteFilter = (playerId: string) => tourPlayerById.get(playerId)?.tour ?? null;
 const catalogFamilyById = new Map(catalogFamilies.map((family) => [family.id, family]));
 for (const family of catalogFamilies) {
   family.models.forEach((_, modelIndex) => {
@@ -333,7 +338,7 @@ function RadarChart({ chartRackets, compact = false, seriesSlots }: { chartRacke
           })}
         </figcaption>
       )}
-      <p className="radar-chart__note">拍库相对评估 / 满分 100 / 非实验室测量</p>
+      <p className="radar-chart__note">{HONESTY_NOTES.scoreScale}</p>
     </figure>
   );
 }
@@ -441,27 +446,63 @@ function RacketSpecTags({
   );
 }
 
-export function recommendationScore(racket: Racket, stage: Stage, style: PlayStyle, priority: string) {
+const priorityScoreKeyMap: Record<string, ScoreKey> = {
+  力量: "power",
+  旋转: "spin",
+  控制: "control",
+  手感: "feel",
+  灵活: "agility",
+  护臂: "forgiveness",
+};
+
+export type RecommendationBreakdown = {
+  base: 10;
+  stageHit: boolean;
+  stagePoints: 0 | 22;
+  styleHit: boolean;
+  stylePoints: 0 | 28;
+  priorityMode: "均衡" | "单项";
+  priorityPoints: number;
+  raw: number;
+  total: number;
+  capped: boolean;
+};
+
+/**
+ * Itemizes the exact terms recommendationScore sums so the match result cards
+ * can show an honest "why this racket" breakdown. The arithmetic must stay
+ * aligned with recommendationScore's historical behaviour, so the score now
+ * derives from this breakdown instead of duplicating the formula.
+ */
+export function recommendationBreakdown(racket: Racket, stage: Stage, style: PlayStyle, priority: string): RecommendationBreakdown {
   const values = Object.values(racket.scores);
   const average = values.reduce((sum, value) => sum + value, 0) / values.length;
   const floor = Math.min(...values);
-  let score = 10;
-  if (racket.stages.includes(stage)) score += 22;
-  if (racket.styles.includes(style)) score += 28;
-  const keyMap: Record<string, ScoreKey> = {
-    力量: "power",
-    旋转: "spin",
-    控制: "control",
-    手感: "feel",
-    灵活: "agility",
-    护臂: "forgiveness",
+  const stageHit = racket.stages.includes(stage);
+  const styleHit = racket.styles.includes(style);
+  const stagePoints = stageHit ? 22 : 0;
+  const stylePoints = styleHit ? 28 : 0;
+  const priorityMode = priority === "均衡" ? "均衡" : "单项";
+  const priorityPoints = priorityMode === "均衡"
+    ? (average * 0.18) + (floor * 0.06)
+    : (racket.scores[priorityScoreKeyMap[priority]] * 0.2) + (average * 0.04);
+  const raw = 10 + stagePoints + stylePoints + priorityPoints;
+  return {
+    base: 10,
+    stageHit,
+    stagePoints,
+    styleHit,
+    stylePoints,
+    priorityMode,
+    priorityPoints,
+    raw,
+    total: Math.min(99, raw),
+    capped: raw > 99,
   };
-  if (priority === "均衡") {
-    score += (average * 0.18) + (floor * 0.06);
-  } else {
-    score += (racket.scores[keyMap[priority]] * 0.2) + (average * 0.04);
-  }
-  return Math.min(99, score);
+}
+
+export function recommendationScore(racket: Racket, stage: Stage, style: PlayStyle, priority: string) {
+  return recommendationBreakdown(racket, stage, style, priority).total;
 }
 
 export function buildRecommendations(rackets: Racket[], stage: Stage, style: PlayStyle, priority: string, limit = 4) {
@@ -486,9 +527,8 @@ function recommendationReason(racket: Racket, stage: Stage, style: PlayStyle, pr
   ];
   if (priority === "均衡") reasons.push("六维均衡");
   else {
-    const keyMap: Record<string, ScoreKey> = { 力量: "power", 旋转: "spin", 控制: "control", 手感: "feel", 灵活: "agility", 护臂: "forgiveness" };
     const label = priority === "护臂" ? "护臂（容错）" : priority;
-    reasons.push(`${label} ${racket.scores[keyMap[priority]]}`);
+    reasons.push(`${label} ${racket.scores[priorityScoreKeyMap[priority]]}`);
   }
   return reasons.join(" · ");
 }
@@ -865,7 +905,7 @@ function TourPlayerCard({
   const linkedRacket = target?.kind === "racket" ? deepRacketById.get(target.racketId) : undefined;
 
   return (
-    <article className={`tour-player-card${leader ? " tour-player-card--leader" : ""}`}>
+    <article id={`tour-player-${player.id}`} tabIndex={-1} className={`tour-player-card${leader ? " tour-player-card--leader" : ""}`}>
       <div className="tour-player-card__rank"><span>{player.tour}</span><b>#{player.rank}</b></div>
       <div className="tour-player-card__visual"><TourRacketVisual player={player} /></div>
       <div className="tour-player-card__body">
@@ -912,6 +952,10 @@ export default function RacketApp() {
   const [catalogFiltersOpen, setCatalogFiltersOpen] = useState(false);
   const [openCuratedCriteria, setOpenCuratedCriteria] = useState<Record<string, boolean>>({});
   const [matchFlow, setMatchFlow] = useState(emptyMatchFlow);
+  const [breakdownOpenIds, setBreakdownOpenIds] = useState<readonly string[]>([]);
+  const [previewPriority, setPreviewPriority] = useState<MatchPriority | null>(null);
+  const [tourPlayerLanding, setTourPlayerLanding] = useState<{ id: string; token: number } | null>(null);
+  const tourLandingTokenRef = useRef(0);
   const [sessionReady, setSessionReady] = useState(false);
   const [sessionPersistence, setSessionPersistence] = useState<"unknown" | "available" | "memory-only">("unknown");
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -996,13 +1040,17 @@ export default function RacketApp() {
   const profileStage = matchFlow.committed?.stage ?? matchStage;
   const profileStyle = matchFlow.committed?.style ?? matchStyle;
   const profilePriority = matchFlow.committed?.priority ?? priority;
+  // The preview is an unsaved overlay: everything on the result screen reads
+  // this single display priority so cards, reasons, breakdowns and actions
+  // can never disagree about which ranking is on screen.
+  const displayPriority = previewPriority ?? profilePriority;
   const prescriptionBaseline = prescriptionBaselineId ? deepRacketById.get(prescriptionBaselineId) ?? null : null;
   const generalRecommendations = useMemo(() => (
-    buildRecommendations(deepRackets, profileStage, profileStyle, profilePriority)
-  ), [profileStage, profileStyle, profilePriority]);
+    buildRecommendations(deepRackets, profileStage, profileStyle, displayPriority)
+  ), [profileStage, profileStyle, displayPriority]);
   const prescriptionResults = useMemo(() => (
-    buildSwapPrescription(deepRackets, prescriptionBaseline, profileStage, profileStyle, profilePriority, 3)
-  ), [prescriptionBaseline, profileStage, profileStyle, profilePriority]);
+    buildSwapPrescription(deepRackets, prescriptionBaseline, profileStage, profileStyle, displayPriority, 3)
+  ), [prescriptionBaseline, profileStage, profileStyle, displayPriority]);
   const prescriptionResultById = useMemo(
     () => new Map(prescriptionResults.map((result) => [result.racket.id, result])),
     [prescriptionResults],
@@ -1010,6 +1058,19 @@ export default function RacketApp() {
   const recommendations = prescriptionBaseline
     ? prescriptionResults.map(({ racket, match }) => ({ racket, match }))
     : generalRecommendations;
+  const previewRankChanges = useMemo(() => {
+    if (previewPriority === null || previewPriority === profilePriority) return null;
+    const committedRanking = prescriptionBaseline
+      ? buildSwapPrescription(deepRackets, prescriptionBaseline, profileStage, profileStyle, profilePriority, 3)
+      : buildRecommendations(deepRackets, profileStage, profileStyle, profilePriority);
+    const previewRanking = prescriptionBaseline
+      ? buildSwapPrescription(deepRackets, prescriptionBaseline, profileStage, profileStyle, previewPriority, 3)
+      : buildRecommendations(deepRackets, profileStage, profileStyle, previewPriority);
+    return diffRecommendationRanks(committedRanking, previewRanking, 3);
+  }, [previewPriority, profilePriority, prescriptionBaseline, profileStage, profileStyle]);
+  const tourPlayerSync = useMemo(() => (
+    buildTourPlayerSync(tourPlayers, tourCatalogTargets, deepRackets, { stage: profileStage, style: profileStyle, priority: displayPriority }, recommendationScore)
+  ), [profileStage, profileStyle, displayPriority]);
 
   const filteredFamilies = useMemo(() => {
     return catalogFamilies
@@ -1388,6 +1449,7 @@ export default function RacketApp() {
     window.history.scrollRestoration = "manual";
     let suppressHashTimer = 0;
     const readRoute = (source: "initial" | "pop" | "hash" = "initial") => {
+      setPreviewPriority(null);
       let entryState = window.history.state as (PaikuHistoryState & Record<string, unknown>) | null;
       const previousHistoryIndex = currentHistoryIndexRef.current;
       const hasStoredHistoryIndex = typeof entryState?.paikuHistoryIndex === "number";
@@ -1421,7 +1483,7 @@ export default function RacketApp() {
       }
 
       const armoryRouteState = parseArmoryRouteState(window.location.hash, armoryFilterConfig);
-      const tourRouteState = parseTourRouteState(window.location.hash);
+      const tourRouteState = parseTourRouteState(window.location.hash, "ATP", resolveTourPlayerRouteFilter);
       let compareRouteState = parseCompareRouteState(
         window.location.hash,
         (id) => deepRacketById.get(id)?.id ?? null,
@@ -1519,6 +1581,7 @@ export default function RacketApp() {
       let racket = parsedRoute.racketId ? deepRacketById.get(parsedRoute.racketId) : undefined;
       if (parsedRoute.racketId && !racket) setLiveMessage("该球拍链接已失效，已返回当前栏目");
       else if (parsedRoute.familyId && !familyId) setLiveMessage("该拍系链接已变更，已返回当前栏目");
+      else if (parsedRoute.view === "tour" && parsedRoute.playerId && !tourRouteState.playerId) setLiveMessage("该球星链接已失效，已返回巡回赛拍房");
       let nestedFamilyId = familyId && racket?.familyId === familyId ? familyId : undefined;
       const matchRouteStep = parsedRoute.view === "match" && !parsedRoute.familyId && !parsedRoute.racketId
         ? parsedRoute.matchStep
@@ -1537,7 +1600,7 @@ export default function RacketApp() {
           ? { view: parsedRoute.view, ...(nestedFamilyId ? { familyId: nestedFamilyId } : {}), racketId: racket.id }
           : familyId
             ? { view: parsedRoute.view, familyId }
-            : { view: parsedRoute.view };
+            : { view: parsedRoute.view, ...(tourRouteState.playerId ? { playerId: tourRouteState.playerId } : {}) };
       let state = window.history.state as (PaikuHistoryState & Record<string, unknown>) | null;
 
       const settledJourney = state?.paikuMatchJourneyId
@@ -1730,6 +1793,14 @@ export default function RacketApp() {
       setSelectedId(racket?.id ?? null);
       setSelectedFamilyId(!racket && familyId ? familyId : null);
       setDetailReturnFamilyId(nestedFamilyId ?? null);
+      if (route.view === "tour" && route.playerId) {
+        if (!state?.paikuFocus) {
+          setTourPlayerLanding({ id: route.playerId, token: ++tourLandingTokenRef.current });
+          setLiveMessage(`已定位到 ${tourPlayerById.get(route.playerId)?.nameZh ?? "目标球星"} 的球星卡`);
+        }
+      } else {
+        setTourPlayerLanding(null);
+      }
       const pendingCandidate = route.view === "compare" && state?.paikuPendingCompareId
         ? deepRacketById.get(state.paikuPendingCompareId)
         : undefined;
@@ -2118,7 +2189,7 @@ export default function RacketApp() {
         }
       }
       const savedTourFilter: Tour = (storedTour ?? saved?.tourFilter) === "WTA" ? "WTA" : "ATP";
-      applyTourFilterToState(route.view === "tour" ? parseTourRouteState(window.location.hash).tour : savedTourFilter);
+      applyTourFilterToState(route.view === "tour" ? parseTourRouteState(window.location.hash, "ATP", resolveTourPlayerRouteFilter).tour : savedTourFilter);
       const savedCatalogSource = storedCatalog ?? saved?.catalog;
       const savedCatalog = savedCatalogSource && typeof savedCatalogSource === "object" && !Array.isArray(savedCatalogSource)
         ? savedCatalogSource as Record<string, unknown>
@@ -2548,6 +2619,7 @@ export default function RacketApp() {
   }, [liveMessage, actionableCompareUndo, toastPaused]);
 
   const goToView = (view: AppView, scrollMode: "top" | "restore" = "top") => {
+    setPreviewPriority(null);
     const currentRoute = parseAppRoute(window.location.hash);
     const sameView = activeView === view && !currentRoute.familyId && !currentRoute.racketId;
     if (activeView === "armory" && view !== "armory" && compareBrowseReturnRef.current) {
@@ -3104,9 +3176,46 @@ export default function RacketApp() {
     }
   };
 
+  useEffect(() => {
+    if (!tourPlayerLanding) return;
+    const frame = window.requestAnimationFrame(() => {
+      const card = document.getElementById(`tour-player-${tourPlayerLanding.id}`);
+      if (!card) return;
+      card.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
+      card.focus({ preventScroll: true });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [tourPlayerLanding]);
+
+  const openTourPlayer = (playerId: string) => {
+    const player = tourPlayerById.get(playerId);
+    if (!player) return;
+    snapshotCurrentHistoryEntry();
+    setPreviewPriority(null);
+    viewScrollPositionsRef.current[activeViewRef.current] = window.scrollY;
+    pendingViewFocusRef.current = null;
+    pendingHistoryFocusRef.current = null;
+    pendingPageFocusRef.current = false;
+    setSelectedId(null);
+    setSelectedFamilyId(null);
+    setFamilyTargetRacketId(null);
+    setDetailReturnFamilyId(null);
+    familyReturnRacketRef.current = null;
+    applyTourFilterToState(player.tour);
+    setActiveView("tour");
+    activeViewRef.current = "tour";
+    const route: AppRoute = { view: "tour", playerId: player.id };
+    lastRouteRef.current = route;
+    pushPaikuHistory({ paiku: true, paikuOverlayPushed: false, paikuMatchPushed: false, paikuViewScrollTop: 0 }, "", formatCurrentRoute(route));
+    setTourPlayerLanding({ id: player.id, token: ++tourLandingTokenRef.current });
+    setLiveMessage(`已定位到 ${player.nameZh} 的球星卡`);
+  };
+
   const copyTourLink = async () => {
+    const url = new URL(window.location.href);
+    url.hash = formatTourRouteState({ view: "tour" }, tourFilterRef.current);
     try {
-      await navigator.clipboard.writeText(window.location.href);
+      await navigator.clipboard.writeText(url.href);
       setLiveMessage(`已复制 ${tourFilterRef.current} 榜单链接`);
     } catch {
       setLiveMessage("浏览器未允许复制，请直接复制地址栏链接");
@@ -3276,8 +3385,14 @@ export default function RacketApp() {
     if (nextTour === tourFilterRef.current) return;
     if (activeViewRef.current === "tour") snapshotCurrentHistoryEntry();
     applyTourFilterToState(nextTour);
+    setTourPlayerLanding(null);
     if (activeViewRef.current === "tour") {
-      const route = parseAppRoute(window.location.hash);
+      const parsedTourRoute = parseAppRoute(window.location.hash);
+      const route: AppRoute = {
+        view: parsedTourRoute.view,
+        ...(parsedTourRoute.familyId ? { familyId: parsedTourRoute.familyId } : {}),
+        ...(parsedTourRoute.racketId ? { racketId: parsedTourRoute.racketId } : {}),
+      };
       const focused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
       pushPaikuHistory({
         ...((window.history.state as Record<string, unknown> | null) ?? {}),
@@ -3359,9 +3474,33 @@ export default function RacketApp() {
     window.dispatchEvent(new PopStateEvent("popstate", { state: window.history.state }));
   };
 
+  const toggleMatchBreakdown = (id: string) => {
+    setBreakdownOpenIds((current) => current.includes(id) ? current.filter((openId) => openId !== id) : [...current, id]);
+  };
+
+  // Instant preview only mutates in-memory state: no snapshot persistence, no
+  // history entries, no hash changes. Leaving the screen restores the
+  // committed profile ranking automatically.
+  const previewMatchPriority = (item: MatchPriority) => {
+    const nextPreview = item === profilePriority ? null : item;
+    if (nextPreview === previewPriority) return;
+    setPreviewPriority(nextPreview);
+    if (nextPreview === null) return;
+    const committedRanking = prescriptionBaseline
+      ? buildSwapPrescription(deepRackets, prescriptionBaseline, profileStage, profileStyle, profilePriority, 3)
+      : buildRecommendations(deepRackets, profileStage, profileStyle, profilePriority);
+    const previewRanking = prescriptionBaseline
+      ? buildSwapPrescription(deepRackets, prescriptionBaseline, profileStage, profileStyle, nextPreview, 3)
+      : buildRecommendations(deepRackets, profileStage, profileStyle, nextPreview);
+    const changedCount = changedRankCount(diffRecommendationRanks(committedRanking, previewRanking, 3));
+    setLiveMessage(changedCount > 0 ? `预览 ${nextPreview} 优先，${changedCount} 把球拍名次变化` : `预览 ${nextPreview} 优先，名次没有变化`);
+  };
+
   const restartMatchProfile = () => {
     const recoveringMissingResult = matchRouteNotice === "missing-result";
     setMatchRouteNotice(null);
+    setBreakdownOpenIds([]);
+    setPreviewPriority(null);
     const currentRoute = parseAppRoute(window.location.hash);
     const alreadyAtStart = activeView === "match" && currentRoute.matchStep === 0 && !currentRoute.familyId && !currentRoute.racketId;
     if (!alreadyAtStart && !recoveringMissingResult) snapshotCurrentHistoryEntry();
@@ -3513,6 +3652,7 @@ export default function RacketApp() {
 
   const goToPreviousMatchStep = () => {
     if (matchStep <= 0) return;
+    setPreviewPriority(null);
     const state = window.history.state as PaikuHistoryState | null;
     if (shouldUseMatchHistoryBack(matchScreen, Boolean(state?.paikuMatchPushed))) {
       pendingMatchFocusRef.current = true;
@@ -3851,8 +3991,18 @@ export default function RacketApp() {
                 <div className="match-result-hero">
                   <span>{prescriptionBaseline ? `从 ${prescriptionBaseline.model} 出发` : "换拍处方已生成"}</span>
                   <h2 ref={matchHeadingRef} tabIndex={-1}>{profileStage} · {profileStyle}</h2>
-                  <p>优先方向：{profilePriority}。{prescriptionBaseline ? "每个候选都会说明相对当前球拍的收益、取舍与适应成本。" : "选择你当前使用的球拍，可查看更具体的迁移差异。"}</p>
+                  <p>优先方向：{displayPriority}。{prescriptionBaseline ? "每个候选都会说明相对当前球拍的收益、取舍与适应成本。" : "选择你当前使用的球拍，可查看更具体的迁移差异。"}</p>
                   <button onClick={restartMatchProfile}>修改答案</button>
+                </div>
+                <div className="match-priority-preview">
+                  <div className="match-priority-preview__capsules" role="group" aria-label="预览不同优先方向">
+                    {matchPriorities.map((item) => (
+                      <button key={item} type="button" aria-pressed={displayPriority === item} onClick={() => previewMatchPriority(item)}>{item === "护臂" ? "护臂 / 容错" : item}</button>
+                    ))}
+                  </div>
+                  {previewPriority !== null && previewPriority !== profilePriority && (
+                    <p className="match-priority-preview__status">预览中：{previewPriority} 优先（未保存）· 你的档案仍为 {profilePriority} 优先</p>
+                  )}
                 </div>
                 <div className="match-result-list">
                   {recommendations.slice(0, 3).map(({ racket, match }, index) => (
@@ -3863,15 +4013,65 @@ export default function RacketApp() {
                         <span className="match-result-card__copy">
                           <small>{prescriptionResultById.get(racket.id)?.role ?? racket.brand}</small>
                           <strong>{racket.model}</strong>
-                          <span>{prescriptionResultById.get(racket.id)?.gains.join("；") ?? recommendationReason(racket, profileStage, profileStyle, profilePriority)}</span>
+                          {(() => {
+                            const change = previewRankChanges?.find((entry) => entry.id === racket.id);
+                            if (!change || (!change.isNew && change.delta === 0)) return null;
+                            const badge = change.isNew ? "新上榜" : change.delta > 0 ? `↑${change.delta}` : `↓${Math.abs(change.delta)}`;
+                            const spoken = change.isNew ? "较档案榜单新进前三" : change.delta > 0 ? `较档案榜单上升 ${change.delta} 位` : `较档案榜单下降 ${Math.abs(change.delta)} 位`;
+                            return <span className={`match-result-card__rank-change${change.isNew ? " is-new" : change.delta > 0 ? " is-up" : " is-down"}`} role="img" aria-label={spoken}>{badge}</span>;
+                          })()}
+                          <span>{prescriptionResultById.get(racket.id)?.gains.join("；") ?? recommendationReason(racket, profileStage, profileStyle, displayPriority)}</span>
                           {prescriptionBaseline && prescriptionResultById.get(racket.id) && <em>{prescriptionDeltaSummary(prescriptionResultById.get(racket.id) as PrescriptionResult)} · 适应成本 {prescriptionResultById.get(racket.id)?.adaptation}</em>}
                         </span>
                       </button>
                       <div className="match-result-card__score"><b>{Math.round(match)}</b><small>指数</small></div>
                       <button className="match-result-card__add" data-focus-key={`match-result-compare-${racket.id}`} onClick={() => requestCompare(racket.id)} aria-pressed={compareIds.includes(racket.id)} aria-label={!compareIds.includes(racket.id) && compareIds.length >= 3 ? `决策室已有三把候选，管理后再加入 ${racket.model}` : `${compareIds.includes(racket.id) ? "移出" : "加入"} ${racket.model} 决策室`}>{compareIds.includes(racket.id) ? "✓" : compareIds.length >= 3 ? "⇄" : "+"}</button>
+                      {!prescriptionBaseline && (() => {
+                        const breakdown = recommendationBreakdown(racket, profileStage, profileStyle, displayPriority);
+                        const expanded = breakdownOpenIds.includes(racket.id);
+                        return (
+                          <div className="match-result-breakdown">
+                            <button type="button" className="match-result-breakdown__trigger" aria-expanded={expanded} aria-controls={`match-breakdown-${racket.id}`} aria-label={`查看 ${racket.model} 的匹配指数拆解`} onClick={() => toggleMatchBreakdown(racket.id)}>
+                              <span>为什么是它</span><i aria-hidden="true">{expanded ? "−" : "+"}</i>
+                            </button>
+                            <div id={`match-breakdown-${racket.id}`} role="region" aria-label={`${racket.model} 匹配指数拆解`} className="match-result-breakdown__panel" hidden={!expanded}>
+                              <ul>
+                                <li>基础分 +{breakdown.base}</li>
+                                <li>{breakdown.stageHit ? `阶段命中 +${breakdown.stagePoints}（适合${profileStage}）` : `阶段未命中 +0（该拍标注：${racket.stages.join("、")}）`}</li>
+                                <li>{breakdown.styleHit ? `打法命中 +${breakdown.stylePoints}（匹配${profileStyle}）` : `打法未命中 +0（该拍标注：${racket.styles.join("、")}）`}</li>
+                                <li>{breakdown.priorityMode === "均衡" ? `六维均衡加权 +${breakdown.priorityPoints.toFixed(1)}（六维均值×0.18 + 最低维×0.06）` : `${displayPriority}加权 +${breakdown.priorityPoints.toFixed(1)}（${displayPriority} ${racket.scores[priorityScoreKeyMap[displayPriority]]}×0.2 + 六维均值×0.04）`}</li>
+                              </ul>
+                              <p className="match-result-breakdown__total">合计 {breakdown.raw.toFixed(1)} ≈ 卡面 {Math.round(match)}{breakdown.capped ? `（原始 ${breakdown.raw.toFixed(1)}，封顶 99）` : ""}</p>
+                              <p className="match-result-breakdown__note">{HONESTY_NOTES.matchIndex}</p>
+                            </div>
+                          </div>
+                        );
+                      })()}
                     </article>
                   ))}
                 </div>
+                <section className="match-sync" aria-labelledby="match-sync-title">
+                  <div className="match-sync__head">
+                    <p>Tour Sync</p>
+                    <h3 id="match-sync-title">球星同频</h3>
+                  </div>
+                  <p className="match-sync__note">{HONESTY_NOTES.tourSync}</p>
+                  <ul className="match-sync__list">
+                    {tourPlayerSync.slice(0, 4).map((item) => (
+                      <li key={item.player.id}>
+                        <button type="button" data-focus-key={`tour-sync-open-${item.player.id}`} onClick={() => openTourPlayer(item.player.id)} aria-label={`${item.player.nameZh}，${item.player.tour} 第 ${item.player.rank} 位，同频 ${item.syncScore}%，${item.mapping}，打开球星卡`}>
+                          <span className="match-sync__who">
+                            <strong>{item.player.nameZh}</strong>
+                            <small>{item.player.tour} #{item.player.rank} · {item.mapping}</small>
+                            <small>{tourCatalogTargets[item.player.id]?.kind === "family" ? `按系内最同频型号 ${item.viaRacket.model} 估算` : `依据型号 ${item.viaRacket.model}`}</small>
+                          </span>
+                          <span className="match-sync__score"><b>同频 {item.syncScore}%</b><i aria-hidden="true">›</i></span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                  <button type="button" className="match-sync__all" data-focus-key="tour-sync-all" onClick={() => goToView("tour")}>查看全部 {tourPlayers.length} 位球星</button>
+                </section>
                 <div className="match-results-actions"><button className="app-button app-button--primary" onClick={compareIds.length > 0 ? () => goToView("compare") : compareTopMatches}>{compareIds.length > 0 ? `进入决策室 ${compareIds.length}/3` : "把前两名放入决策室"}</button><button className="app-button app-button--soft" onClick={browseFullCatalog}>浏览完整拍库</button></div>
               </section>
             )}

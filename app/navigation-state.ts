@@ -9,6 +9,7 @@ export type AppRoute = {
   familyId?: string;
   racketId?: string;
   matchStep?: MatchRouteStep;
+  playerId?: string;
 };
 
 export type ArmoryFilterState = {
@@ -45,6 +46,7 @@ export type TourRouteFilter = (typeof tourRouteFilters)[number];
 export type ParsedTourRouteState = {
   route: AppRoute;
   tour: TourRouteFilter;
+  playerId?: string;
   canonicalHash: string;
   shouldReplace: boolean;
 };
@@ -81,6 +83,11 @@ export function parseAppRoute(hash: string): AppRoute {
     return { view };
   }
 
+  if (view === "tour" && parts[1] === "player") {
+    const playerId = decodeSegment(parts[2]);
+    return { view, ...(playerId ? { playerId } : {}) };
+  }
+
   if (parts[1] === "family") {
     const familyId = decodeSegment(parts[2]);
     const racketId = parts[3] === "racket" ? decodeSegment(parts[4]) : undefined;
@@ -103,6 +110,7 @@ export function formatAppRoute(route: AppRoute) {
   }
   if (route.familyId) parts.push("family", encodeURIComponent(route.familyId));
   if (route.racketId) parts.push("racket", encodeURIComponent(route.racketId));
+  if (route.view === "tour" && route.playerId && !route.familyId && !route.racketId) parts.push("player", encodeURIComponent(route.playerId));
   return `#${parts.join("/")}`;
 }
 
@@ -203,6 +211,7 @@ export function formatTourRouteState(
 ) {
   const baseHash = formatAppRoute(route);
   if (route.view !== "tour" || tour === defaultTour) return baseHash;
+  if (route.playerId && !route.familyId && !route.racketId) return baseHash;
   const query = new URLSearchParams({ tour });
   return `${baseHash}?${query.toString()}`;
 }
@@ -210,16 +219,28 @@ export function formatTourRouteState(
 export function parseTourRouteState(
   hash: string,
   defaultTour: TourRouteFilter = "ATP",
+  resolvePlayer?: (playerId: string) => TourRouteFilter | null,
 ): ParsedTourRouteState {
-  const route = parseAppRoute(hash);
+  const parsed = parseAppRoute(hash);
+  const requestedPlayerId = parsed.view === "tour" ? parsed.playerId : undefined;
+  const playerTour = requestedPlayerId && resolvePlayer ? resolvePlayer(requestedPlayerId) : null;
+  const playerId = playerTour ? requestedPlayerId : undefined;
+  const route: AppRoute = {
+    view: parsed.view,
+    ...(parsed.familyId ? { familyId: parsed.familyId } : {}),
+    ...(parsed.racketId ? { racketId: parsed.racketId } : {}),
+    ...(parsed.matchStep !== undefined ? { matchStep: parsed.matchStep } : {}),
+    ...(playerId ? { playerId } : {}),
+  };
   const requested = new URLSearchParams(queryFromHash(hash)).get("tour");
-  const tour = route.view === "tour" && tourRouteFilters.includes(requested as TourRouteFilter)
+  const tour = playerTour ?? (route.view === "tour" && tourRouteFilters.includes(requested as TourRouteFilter)
     ? requested as TourRouteFilter
-    : defaultTour;
+    : defaultTour);
   const canonicalHash = formatTourRouteState(route, tour, defaultTour);
   return {
     route,
     tour,
+    ...(playerId ? { playerId } : {}),
     canonicalHash,
     shouldReplace: normalizedHash(hash) !== canonicalHash,
   };
