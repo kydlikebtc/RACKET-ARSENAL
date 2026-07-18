@@ -12,6 +12,8 @@ import {
   type CatalogFamily,
 } from "./catalog-data";
 import { catalogBrandProfile } from "./brand-data";
+import { buildCuratedListEntries, curatedCriteriaSummary, curatedLists } from "./curated-lists";
+import { HONESTY_NOTES } from "./honesty-notes";
 import {
   catalogRacketId,
   deepRackets,
@@ -190,6 +192,7 @@ const radarSeries = ["var(--acid)", "var(--copper)", "var(--sky)"];
 const radarDash = ["none", "10 5", "2 5"];
 const compareBaselineIds = ["catalog-wilson-blade-v10-blade-100-v10", "catalog-yonex-ezone-8-ezone-100", "catalog-babolat-pure-aero-gen9-pure-aero-gen9"];
 const deepRacketById = new Map(deepRackets.map((racket) => [racket.id, racket]));
+const curatedListEntries = buildCuratedListEntries(curatedLists, deepRackets);
 const catalogFamilyById = new Map(catalogFamilies.map((family) => [family.id, family]));
 for (const family of catalogFamilies) {
   family.models.forEach((_, modelIndex) => {
@@ -903,6 +906,7 @@ export default function RacketApp() {
   const [catalogSort, setCatalogSort] = useState<CatalogSort>("最新发行");
   const [catalogResultLimit, setCatalogResultLimit] = useState(24);
   const [catalogFiltersOpen, setCatalogFiltersOpen] = useState(false);
+  const [openCuratedCriteria, setOpenCuratedCriteria] = useState<Record<string, boolean>>({});
   const [matchFlow, setMatchFlow] = useState(emptyMatchFlow);
   const [sessionReady, setSessionReady] = useState(false);
   const [sessionPersistence, setSessionPersistence] = useState<"unknown" | "available" | "memory-only">("unknown");
@@ -3570,6 +3574,64 @@ export default function RacketApp() {
               <h2>参数只是起点，动作与目标才决定答案。</h2>
               <p>先锁定阶段和打法，再用控制、力量、旋转、手感、容错与灵活六个维度确认取舍。</p>
               <button data-focus-key="discover-match-insight" onClick={openMatchProfile}>{matchFlow.draft ? "继续未完成处方" : hasCompletedMatch ? "调整换拍处方" : "开始 3 步换拍处方"} <span aria-hidden="true">→</span></button>
+            </section>
+
+            <section className="curated-lists" aria-labelledby="curated-lists-title">
+              <div className="section-bar"><div><p>拍库严选</p><h2 id="curated-lists-title">按公开规格自动筛出的严选榜单</h2></div></div>
+              <div className="curated-lists__grid">
+                {curatedListEntries.map(({ list, rackets }) => {
+                  const criteriaOpen = Boolean(openCuratedCriteria[list.id]);
+                  return (
+                    <article key={list.id} className="curated-list" aria-labelledby={`curated-title-${list.id}`}>
+                      <header className="curated-list__header">
+                        <h3 id={`curated-title-${list.id}`}>{list.title}</h3>
+                        <p>{list.tagline}</p>
+                      </header>
+                      <button
+                        className="curated-list__criteria-toggle"
+                        aria-expanded={criteriaOpen}
+                        aria-controls={`curated-criteria-${list.id}`}
+                        data-focus-key={`curated-criteria-${list.id}`}
+                        onClick={() => setOpenCuratedCriteria((current) => ({ ...current, [list.id]: !current[list.id] }))}
+                      >
+                        <b>入选标准</b>
+                        <small>{curatedCriteriaSummary(list)}</small>
+                        <span aria-hidden="true">{criteriaOpen ? "−" : "+"}</span>
+                      </button>
+                      <div id={`curated-criteria-${list.id}`} className="curated-list__criteria" hidden={!criteriaOpen}>
+                        <div>
+                          <h4>硬性规格条件</h4>
+                          <ul>{list.hardCriteria.map((criterion) => <li key={criterion.label}>{criterion.label}</li>)}</ul>
+                        </div>
+                        <div>
+                          <h4>评分门槛</h4>
+                          <ul>{list.scoreCriteria.map((criterion) => <li key={criterion.label}>{criterion.label}</li>)}</ul>
+                          <p className="curated-list__note">六维评分为{HONESTY_NOTES.relativeAssessment}</p>
+                        </div>
+                      </div>
+                      {rackets.length > 0 ? (
+                        <ul className="curated-list__entries">
+                          {rackets.map((racket) => (
+                            <li key={racket.id} className="curated-entry">
+                              <div className="curated-entry__identity">
+                                <span>{racket.brand} · {racket.generation ?? racket.year}</span>
+                                <b>{racket.model}</b>
+                                <small>{formatNumberSpec(officialHead(racket), "in²")} · {formatNumberSpec(officialWeight(racket), "g")} · {officialPattern(racket) ?? HONESTY_NOTES.unpublished}</small>
+                              </div>
+                              <div className="curated-entry__actions">
+                                <button className="app-button app-button--soft" data-focus-key={`curated-open-${list.id}-${racket.id}`} onClick={() => openRacket(racket.id)}>查看档案</button>
+                                <button className="app-button app-button--glass" data-focus-key={`curated-compare-${list.id}-${racket.id}`} onClick={() => requestCompare(racket.id)} aria-pressed={compareIds.includes(racket.id)}>{compareIds.includes(racket.id) ? "✓ 已加入对比" : compareIds.length >= 3 ? "管理对比 3/3" : "+ 加入对比"}</button>
+                              </div>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="curated-list__empty">当前拍库暂无满足全部标准的型号</p>
+                      )}
+                    </article>
+                  );
+                })}
+              </div>
             </section>
 
             <div className="discover-shortcuts">

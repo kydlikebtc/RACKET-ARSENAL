@@ -29,6 +29,11 @@ test("server-renders the app experience", async () => {
   assert.match(html, />球星</);
   assert.match(html, />决策</);
   assert.match(html, /ATP \+ WTA 前 8/);
+  assert.match(html, /拍库严选/);
+  assert.match(html, /新手第一支拍/);
+  assert.match(html, /控制型进阶拍/);
+  assert.match(html, /入选标准/);
+  assert.match(html, /拍库相对评估/);
   assert.match(html, /259(?:<!-- -->)? 款现行型号/);
   assert.match(html, /259(?:<!-- -->)? 份六维深度档案/);
   assert.doesNotMatch(html, /Codex is working|Your site is taking shape|codex-preview/i);
@@ -171,6 +176,11 @@ test("keeps racket imagery and app interactions wired", async () => {
   assert.match(page, /进度仅保留在本页/);
   assert.match(page, /className="match-storage-warning"/);
   assert.match(page, /discover-match-profile/);
+  assert.match(page, /className="curated-lists"/);
+  assert.match(page, /curatedListEntries\.map/);
+  assert.match(page, /data-focus-key=\{`curated-open-\$\{list\.id\}-\$\{racket\.id\}`\} onClick=\{\(\) => openRacket\(racket\.id\)\}/);
+  assert.match(page, /data-focus-key=\{`curated-compare-\$\{list\.id\}-\$\{racket\.id\}`\} onClick=\{\(\) => requestCompare\(racket\.id\)\} aria-pressed=\{compareIds\.includes\(racket\.id\)\}/);
+  assert.match(page, /aria-controls=\{`curated-criteria-\$\{list\.id\}`\}/);
   assert.match(page, /planColdMissingResultRestart/);
   assert.match(page, /shouldImportCompareRoute/);
   assert.match(page, /rejectedCount/);
@@ -228,6 +238,7 @@ test("keeps racket imagery and app interactions wired", async () => {
   assert.match(css, /\.match-storage-warning/);
   assert.match(css, /\.skip-link/);
   assert.match(css, /\.catalog-filter-panel/);
+  assert.match(css, /\.curated-list__criteria-toggle[\s\S]*?min-height:\s*44px/);
   assert.match(css, /\.catalog-workbench[\s\S]*?position:\s*sticky/);
   assert.match(css, /\.brand-logo img[\s\S]*?object-fit:\s*contain/);
   assert.match(css, /\.compare-spec-table-scroll:focus-visible[\s\S]*?var\(--accent\) 72%/);
