@@ -929,24 +929,57 @@ function CatalogFamilyCard({ family, onOpen }: { family: CatalogFamily; onOpen: 
   );
 }
 
+const tourMappingMeta: Record<TourPlayer["mapping"], { label: string; detail: string; tone: string }> = {
+  "型号级映射": { label: "型号级", detail: "品牌公开信息可落到具体零售型号", tone: "exact" },
+  "系列级映射": { label: "系列级", detail: "品牌只公开拍系，具体子型号未知", tone: "family" },
+  "基础型号等效": { label: "基础型号等效", detail: "拍库落点为公开涂装的基础零售型号", tone: "equivalent" },
+  "当前拍系参考": { label: "拍系参考", detail: "仅用于浏览当前拍系，不代表比赛拍", tone: "reference" },
+};
+
+function TourPlayerPortrait({ player, priority = false, decorative = false }: { player: TourPlayer; priority?: boolean; decorative?: boolean }) {
+  const [failed, setFailed] = useState(false);
+  const initials = player.name.split(/\s+/u).map((part) => part[0]).slice(0, 2).join("");
+
+  if (failed) {
+    return (
+      <span className="tour-player-portrait__fallback" role={decorative ? undefined : "img"} aria-label={decorative ? undefined : `${player.nameZh} 球员照片暂不可用`} aria-hidden={decorative || undefined}>
+        <small>{player.tour}</small><b>{initials}</b>
+      </span>
+    );
+  }
+
+  return (
+    <img
+      className="tour-player-portrait"
+      src={player.portrait.src}
+      alt={decorative ? "" : `${player.nameZh} 人物照片`}
+      loading={priority ? "eager" : "lazy"}
+      fetchPriority={priority ? "high" : "auto"}
+      decoding="async"
+      style={{ objectPosition: player.portrait.objectPosition ?? "50% 28%" }}
+      onError={() => setFailed(true)}
+    />
+  );
+}
+
 function TourRacketVisual({ player }: { player: TourPlayer }) {
   const target = tourCatalogTargets[player.id];
   const linkedRacket = target?.kind === "racket" ? deepRacketById.get(target.racketId) : undefined;
   const linkedFamily = target ? catalogFamilyById.get(target.familyId) : undefined;
-  const [failedImage, setFailedImage] = useState<string | null>(null);
-  const familyImage = linkedFamily
-    ? familyGalleries[linkedFamily.id]?.[0] ?? linkedFamily.image
-    : undefined;
-  const image = linkedRacket?.image
-    ?? familyImage
-    ?? (player.racketImageId ? racketImages[player.racketImageId] : undefined);
+  const [failedImages, setFailedImages] = useState<string[]>([]);
+  const imageCandidates = Array.from(new Set([
+    linkedRacket?.image,
+    ...(linkedFamily ? familyGalleries[linkedFamily.id] ?? [] : []),
+    linkedFamily?.image,
+  ].filter((image): image is string => Boolean(image))));
+  const image = imageCandidates.find((candidate) => !failedImages.includes(candidate));
   const imageLabel = linkedRacket
-    ? `${linkedRacket.brand} ${linkedRacket.model} 官网零售映射图，具体比赛拍外观可能不同`
+    ? `${linkedRacket.brand} ${linkedRacket.model} 零售参考图`
     : linkedFamily
-      ? `${linkedFamily.brand} ${linkedFamily.family} ${linkedFamily.generation} 当前拍库参考图，不等同 ${player.marketedFamily} 或具体比赛拍`
-      : `${player.brand} ${player.marketedFamily} 拍系代表图，具体比赛拍外观可能不同`;
-  return image && failedImage !== image
-    ? <img src={image} alt={`${player.nameZh} · ${imageLabel}`} loading="lazy" decoding="async" onError={() => setFailedImage(image)} />
+      ? `${linkedFamily.brand} ${linkedFamily.family} ${linkedFamily.generation} 拍系参考图`
+      : `${player.brand} ${player.marketedFamily} 拍系参考图`;
+  return image
+    ? <img src={image} alt={imageLabel} loading="lazy" decoding="async" onError={() => setFailedImages((current) => current.includes(image) ? current : [...current, image])} />
     : <span role="img" aria-label={`${player.brand} ${player.marketedFamily} 拍系图片暂不可用`}><b>{player.brand}</b><small>{player.marketedFamily}</small></span>;
 }
 
@@ -956,35 +989,66 @@ function TourPlayerCard({
   onOpenFamily,
   onOpenRacket,
   onToggleCompare,
+  onShare,
   compared,
   compareFull,
+  syncScore,
 }: {
   player: TourPlayer;
   leader?: boolean;
   onOpenFamily: (id: string) => void;
   onOpenRacket: (id: string) => void;
   onToggleCompare: (id: string) => void;
+  onShare: (player: TourPlayer) => void;
   compared: boolean;
   compareFull: boolean;
+  syncScore?: number;
 }) {
   const target = tourCatalogTargets[player.id];
   const linkedFamily = target ? catalogFamilyById.get(target.familyId) : undefined;
   const linkedRacket = target?.kind === "racket" ? deepRacketById.get(target.racketId) : undefined;
+  const mappingMeta = tourMappingMeta[player.mapping];
+  const headingId = `tour-player-title-${player.id}`;
+  const catalogLanding = linkedRacket?.model ?? (linkedFamily ? `${linkedFamily.family} ${linkedFamily.generation}` : null);
 
   return (
-    <article id={`tour-player-${player.id}`} tabIndex={-1} className={`tour-player-card${leader ? " tour-player-card--leader" : ""}`}>
-      <div className="tour-player-card__rank"><span>{player.tour}</span><b>#{player.rank}</b></div>
-      <div className="tour-player-card__visual"><TourRacketVisual player={player} /></div>
+    <article id={`tour-player-${player.id}`} tabIndex={-1} aria-labelledby={headingId} className={`tour-player-card${leader ? " tour-player-card--leader" : ""}`}>
+      <div className="tour-player-card__visual">
+        <TourPlayerPortrait player={player} priority={leader} />
+        <span className="tour-player-card__shade" aria-hidden="true" />
+        <div className="tour-player-card__rank"><span>{player.tour}</span><b>#{player.rank}</b></div>
+        <div className="tour-player-card__identity">
+          <p><span>{player.country} · {player.countryCode}</span><span>{player.brand}</span></p>
+          <h3 id={headingId}>{player.nameZh}</h3>
+          <small>{player.name}</small>
+          <em>{player.playStyle}</em>
+        </div>
+        <div className="tour-player-card__racket-peek">
+          <TourRacketVisual player={player} />
+          <span><small>官方关联</small><b>{player.marketedModel ?? player.marketedFamily}</b></span>
+        </div>
+      </div>
       <div className="tour-player-card__body">
-        <div className="tour-player-card__country"><span>{player.countryCode}</span><span>{player.brand}</span></div>
-        <h2>{player.nameZh}</h2><p className="tour-player-card__latin">{player.name}</p>
-        <div className="tour-player-card__racket"><small>品牌官方关联拍系 / 零售映射</small><strong>{player.marketedModel ?? player.marketedFamily}</strong><span>{player.mapping}</span></div>
-        <p className="tour-player-card__note">{player.note}</p>
+        <div className="tour-player-card__story"><small>打法侧写 · 编辑观察</small><p>{player.signature}</p></div>
+        <div className="tour-player-card__traits" aria-label={`${player.nameZh} 打法标签`}>{player.traits.map((trait) => <span key={trait}>{trait}</span>)}</div>
+        {typeof syncScore === "number" && (
+          <div className="tour-player-card__sync" aria-label={`${player.nameZh} 关联零售拍与你的选拍档案适配 ${syncScore} 分，满分 99`}>
+            <span><small>关联零售拍 × 你的档案</small><b>基于当前阶段、打法与优先项</b></span>
+            <strong>{syncScore}<small>/99</small></strong>
+          </div>
+        )}
+        <div className="tour-player-card__mapping">
+          <div><span className={`tour-mapping-badge tour-mapping-badge--${mappingMeta.tone}`}>{mappingMeta.label}</span><small>{mappingMeta.detail}</small></div>
+          <dl>
+            <div><dt>品牌公开关联</dt><dd>{player.marketedModel ?? player.marketedFamily}</dd></div>
+            {catalogLanding && <div><dt>拍库可比较落点</dt><dd>{catalogLanding}</dd></div>}
+          </dl>
+        </div>
         <div className="tour-player-card__journey">
           {linkedRacket ? (
-            <button data-focus-key={`tour-racket-${player.id}-${linkedRacket.id}`} onClick={() => onOpenRacket(linkedRacket.id)}>查看深度档案</button>
+            <button data-focus-key={`tour-racket-${player.id}-${linkedRacket.id}`} onClick={() => onOpenRacket(linkedRacket.id)} aria-label={`查看 ${player.nameZh} 关联的 ${linkedRacket.model} 深度档案`}>查看关联拍深档 <span aria-hidden="true">›</span></button>
           ) : linkedFamily ? (
-            <button data-focus-key={`tour-family-${player.id}-${linkedFamily.id}`} onClick={() => onOpenFamily(linkedFamily.id)}>{player.mapping === "当前拍系参考" ? `进入参考拍系：${linkedFamily.family}` : `进入 ${linkedFamily.family} 拍系`}</button>
+            <button data-focus-key={`tour-family-${player.id}-${linkedFamily.id}`} onClick={() => onOpenFamily(linkedFamily.id)} aria-label={`浏览 ${player.nameZh} 关联的 ${linkedFamily.family} 拍系`}>{player.mapping === "当前拍系参考" ? `浏览参考拍系：${linkedFamily.family}` : `浏览 ${linkedFamily.family} 全系`} <span aria-hidden="true">›</span></button>
           ) : null}
           {linkedRacket && (
             <button
@@ -993,14 +1057,20 @@ function TourPlayerCard({
               aria-pressed={compared}
               aria-label={compareFull && !compared ? `管理已满的球拍对比，当前无法加入 ${linkedRacket.model}` : `${compared ? "移出" : "加入"} ${linkedRacket.model} 对比`}
             >
-              {compared ? "✓ 已加入对比" : compareFull ? "管理对比 3/3" : "+ 加入对比"}
+              {compared ? "✓ 已在决策室" : compareFull ? "管理决策室 3/3" : "+ 加入决策室"}
             </button>
           )}
         </div>
-        <div className="tour-player-card__sources">
-          <a href={player.profileUrl} target="_blank" rel="noreferrer" aria-label={`${player.nameZh} 品牌官方关联来源，新标签页打开`}>品牌官方关联来源 <span aria-hidden="true">↗</span></a>
-          <a href={player.gearUrl} target="_blank" rel="noreferrer" aria-label={`${player.nameZh} 零售映射来源，新标签页打开`}>零售映射来源 <span aria-hidden="true">↗</span></a>
-        </div>
+        <details className="tour-player-card__evidence">
+          <summary>映射说明与来源 <span aria-hidden="true">＋</span></summary>
+          <p>{player.note}</p>
+          <div className="tour-player-card__sources">
+            <a href={player.profileUrl} target="_blank" rel="noreferrer" aria-label={`${player.nameZh} 品牌官方关联来源，新标签页打开`}>品牌关联 ↗</a>
+            <a href={player.gearUrl} target="_blank" rel="noreferrer" aria-label={`${player.nameZh} 零售映射来源，新标签页打开`}>零售映射 ↗</a>
+            <a href={player.portrait.sourceUrl} target="_blank" rel="noreferrer" aria-label={`${player.nameZh} 照片来源与许可，新标签页打开`}>照片：{player.portrait.credit} · {player.portrait.license} ↗</a>
+          </div>
+        </details>
+        <button className="tour-player-card__share" onClick={() => onShare(player)} aria-label={`复制 ${player.nameZh} 球星档案链接`}>分享这位球员 <span aria-hidden="true">↗</span></button>
       </div>
     </article>
   );
@@ -1149,6 +1219,7 @@ export default function RacketApp() {
   const tourPlayerSync = useMemo(() => (
     buildTourPlayerSync(tourPlayers, tourCatalogTargets, deepRackets, { stage: profileStage, style: profileStyle, priority: displayPriority }, recommendationScore)
   ), [profileStage, profileStyle, displayPriority]);
+  const tourPlayerSyncById = useMemo(() => new Map(tourPlayerSync.map((item) => [item.player.id, item])), [tourPlayerSync]);
 
   const filteredFamilies = useMemo(() => {
     return catalogFamilies
@@ -1246,8 +1317,11 @@ export default function RacketApp() {
     catalogReleaseYear !== "全部年份",
   ].filter(Boolean).length;
   const visibleCatalogModelCount = filteredFamilies.reduce((total, family) => total + family.models.length, 0);
-  const visibleTourPlayers = tourPlayers.filter((player) => player.tour === tourFilter);
+  const visibleTourPlayers = tourPlayers.filter((player) => player.tour === tourFilter).sort((left, right) => left.rank - right.rank);
   const tourLeader = visibleTourPlayers[0];
+  const visibleExactMappings = visibleTourPlayers.filter((player) => player.mapping === "型号级映射").length;
+  const visibleFamilyMappings = visibleTourPlayers.filter((player) => player.mapping === "系列级映射" || player.mapping === "当前拍系参考").length;
+  const visibleEquivalentMappings = visibleTourPlayers.filter((player) => player.mapping === "基础型号等效").length;
   const pendingCompareRacket = pendingCompareId ? deepRacketById.get(pendingCompareId) ?? null : null;
   const actionableCompareUndo = compareUndo && compareSlotsEqual(compareSlots, compareUndo.afterSlots)
     ? compareUndo
@@ -3357,6 +3431,17 @@ export default function RacketApp() {
     }
   };
 
+  const copyTourPlayerLink = async (player: TourPlayer) => {
+    const url = new URL(window.location.href);
+    url.hash = formatTourRouteState({ view: "tour", playerId: player.id }, player.tour);
+    try {
+      await navigator.clipboard.writeText(url.href);
+      setLiveMessage(`已复制 ${player.nameZh} 的球星档案链接`);
+    } catch {
+      setLiveMessage("浏览器未允许复制，请直接复制地址栏链接");
+    }
+  };
+
   const startDuel = (id: string) => {
     const racket = deepRacketById.get(id);
     if (!racket) return;
@@ -4426,31 +4511,90 @@ export default function RacketApp() {
 
         {activeView === "tour" && (
           <section className="app-view tour-view" aria-labelledby="tour-title">
-            <ViewTitle id="tour-title" eyebrow={`排名快照 · ${tourRankAsOf}`} title="巡回赛拍房" />
-            <section className="tour-data-note">
-              <div><span aria-hidden="true">◎</span><p><b>官网公开用拍</b><small>赞助家族或零售型号映射</small></p></div>
-              <p>职业球员常用定制底板、加重和平衡方案；页面中的零售型号不代表其比赛拍实测参数。</p>
-              <div><button onClick={copyTourLink} aria-label={`复制 ${tourFilter} 世界前 8 用拍榜单链接`}>复制 {tourFilter} 榜单</button><a href={tourSources.ATP} target="_blank" rel="noreferrer" aria-label="ATP 排名来源，新标签页打开">ATP 排名源 ↗</a><a href={tourSources.WTA} target="_blank" rel="noreferrer" aria-label="WTA 排名来源，新标签页打开">WTA 排名源 ↗</a></div>
+            <ViewTitle id="tour-title" eyebrow={`排名快照 · ${tourRankAsOf}`} title="球星拍房" />
+            <section className="tour-intro" aria-labelledby="tour-intro-title">
+              <div className="tour-intro__copy">
+                <p>Player stories · Racket routes</p>
+                <h2 id="tour-intro-title">先认识球员，<br />再读懂手里的那把拍。</h2>
+                <span>真实人物照片、打法侧写与品牌公开用拍映射，串成一条可继续比较的选拍路径。</span>
+              </div>
+              <dl className="tour-intro__stats">
+                <div><dt>球星</dt><dd>16</dd><small>ATP + WTA 前 8</small></div>
+                <div><dt>真实照片</dt><dd>16</dd><small>本地化 · 来源可追溯</small></div>
+                <div><dt>深档落点</dt><dd>100%</dd><small>每位都可进入拍库</small></div>
+              </dl>
+              <p className="tour-intro__honesty"><span aria-hidden="true">◎</span><b>职业比赛拍 ≠ 零售规格</b><small>这里展示品牌公开关联与拍库落点，不把涂装或零售参数冒充比赛拍实测。</small></p>
             </section>
-            <div className="tour-switch" role="group" aria-label="选择巡回赛">
-              {(["ATP", "WTA"] as Tour[]).map((tour) => <button key={tour} data-focus-key={`tour-filter-${tour}`} aria-pressed={tourFilter === tour} onClick={() => commitTourFilter(tour)}><b>{tour}</b><span>世界前 8</span></button>)}
+
+            <div className="tour-commandbar">
+              <div
+                className="tour-switch"
+                role="tablist"
+                aria-label="选择巡回赛"
+                onKeyDown={(event) => moveHorizontalTab(event, ["ATP", "WTA"] as const, tourFilter, commitTourFilter)}
+              >
+                {(["ATP", "WTA"] as Tour[]).map((tour) => (
+                  <button
+                    key={tour}
+                    id={`tour-tab-${tour}`}
+                    role="tab"
+                    data-focus-key={`tour-filter-${tour}`}
+                    aria-selected={tourFilter === tour}
+                    aria-controls="tour-ranking-panel"
+                    tabIndex={tourFilter === tour ? 0 : -1}
+                    onClick={() => commitTourFilter(tour)}
+                  >
+                    <b>{tour}</b><span>世界前 8</span>
+                  </button>
+                ))}
+              </div>
+              <div className="tour-commandbar__summary">
+                <span><b>{tourFilter} Top 8</b><small>{visibleExactMappings} 个型号级 · {visibleFamilyMappings} 个拍系级/参考{visibleEquivalentMappings > 0 && ` · ${visibleEquivalentMappings} 个基础等效`}</small></span>
+                <div><button onClick={copyTourLink} aria-label={`复制 ${tourFilter} 世界前 8 用拍榜单链接`}>复制榜单</button><a href={tourSources[tourFilter]} target="_blank" rel="noreferrer" aria-label={`${tourFilter} 排名来源，新标签页打开`}>排名源 ↗</a></div>
+              </div>
             </div>
+
             {tourLeader ? (
-              <>
-                <TourPlayerCard
-                  player={tourLeader}
-                  leader
-                  onOpenFamily={openFamily}
-                  onOpenRacket={openRacket}
-                  onToggleCompare={requestCompare}
-                  compared={Boolean(tourRacketTargetId(tourLeader.id) && compareIds.includes(tourRacketTargetId(tourLeader.id) as string))}
-                  compareFull={compareIds.length >= 3}
-                />
-                <div className="section-bar"><div><p>{tourFilter} ranking</p><h2>第 2–8 位的公开用拍</h2></div><span className="tour-updated">截至 {tourRankAsOf}</span></div>
-                <div className="tour-player-grid">
-                  {visibleTourPlayers.slice(1).map((player) => <TourPlayerCard key={player.id} player={player} onOpenFamily={openFamily} onOpenRacket={openRacket} onToggleCompare={requestCompare} compared={Boolean(tourRacketTargetId(player.id) && compareIds.includes(tourRacketTargetId(player.id) as string))} compareFull={compareIds.length >= 3} />)}
+              <section id="tour-ranking-panel" className="tour-ranking" role="tabpanel" aria-labelledby={`tour-tab-${tourFilter}`}>
+                <div className="tour-rank-nav">
+                  <p><span>快速定位</span><small>点击头像跳到球员档案</small></p>
+                  <div>
+                    {visibleTourPlayers.map((player) => (
+                      <button key={player.id} onClick={() => openTourPlayer(player.id)} aria-label={`定位到 ${player.tour} 第 ${player.rank} 位 ${player.nameZh}`}>
+                        <span><TourPlayerPortrait player={player} decorative /></span>
+                        <b>#{player.rank}</b><small>{player.nameZh.replace(/·.*/u, "")}</small>
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </>
+                <div className="section-bar tour-ranking__heading"><div><p>{tourFilter} ranking</p><h2>{tourFilter} 世界前 8 · 球员与关联拍</h2></div><span className="tour-updated">截至 {tourRankAsOf}</span></div>
+                <ol className="tour-ranking-list">
+                  {visibleTourPlayers.map((player, index) => (
+                    <li key={player.id} className={index === 0 ? "tour-ranking-list__leader" : undefined}>
+                      <TourPlayerCard
+                        player={player}
+                        leader={index === 0}
+                        onOpenFamily={openFamily}
+                        onOpenRacket={openRacket}
+                        onToggleCompare={requestCompare}
+                        onShare={copyTourPlayerLink}
+                        syncScore={tourPlayerSyncById.get(player.id)?.syncScore}
+                        compared={Boolean(tourRacketTargetId(player.id) && compareIds.includes(tourRacketTargetId(player.id) as string))}
+                        compareFull={compareIds.length >= 3}
+                      />
+                    </li>
+                  ))}
+                </ol>
+                <details className="tour-method">
+                  <summary>数据口径、映射等级与照片来源 <span aria-hidden="true">＋</span></summary>
+                  <div>
+                    <p>排名为 {tourRankAsOf} 快照。球员照片来自 Wikimedia Commons，并在每张卡内保留作者与许可；打法侧写为拍库编辑观察，不是球员或巡回赛官方评级。</p>
+                    <ul>
+                      {Object.entries(tourMappingMeta).map(([mapping, meta]) => <li key={mapping}><span className={`tour-mapping-badge tour-mapping-badge--${meta.tone}`}>{meta.label}</span><b>{mapping}</b><small>{meta.detail}</small></li>)}
+                    </ul>
+                  </div>
+                </details>
+              </section>
             ) : (
               <div className="app-empty" role="status"><span aria-hidden="true">★</span><h2>{tourFilter} 榜单正在更新</h2><p>本组数据暂不可用，请稍后再试或切换另一巡回赛。</p></div>
             )}

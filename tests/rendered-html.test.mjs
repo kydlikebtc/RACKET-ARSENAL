@@ -113,7 +113,7 @@ test("keeps racket imagery and app interactions wired", async () => {
   assert.doesNotMatch(page, /className="sheet-handle"/);
   assert.match(sessionState, /paiku-session-v1/);
   assert.match(page, /className="model-matrix__scroll"/);
-  assert.match(page, /className="tour-player-grid"/);
+  assert.match(page, /className="tour-ranking-list"/);
   assert.match(page, /role="dialog"/);
   assert.match(page, /data-dialog-close/);
   assert.match(page, /setAttribute\("inert", ""\)/);
@@ -173,7 +173,7 @@ test("keeps racket imagery and app interactions wired", async () => {
   assert.match(page, /const commitTourFilter/);
   assert.match(page, /copyTourLink/);
   assert.match(page, /查看深度档案/);
-  assert.match(page, /role="group" aria-label="选择巡回赛"/);
+  assert.match(page, /role="tablist"[\s\S]*?aria-label="选择巡回赛"/);
   assert.match(page, /aria-live="polite"/);
   assert.match(page, /className="match-draft-banner"/);
   assert.match(page, /进度仅保留在本页/);
