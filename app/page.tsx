@@ -30,6 +30,8 @@ import {
   type Stage,
 } from "./racket-profiles";
 import { tourPlayers, tourRankAsOf, tourSources, type Tour, type TourPlayer } from "./tour-data";
+import { HONESTY_NOTES } from "./honesty-notes";
+import { buildSimilarRackets } from "./similar-rackets";
 import { tourCatalogTargets, tourRacketTargetId } from "./tour-links";
 import { catalogReleaseYear as parseCatalogReleaseYear, catalogSearchHistoryMode, matchesCatalogFamilySearch, matchesCatalogRacketSearch, matchesCatalogReleaseYearFilter } from "./catalog-search";
 import {
@@ -3455,6 +3457,7 @@ export default function RacketApp() {
     { label: "长度", value: officialLength },
     ...radarKeys.map((key) => ({ label: scoreLabels[key], value: (racket: Racket) => <b>{racket.scores[key]}</b> })),
   ];
+  const similarRackets = useMemo(() => selected ? buildSimilarRackets(selected, deepRackets) : null, [selected]);
   const selectedGallery = selected
     ? selected.images?.length
       ? selected.images
@@ -4051,6 +4054,34 @@ export default function RacketApp() {
                 <div><dt>裸拍重量</dt><dd>{formatNumberSpec(officialWeight(selected), "g")}</dd></div><div><dt>拍面</dt><dd>{formatNumberSpec(officialHead(selected), "in²")}</dd></div><div><dt>线床</dt><dd>{officialPattern(selected) ?? "—"}</dd></div><div><dt>平衡点</dt><dd>{officialBalance(selected)}</dd></div><div><dt>框厚</dt><dd>{officialBeam(selected)}</dd></div><div><dt>长度</dt><dd>{officialLength(selected)}</dd></div><div><dt>阶段</dt><dd>{selected.stages.join(" / ")}</dd></div><div><dt>打法</dt><dd>{selected.styles.join(" / ")}</dd></div><div><dt>资料完整度</dt><dd>{selected.specCoverage ?? "—"}</dd></div>
               </dl>
               <section className="inspector-radar"><div><p>六维属性</p><span>官网规格 × 拍系定位</span></div><RadarChart chartRackets={[selected]} /></section>
+              {similarRackets && (
+                <section className="similar-rackets" aria-labelledby="similar-rackets-title">
+                  <div className="similar-rackets__head"><p>他牌平替</p><h3 id="similar-rackets-title">找相似的拍</h3></div>
+                  {similarRackets.status === "missing-specs"
+                    ? <p className="similar-rackets__empty">该型号官网未公开{similarRackets.missing.join("、")}，无法进行规格相似度排序。</p>
+                    : similarRackets.entries.length === 0
+                      ? <p className="similar-rackets__empty">暂无官网规格齐全的他牌型号可参与相似度排序。</p>
+                      : (
+                        <ul className="similar-rackets__list">
+                          {similarRackets.entries.map((entry) => (
+                            <li key={entry.id}>
+                              <div className="similar-rackets__info">
+                                <span>{entry.racket.brand}</span>
+                                <b>{entry.racket.model}</b>
+                                <small>{formatNumberSpec(officialWeight(entry.racket), "g")} · {formatNumberSpec(officialHead(entry.racket), "in²")} · {officialPattern(entry.racket) ?? "—"}</small>
+                                <em className="similar-rackets__diff">{entry.nearIdentical ? entry.maxDiffLabel : `最大差异 ${entry.maxDiffLabel}`}</em>
+                              </div>
+                              <div className="similar-rackets__actions">
+                                <button data-focus-key={`similar-open-${entry.id}`} onClick={() => openRacket(entry.id)} aria-label={`打开 ${entry.racket.model} 深度档案`}>查看档案</button>
+                                <button data-focus-key={`similar-compare-${entry.id}`} onClick={() => requestCompare(entry.id)} aria-pressed={compareIds.includes(entry.id)} aria-label={`${compareIds.includes(entry.id) ? "移出" : compareIds.length >= 3 ? "管理已满对比，当前无法加入" : "加入"} ${entry.racket.model} 对比`}>{compareIds.includes(entry.id) ? "✓ 移出" : compareIds.length >= 3 ? "管理 3/3" : "+ 对比"}</button>
+                              </div>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                  <p className="similar-rackets__note">{HONESTY_NOTES.similarRacketsCoverage}{HONESTY_NOTES.similarRackets}</p>
+                </section>
+              )}
               <p className="inspector-note">{selected.profileBasis} 参数标签为公开硬规格的导向归纳，静态平衡不等于挥重。六维评分非实验室测量；穿线、磅数与个人动作都会改变最终手感，不替代实际试打。</p>
             </div>
             <footer className="racket-inspector__actions"><button className="app-button app-button--soft" data-focus-key={`dossier-footer-compare-${selected.id}`} onClick={compareIds.includes(selected.id) ? activeView === "compare" ? closeDetail : () => goToView("compare") : () => requestCompare(selected.id)}>{compareIds.includes(selected.id) ? activeView === "compare" ? "返回球拍对比" : `查看对比 ${compareIds.length}/3` : compareIds.length >= 3 ? "管理对比 3/3" : "+ 加入对比"}</button><a className="app-button app-button--primary" href={selected.buyUrl} target="_blank" rel="noreferrer" aria-label={`前往 ${selected.buyLabel} 查看 ${selected.model}，新标签页打开`}>前往 {selected.buyLabel} <span aria-hidden="true">↗</span></a></footer>

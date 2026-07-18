@@ -2868,6 +2868,126 @@ a:active {
   margin: 12px 0 0;
 }
 
+/* === similar-rackets start === */
+.similar-rackets {
+  border-top: 1px solid var(--separator);
+  margin-top: 24px;
+  padding-top: 20px;
+}
+
+.similar-rackets__head p {
+  color: var(--text-soft);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.similar-rackets__head h3 {
+  font-size: 16px;
+  font-weight: 650;
+  margin: 4px 0 0;
+}
+
+.similar-rackets__empty {
+  background: var(--surface-soft);
+  border-radius: 12px;
+  color: var(--text-soft);
+  font-size: 12px;
+  line-height: 1.6;
+  margin: 12px 0 0;
+  padding: 12px 14px;
+}
+
+.similar-rackets__list {
+  display: grid;
+  gap: 10px;
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+}
+
+.similar-rackets__list li {
+  align-items: center;
+  background: var(--surface-soft);
+  border-radius: 14px;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  padding: 12px 14px;
+}
+
+.similar-rackets__info {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.similar-rackets__info span {
+  color: var(--text-soft);
+  font-size: 10px;
+}
+
+.similar-rackets__info b {
+  font-size: 13px;
+}
+
+.similar-rackets__info small {
+  color: var(--text-soft);
+  font-family: var(--mono);
+  font-size: 10px;
+}
+
+.similar-rackets__diff {
+  color: var(--copper);
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 600;
+}
+
+.similar-rackets__actions {
+  display: grid;
+  flex-shrink: 0;
+  gap: 8px;
+}
+
+.similar-rackets__actions button {
+  background: var(--surface);
+  border: 1px solid var(--separator-strong);
+  border-radius: 999px;
+  color: var(--text);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  min-height: 44px;
+  padding: 0 16px;
+}
+
+.similar-rackets__actions button[aria-pressed="true"] {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.similar-rackets__note {
+  color: var(--text-faint);
+  font-size: 10px;
+  line-height: 1.6;
+  margin: 12px 0 0;
+}
+
+@media (max-width: 760px) {
+  .similar-rackets__list li {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .similar-rackets__actions {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+/* === similar-rackets end === */
+
 .racket-inspector__actions {
   backdrop-filter: blur(22px) saturate(1.4);
   background: color-mix(in srgb, var(--surface) 84%, transparent);
