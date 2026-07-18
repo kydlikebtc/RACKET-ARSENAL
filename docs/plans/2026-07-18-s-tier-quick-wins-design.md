@@ -7,17 +7,17 @@
 
 ## 总览
 
-| # | 功能 | 价值 | 可行性 | 轨道 | 轨道内顺序 |
-|---|------|------|--------|------|-----------|
-| 1 | 推荐评分拆解 | 5 | 5 | C 匹配页 | 1 |
-| 2 | 侧重秒切预览 | 4 | 5 | C 匹配页 | 2 |
-| 3 | 相似平替查找 | 4 | 5 | B 对比页 | 1 |
-| 4 | 对比白话解读 | 4 | 5 | B 对比页 | 2 |
-| 5 | 购买链接体检 | 4 | 5 | A 独立 | 1 |
-| 6 | 拍库严选榜单 | 4 | 5 | D 发现页 | 1 |
-| 7 | 好友球拍对决 | 3 | 5 | B 对比页 | 3 |
-| 8 | 球星同频指数与深链 | 3 | 5 | C 匹配页 | 3 |
-| 9 | 最近浏览货架 | 3 | 5 | D 发现页 | 2 |
+| #   | 功能               | 价值 | 可行性 | 轨道     | 轨道内顺序 |
+| --- | ------------------ | ---- | ------ | -------- | ---------- |
+| 1   | 推荐评分拆解       | 5    | 5      | C 匹配页 | 1          |
+| 2   | 侧重秒切预览       | 4    | 5      | C 匹配页 | 2          |
+| 3   | 相似平替查找       | 4    | 5      | B 对比页 | 1          |
+| 4   | 对比白话解读       | 4    | 5      | B 对比页 | 2          |
+| 5   | 购买链接体检       | 4    | 5      | A 独立   | 1          |
+| 6   | 拍库严选榜单       | 4    | 5      | D 发现页 | 1          |
+| 7   | 好友球拍对决       | 3    | 5      | B 对比页 | 3          |
+| 8   | 球星同频指数与深链 | 3    | 5      | C 匹配页 | 3          |
+| 9   | 最近浏览货架       | 3    | 5      | D 发现页 | 2          |
 
 **实施轨道（可并行）**：
 
@@ -110,7 +110,7 @@
 - FR-4 预览态诚实文案：当预览优先项 ≠ committed 优先项时，胶囊组附近显示状态行，明确"预览中：X 优先（未保存）· 你的档案仍为 Y 优先"；指数措辞维持项目既有数据诚实口径（"拍库相对评估 / 满分 100 / 非实验室测量"，page.tsx:477、6513），预览不得引入"实测""更适合你"等超出相对评估语义的表述；预览与基线一致时不显示预览态标识。
 - FR-5 还原语义（零持久化）：预览状态只存在于组件内存——点击 committed 优先项对应胶囊、点击"修改答案"（`restartMatchProfile`）、点返回（`goToPreviousMatchStep`）、切换底部任一 Tab（`goToView`）、浏览器前进/后退（popstate 还原 `paikuMatchScreen`）、或刷新页面后，预览一律清除并恢复 committed 基线榜单；`serializeMatchFlow` v2 结构、`persistMatchSnapshot`、session-state 四域、`PaikuHistoryState` 均不新增字段。发现页 featured/recommendation-list 始终基于 committed 档案，不受预览影响。
 - FR-6 hash 深链不变：预览不改变地址栏——结果页始终为 `#match/step/3`（navigation-state.ts `formatAppRoute`），不新增 query 参数、不 push/replace history；分享出去的链接语义不变（仍是"仅结果位置"链接，跨设备打开继续走现有 missing-result 恢复路径，page.tsx:5566-5591），canonical 化逻辑零改动。
-- FR-7 无障碍：胶囊组容器 `role="group"` 加中文 aria-label（如"预览不同优先方向"）；每个胶囊为原生 button 且 `aria-pressed` 标记当前生效项（与问卷选项 page.tsx:5635 同模式）；触控目标不小于 44px；切换后焦点保持在被点击的胶囊上，卡片现有 `data-focus-key`（match-result-open-*/match-result-compare-*）保留以兼容焦点恢复机制；名次变化通过现有 `setLiveMessage` 全局 live region（page.tsx:7221，role=status aria-live=polite aria-atomic）播报一句摘要（如"预览 力量 优先：第一名变为 XX，2 把球拍名次变化"），不新增重复 live region。
+- FR-7 无障碍：胶囊组容器 `role="group"` 加中文 aria-label（如"预览不同优先方向"）；每个胶囊为原生 button 且 `aria-pressed` 标记当前生效项（与问卷选项 page.tsx:5635 同模式）；触控目标不小于 44px；切换后焦点保持在被点击的胶囊上，卡片现有 `data-focus-key`（match-result-open-_/match-result-compare-_）保留以兼容焦点恢复机制；名次变化通过现有 `setLiveMessage` 全局 live region（page.tsx:7221，role=status aria-live=polite aria-atomic）播报一句摘要（如"预览 力量 优先：第一名变为 XX，2 把球拍名次变化"），不新增重复 live region。
 
 #### 边界与降级
 
@@ -694,7 +694,7 @@
 - 【对比页·哲学张力需布局区隔】duel 基于派生六维评分判胜负，narrative 刻意只用官网硬规格；两区块相邻呈现时用户易混淆口径。归并建议：差异翻译区块副标已注明『按官网公开规格』，对决徽章仅出现在评分行、永不触碰规格行，narrative 永不触碰评分行——此互斥约束应写进两个功能的源码正则测试
 - 【发现页·首屏下移与 SSR/CSR 时序】curated-lists（insight-card 后、SSR 直出、2 榜单×4 条目）+ recent-shelf（shortcuts 后、客户端注水后才出现、最多 12 条）。无插入点冲突，但：a) curated 区块把 discover-shortcuts 推至首屏外，需确认 model-matrix-first-screen.test.mjs 不受影响；b) shelf 注水后出现造成布局位移，置于 shortcuts 之后（页面下部）是正确缓解，两功能实施顺序应 curated 先行定版上半区
 - 【racket-inspector·header 动作区拥挤】racket-duel 在 inspector-header-actions(7044) 加第 3 个按钮（分享/+对比/发起对决），44px 触控目标在 ≤760px 宽度下可能换行/挤压——需一次性设计三按钮布局；similar-rackets 区块(7168 后)自带脚注 + 既有 inspector-note(7177) + link-health 页脚降级提示(7202)，档案页尾部三段小字堆叠，建议合并脚注区
-- 【跨功能·requestCompare 满槽跳转副作用】similar-rackets、curated-lists、（间接）recent-shelf 打开的档案内都新增/复用『+对比』入口，篮满时 requestCompare 会关闭 overlay 并跳转 compare 视图——多个功能的验收都依赖此行为，属一致复用而非冲突，但 data-focus-key 命名空间（similar-compare-*/curated-open-*/tour-*）需登记避免撞名
+- 【跨功能·requestCompare 满槽跳转副作用】similar-rackets、curated-lists、（间接）recent-shelf 打开的档案内都新增/复用『+对比』入口，篮满时 requestCompare 会关闭 overlay 并跳转 compare 视图——多个功能的验收都依赖此行为，属一致复用而非冲突，但 data-focus-key 命名空间（similar-compare-_/curated-open-_/tour-*）需登记避免撞名
 
 ### 状态与路由冲突
 
@@ -737,4 +737,3 @@
 - recent-shelf 建议砍 FR-6 的精细焦点编排（移除后焦点落相邻条目移除按钮、末条落 browseFullCatalog）——简化为焦点回货架标题/区块；FR-7 清空按钮可保留但不做条数 aria-label。核心（记录/持久化/宽容恢复/横滑/移除）已够一天
 - similar-rackets、compare-narrative、curated-lists 三个基本符合 S 级，无需砍：唯一提醒是 compare-narrative 的 259×259 两两组合测试（约 3.3 万次调用）需确认耗时可接受，必要时抽样；curated-lists 严守首发 2 个榜单即可
 - 横向建议（省全局工时）：9 个功能引入至少 6 处新的『拍库相对评估/非实验室测量』类免责文案与对应源码正则测试——应抽一个共享文案常量（如 page.tsx 顶部 HONESTY_NOTE 常量组），各测试断言常量引用而非各自散落字符串，避免后续措辞微调引发 6 个测试文件连锁改动
-
