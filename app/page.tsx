@@ -122,6 +122,7 @@ import {
   parseStoredDecision,
   serializeStoredDecision,
 } from "./decision-storage";
+import { HONESTY_NOTES } from "./honesty-notes";
 
 type Racket = DeepRacket;
 
@@ -326,7 +327,7 @@ function RadarChart({ chartRackets, compact = false, seriesSlots }: { chartRacke
           })}
         </figcaption>
       )}
-      <p className="radar-chart__note">拍库相对评估 / 满分 100 / 非实验室测量</p>
+      <p className="radar-chart__note">{HONESTY_NOTES.scoreScale}</p>
     </figure>
   );
 }
@@ -434,27 +435,63 @@ function RacketSpecTags({
   );
 }
 
-export function recommendationScore(racket: Racket, stage: Stage, style: PlayStyle, priority: string) {
+const priorityScoreKeyMap: Record<string, ScoreKey> = {
+  力量: "power",
+  旋转: "spin",
+  控制: "control",
+  手感: "feel",
+  灵活: "agility",
+  护臂: "forgiveness",
+};
+
+export type RecommendationBreakdown = {
+  base: 10;
+  stageHit: boolean;
+  stagePoints: 0 | 22;
+  styleHit: boolean;
+  stylePoints: 0 | 28;
+  priorityMode: "均衡" | "单项";
+  priorityPoints: number;
+  raw: number;
+  total: number;
+  capped: boolean;
+};
+
+/**
+ * Itemizes the exact terms recommendationScore sums so the match result cards
+ * can show an honest "why this racket" breakdown. The arithmetic must stay
+ * aligned with recommendationScore's historical behaviour, so the score now
+ * derives from this breakdown instead of duplicating the formula.
+ */
+export function recommendationBreakdown(racket: Racket, stage: Stage, style: PlayStyle, priority: string): RecommendationBreakdown {
   const values = Object.values(racket.scores);
   const average = values.reduce((sum, value) => sum + value, 0) / values.length;
   const floor = Math.min(...values);
-  let score = 10;
-  if (racket.stages.includes(stage)) score += 22;
-  if (racket.styles.includes(style)) score += 28;
-  const keyMap: Record<string, ScoreKey> = {
-    力量: "power",
-    旋转: "spin",
-    控制: "control",
-    手感: "feel",
-    灵活: "agility",
-    护臂: "forgiveness",
+  const stageHit = racket.stages.includes(stage);
+  const styleHit = racket.styles.includes(style);
+  const stagePoints = stageHit ? 22 : 0;
+  const stylePoints = styleHit ? 28 : 0;
+  const priorityMode = priority === "均衡" ? "均衡" : "单项";
+  const priorityPoints = priorityMode === "均衡"
+    ? (average * 0.18) + (floor * 0.06)
+    : (racket.scores[priorityScoreKeyMap[priority]] * 0.2) + (average * 0.04);
+  const raw = 10 + stagePoints + stylePoints + priorityPoints;
+  return {
+    base: 10,
+    stageHit,
+    stagePoints,
+    styleHit,
+    stylePoints,
+    priorityMode,
+    priorityPoints,
+    raw,
+    total: Math.min(99, raw),
+    capped: raw > 99,
   };
-  if (priority === "均衡") {
-    score += (average * 0.18) + (floor * 0.06);
-  } else {
-    score += (racket.scores[keyMap[priority]] * 0.2) + (average * 0.04);
-  }
-  return Math.min(99, score);
+}
+
+export function recommendationScore(racket: Racket, stage: Stage, style: PlayStyle, priority: string) {
+  return recommendationBreakdown(racket, stage, style, priority).total;
 }
 
 export function buildRecommendations(rackets: Racket[], stage: Stage, style: PlayStyle, priority: string, limit = 4) {
@@ -479,9 +516,8 @@ function recommendationReason(racket: Racket, stage: Stage, style: PlayStyle, pr
   ];
   if (priority === "均衡") reasons.push("六维均衡");
   else {
-    const keyMap: Record<string, ScoreKey> = { 力量: "power", 旋转: "spin", 控制: "control", 手感: "feel", 灵活: "agility", 护臂: "forgiveness" };
     const label = priority === "护臂" ? "护臂（容错）" : priority;
-    reasons.push(`${label} ${racket.scores[keyMap[priority]]}`);
+    reasons.push(`${label} ${racket.scores[priorityScoreKeyMap[priority]]}`);
   }
   return reasons.join(" · ");
 }
@@ -904,6 +940,7 @@ export default function RacketApp() {
   const [catalogResultLimit, setCatalogResultLimit] = useState(24);
   const [catalogFiltersOpen, setCatalogFiltersOpen] = useState(false);
   const [matchFlow, setMatchFlow] = useState(emptyMatchFlow);
+  const [breakdownOpenIds, setBreakdownOpenIds] = useState<readonly string[]>([]);
   const [sessionReady, setSessionReady] = useState(false);
   const [sessionPersistence, setSessionPersistence] = useState<"unknown" | "available" | "memory-only">("unknown");
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -3237,9 +3274,14 @@ export default function RacketApp() {
     window.dispatchEvent(new PopStateEvent("popstate", { state: window.history.state }));
   };
 
+  const toggleMatchBreakdown = (id: string) => {
+    setBreakdownOpenIds((current) => current.includes(id) ? current.filter((openId) => openId !== id) : [...current, id]);
+  };
+
   const restartMatchProfile = () => {
     const recoveringMissingResult = matchRouteNotice === "missing-result";
     setMatchRouteNotice(null);
+    setBreakdownOpenIds([]);
     const currentRoute = parseAppRoute(window.location.hash);
     const alreadyAtStart = activeView === "match" && currentRoute.matchStep === 0 && !currentRoute.familyId && !currentRoute.racketId;
     if (!alreadyAtStart && !recoveringMissingResult) snapshotCurrentHistoryEntry();
@@ -3664,6 +3706,27 @@ export default function RacketApp() {
                       </button>
                       <div className="match-result-card__score"><b>{Math.round(match)}</b><small>指数</small></div>
                       <button className="match-result-card__add" data-focus-key={`match-result-compare-${racket.id}`} onClick={() => requestCompare(racket.id)} aria-pressed={compareIds.includes(racket.id)} aria-label={!compareIds.includes(racket.id) && compareIds.length >= 3 ? `决策室已有三把候选，管理后再加入 ${racket.model}` : `${compareIds.includes(racket.id) ? "移出" : "加入"} ${racket.model} 决策室`}>{compareIds.includes(racket.id) ? "✓" : compareIds.length >= 3 ? "⇄" : "+"}</button>
+                      {!prescriptionBaseline && (() => {
+                        const breakdown = recommendationBreakdown(racket, profileStage, profileStyle, profilePriority);
+                        const expanded = breakdownOpenIds.includes(racket.id);
+                        return (
+                          <div className="match-result-breakdown">
+                            <button type="button" className="match-result-breakdown__trigger" aria-expanded={expanded} aria-controls={`match-breakdown-${racket.id}`} aria-label={`查看 ${racket.model} 的匹配指数拆解`} onClick={() => toggleMatchBreakdown(racket.id)}>
+                              <span>为什么是它</span><i aria-hidden="true">{expanded ? "−" : "+"}</i>
+                            </button>
+                            <div id={`match-breakdown-${racket.id}`} role="region" aria-label={`${racket.model} 匹配指数拆解`} className="match-result-breakdown__panel" hidden={!expanded}>
+                              <ul>
+                                <li>基础分 +{breakdown.base}</li>
+                                <li>{breakdown.stageHit ? `阶段命中 +${breakdown.stagePoints}（适合${profileStage}）` : `阶段未命中 +0（该拍标注：${racket.stages.join("、")}）`}</li>
+                                <li>{breakdown.styleHit ? `打法命中 +${breakdown.stylePoints}（匹配${profileStyle}）` : `打法未命中 +0（该拍标注：${racket.styles.join("、")}）`}</li>
+                                <li>{breakdown.priorityMode === "均衡" ? `六维均衡加权 +${breakdown.priorityPoints.toFixed(1)}（六维均值×0.18 + 最低维×0.06）` : `${profilePriority}加权 +${breakdown.priorityPoints.toFixed(1)}（${profilePriority} ${racket.scores[priorityScoreKeyMap[profilePriority]]}×0.2 + 六维均值×0.04）`}</li>
+                              </ul>
+                              <p className="match-result-breakdown__total">合计 {breakdown.raw.toFixed(1)} ≈ 卡面 {Math.round(match)}{breakdown.capped ? `（原始 ${breakdown.raw.toFixed(1)}，封顶 99）` : ""}</p>
+                              <p className="match-result-breakdown__note">{HONESTY_NOTES.matchIndex}</p>
+                            </div>
+                          </div>
+                        );
+                      })()}
                     </article>
                   ))}
                 </div>
