@@ -12,6 +12,7 @@ import {
   type CatalogFamily,
 } from "./catalog-data";
 import { catalogBrandProfile } from "./brand-data";
+import { appVersion } from "./app-version";
 import { buildCuratedListEntries, curatedCriteriaSummary, curatedLists } from "./curated-lists";
 import { HONESTY_NOTES } from "./honesty-notes";
 import { normalizeRecentRackets, recordRecentRacket, removeRecentRacket } from "./recent-rackets";
@@ -3756,6 +3757,7 @@ export default function RacketApp() {
           <span>当前拍库 · {catalogVerifiedAt}</span>
           <strong>{catalogModelCount} 款现行型号</strong>
           <p>{catalogFamilies.length} 个拍系 · {deepRackets.length} 份六维深度档案 · {catalogBrands.length} 个品牌。</p>
+          <span className="sidebar-version">拍库 v{appVersion}</span>
         </div>
       </aside>
 

@@ -36,6 +36,8 @@ test("server-renders the app experience", async () => {
   assert.match(html, /拍库相对评估/);
   assert.match(html, /259(?:<!-- -->)? 款现行型号/);
   assert.match(html, /259(?:<!-- -->)? 份六维深度档案/);
+  const { version } = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
+  assert.match(html, new RegExp(`拍库 v(?:<!-- -->)?${version.replaceAll(".", "\\.")}`));
   assert.doesNotMatch(html, /Codex is working|Your site is taking shape|codex-preview/i);
 });
 

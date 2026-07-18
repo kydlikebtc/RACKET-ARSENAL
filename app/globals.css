@@ -299,6 +299,13 @@ a:active {
   margin: 8px 0 0;
 }
 
+.sidebar-status .sidebar-version {
+  color: var(--text-faint);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  margin: 10px 0 0;
+}
+
 .app-content {
   min-width: 0;
   padding:
