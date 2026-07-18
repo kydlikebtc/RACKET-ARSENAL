@@ -1,0 +1,9 @@
+# 本项目不使用 Prettier。
+#
+# 仓库的手写紧凑代码风格是"源码即规格"测试体系的一部分：
+# tests/*.test.mjs 大量用正则直接断言 app/page.tsx、globals.css 等源码文本，
+# 任何全文件重排（如编辑器保存钩子或全局 PostToolUse 钩子跑 prettier --write）
+# 都会让这些测试变红。
+#
+# 因此屏蔽本仓库内所有文件的 prettier 处理。
+*
