@@ -12,6 +12,7 @@
     "test": "npm run build && node --import tsx --test tests/*.test.mjs",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "images:sync": "node --import tsx scripts/sync-catalog-images.mjs",
+    "links:check": "node --import tsx scripts/check-purchase-links.mjs",
     "db:generate": "drizzle-kit generate"
   },
   "dependencies": {
