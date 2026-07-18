@@ -11,6 +11,7 @@ import {
   catalogVerifiedAt,
   type CatalogFamily,
 } from "./catalog-data";
+import { catalogBrandProfile } from "./brand-data";
 import {
   catalogRacketId,
   deepRackets,
@@ -30,7 +31,7 @@ import {
 } from "./racket-profiles";
 import { tourPlayers, tourRankAsOf, tourSources, type Tour, type TourPlayer } from "./tour-data";
 import { tourCatalogTargets, tourRacketTargetId } from "./tour-links";
-import { catalogSearchHistoryMode, countCatalogReleaseYearMatches, matchesCatalogFamilySearch, matchesCatalogRacketSearch, matchesCatalogReleaseYearFilter } from "./catalog-search";
+import { catalogReleaseYear as parseCatalogReleaseYear, catalogSearchHistoryMode, matchesCatalogFamilySearch, matchesCatalogRacketSearch, matchesCatalogReleaseYearFilter } from "./catalog-search";
 import {
   LEGACY_SESSION_STORAGE_KEY,
   SESSION_DOMAIN_STORAGE_KEYS,
@@ -124,13 +125,17 @@ const catalogGenerationOptions = ["全部代际", ...Array.from(new Set(catalogF
 type CatalogGeneration = (typeof catalogGenerationOptions)[number];
 const catalogSortOptions = ["最新发行", "品牌顺序", "型号数量"] as const;
 type CatalogSort = (typeof catalogSortOptions)[number];
+const catalogScopeOptions = ["families", "models"] as const;
+type CatalogScope = (typeof catalogScopeOptions)[number];
 const armoryFilterConfig = {
+  scopes: catalogScopeOptions,
   brands: ["全部", ...catalogBrands],
   types: catalogTypes,
   generations: catalogGenerationOptions,
   releaseYears: catalogReleaseYearOptions,
   sorts: catalogSortOptions,
   defaults: {
+    scope: "families",
     brand: "全部",
     type: "全部",
     generation: "全部代际",
@@ -142,10 +147,7 @@ const armoryFilterConfig = {
 } as const;
 
 function matchesCatalogFamilyReleaseYear(family: CatalogFamily, releaseYear: CatalogReleaseYear) {
-  return family.models.some((model) => matchesCatalogReleaseYearFilter(
-    model.releaseDate ?? family.releaseDate ?? family.releaseYear,
-    releaseYear,
-  ));
+  return matchesCatalogReleaseYearFilter(family.releaseDate ?? family.releaseYear, releaseYear);
 }
 
 const racketImages: Record<string, string> = {
@@ -207,6 +209,23 @@ function RacketPhoto({
       ) : <div className="racket-photo__fallback" role="img" aria-label={`${racket.brand} ${racket.model} 图片暂不可用`}><b>{racket.brand}</b><small>{racket.familyName ?? racket.series}</small></div>}
       {variant !== "thumb" && <span>PRODUCT / {racket.year}</span>}
     </div>
+  );
+}
+
+function BrandLogo({ brand }: { brand: string }) {
+  const profile = catalogBrandProfile(brand);
+  const [failed, setFailed] = useState(false);
+
+  return (
+    <span
+      className={`brand-logo${failed || !profile ? " brand-logo--fallback" : ""}`}
+      data-brand={brand}
+      style={{ "--brand-accent": profile?.accent ?? "var(--accent)" } as CSSProperties}
+    >
+      {profile && !failed
+        ? <img src={profile.logo} alt="" aria-hidden="true" loading="lazy" decoding="async" onError={() => setFailed(true)} />
+        : <span>{brand}</span>}
+    </span>
   );
 }
 
@@ -699,22 +718,24 @@ function CatalogFamilyCard({ family, onOpen }: { family: CatalogFamily; onOpen: 
 
   return (
     <article className="catalog-family-card" style={{ "--family-accent": accent } as CSSProperties}>
-      <button className="catalog-family-card__visual" data-focus-key={`family-visual-${family.id}`} onClick={onOpen} aria-label={`查看 ${family.brand} ${family.family} ${family.generation} 全系参数`}>
-        {gallery.length > 0 && !imageFailed ? <img src={gallery[0]} alt={`${family.brand} ${family.family} ${family.generation} 官方产品图`} loading="lazy" decoding="async" onError={() => setImageFailed(true)} /> : <span className="catalog-family-card__monogram"><b>{family.brand.slice(0, 2)}</b><small>{family.family}</small></span>}
-        <span className="catalog-family-card__release"><i />{family.status === "预告" ? "即将上市" : "发行"} {familyReleaseLabel(family)}</span>
-        {gallery.length > 1 && <span className="catalog-family-card__gallery">多角度 · {gallery.length}</span>}
+      <button className="catalog-family-card__main" data-focus-key={`family-open-${family.id}`} onClick={onOpen} aria-label={`查看 ${family.brand} ${family.family} ${family.generation} 的 ${family.models.length} 款深度档案`}>
+        <div className="catalog-family-card__visual">
+          {gallery.length > 0 && !imageFailed ? <img src={gallery[0]} alt={`${family.brand} ${family.family} ${family.generation} 官方产品图`} loading="lazy" decoding="async" onError={() => setImageFailed(true)} /> : <span className="catalog-family-card__monogram"><b>{family.brand}</b><small>{family.family}</small></span>}
+          <span className="catalog-family-card__release"><i />{family.status === "预告" ? "即将上市" : "发行"} {familyReleaseLabel(family)}</span>
+          {gallery.length > 1 && <span className="catalog-family-card__gallery">多角度 · {gallery.length}</span>}
+        </div>
+        <div className="catalog-family-card__body">
+          <div className="catalog-family-card__kicker"><span>{family.brand}</span><span>{family.type}</span></div>
+          <div className="catalog-family-card__title"><h3>{family.family}</h3><b>{family.generation}</b></div>
+          <p>{family.summary}</p>
+          <dl>
+            <div><dt>型号</dt><dd>{family.models.length} 款</dd></div>
+            <div><dt>拍面</dt><dd>{heads.length ? `${Math.min(...heads)}–${Math.max(...heads)}` : "—"} in²</dd></div>
+            <div><dt>重量</dt><dd>{weights.length ? `${Math.min(...weights)}–${Math.max(...weights)}` : "—"} g</dd></div>
+          </dl>
+          <span className="catalog-family-card__open">查看全系与深度档案 <span aria-hidden="true">›</span></span>
+        </div>
       </button>
-      <div className="catalog-family-card__body">
-        <div className="catalog-family-card__kicker"><span>{family.brand}</span><span>{family.type}</span></div>
-        <button className="catalog-family-card__title" data-focus-key={`family-title-${family.id}`} onClick={onOpen}><h3>{family.family}</h3><b>{family.generation}</b></button>
-        <p>{family.summary}</p>
-        <dl>
-          <div><dt>型号</dt><dd>{family.models.length} 款</dd></div>
-          <div><dt>拍面</dt><dd>{heads.length ? `${Math.min(...heads)}–${Math.max(...heads)}` : "—"} in²</dd></div>
-          <div><dt>重量</dt><dd>{weights.length ? `${Math.min(...weights)}–${Math.max(...weights)}` : "—"} g</dd></div>
-        </dl>
-        <button className="catalog-family-card__open" data-focus-key={`family-open-${family.id}`} onClick={onOpen}>查看 {family.models.length} 款深度档案 <span aria-hidden="true">›</span></button>
-      </div>
     </article>
   );
 }
@@ -798,6 +819,7 @@ function TourPlayerCard({
 
 export default function RacketApp() {
   const [activeView, setActiveView] = useState<AppView>("discover");
+  const [catalogScope, setCatalogScope] = useState<CatalogScope>("families");
   const [catalogBrand, setCatalogBrand] = useState("全部");
   const [catalogType, setCatalogType] = useState<(typeof catalogTypes)[number]>("全部");
   const [catalogGeneration, setCatalogGeneration] = useState<CatalogGeneration>("全部代际");
@@ -805,6 +827,7 @@ export default function RacketApp() {
   const [catalogSearch, setCatalogSearch] = useState("");
   const [catalogSort, setCatalogSort] = useState<CatalogSort>("最新发行");
   const [catalogResultLimit, setCatalogResultLimit] = useState(24);
+  const [catalogFiltersOpen, setCatalogFiltersOpen] = useState(false);
   const [matchFlow, setMatchFlow] = useState(emptyMatchFlow);
   const [sessionReady, setSessionReady] = useState(false);
   const [sessionPersistence, setSessionPersistence] = useState<"unknown" | "available" | "memory-only">("unknown");
@@ -904,7 +927,6 @@ export default function RacketApp() {
   }, [catalogBrand, catalogType, catalogGeneration, catalogReleaseYear, catalogSearch, catalogSort]);
 
   const matchingCatalogRackets = useMemo(() => {
-    if (!catalogSearch.trim()) return [];
     return deepRackets
       .filter((racket) => {
         const matchesBrand = catalogBrand === "全部" || racket.brand === catalogBrand;
@@ -918,8 +940,28 @@ export default function RacketApp() {
           && matchesReleaseYear
           && matchesCatalogRacketSearch(racket, catalogSearch);
       })
-      .sort((a, b) => a.brand.localeCompare(b.brand, "en") || a.model.localeCompare(b.model, "en"));
-  }, [catalogBrand, catalogType, catalogGeneration, catalogReleaseYear, catalogSearch]);
+      .sort((a, b) => {
+        if (catalogSort === "品牌顺序") return a.brand.localeCompare(b.brand, "en") || a.model.localeCompare(b.model, "en");
+        if (catalogSort === "型号数量") {
+          const aCount = a.familyId ? catalogFamilyById.get(a.familyId)?.models.length ?? 0 : 0;
+          const bCount = b.familyId ? catalogFamilyById.get(b.familyId)?.models.length ?? 0 : 0;
+          return bCount - aCount || a.brand.localeCompare(b.brand, "en") || a.model.localeCompare(b.model, "en");
+        }
+        const aYear = parseCatalogReleaseYear(a.releaseDate ?? a.year) ?? 0;
+        const bYear = parseCatalogReleaseYear(b.releaseDate ?? b.year) ?? 0;
+        return bYear - aYear || a.brand.localeCompare(b.brand, "en") || a.model.localeCompare(b.model, "en");
+      });
+  }, [catalogBrand, catalogType, catalogGeneration, catalogReleaseYear, catalogSearch, catalogSort]);
+
+  const catalogGenerationsForBrand = useMemo(() => {
+    const families = catalogBrand === "全部"
+      ? catalogFamilies
+      : catalogFamilies.filter((family) => family.brand === catalogBrand);
+    const generations = Array.from(new Set(families.map((family) => family.generation)))
+      .sort((left, right) => left.localeCompare(right, "zh-CN", { numeric: true }));
+    if (catalogGeneration !== "全部代际" && !generations.includes(catalogGeneration)) generations.unshift(catalogGeneration);
+    return ["全部代际", ...generations];
+  }, [catalogBrand, catalogGeneration]);
 
   const catalogBrandStats = useMemo(
     () => catalogBrands.map((item) => {
@@ -950,16 +992,7 @@ export default function RacketApp() {
     catalogGeneration !== "全部代际",
     catalogReleaseYear !== "全部年份",
   ].filter(Boolean).length;
-  const catalogActiveFilterLabels = [
-    catalogBrand !== "全部" ? catalogBrand : null,
-    catalogType !== "全部" ? `${catalogType}型` : null,
-    catalogGeneration !== "全部代际" ? catalogGeneration : null,
-    catalogReleaseYear !== "全部年份" ? catalogReleaseYear : null,
-  ].filter((label): label is string => Boolean(label));
-  const visibleCatalogModelCount = filteredFamilies.reduce((total, family) => total + countCatalogReleaseYearMatches(
-    family.models.map((model) => model.releaseDate ?? family.releaseDate ?? family.releaseYear),
-    catalogReleaseYear,
-  ), 0);
+  const visibleCatalogModelCount = filteredFamilies.reduce((total, family) => total + family.models.length, 0);
   const visibleTourPlayers = tourPlayers.filter((player) => player.tour === tourFilter);
   const tourLeader = visibleTourPlayers[0];
   const pendingCompareRacket = pendingCompareId ? deepRacketById.get(pendingCompareId) ?? null : null;
@@ -982,6 +1015,7 @@ export default function RacketApp() {
 
   const applyArmoryFiltersToState = useCallback((filters: ArmoryFilterState) => {
     armoryFiltersRef.current = filters;
+    setCatalogScope(filters.scope as CatalogScope);
     setCatalogBrand(filters.brand);
     setCatalogType(filters.type as (typeof catalogTypes)[number]);
     setCatalogGeneration(filters.generation as CatalogGeneration);
@@ -1252,7 +1286,8 @@ export default function RacketApp() {
       const parsedRoute = armoryRouteState.route;
       const previousArmoryFilters = armoryFiltersRef.current;
       const armoryFiltersChanged = parsedRoute.view === "armory" && (
-        previousArmoryFilters.brand !== armoryRouteState.filters.brand
+        previousArmoryFilters.scope !== armoryRouteState.filters.scope
+        || previousArmoryFilters.brand !== armoryRouteState.filters.brand
         || previousArmoryFilters.type !== armoryRouteState.filters.type
         || previousArmoryFilters.generation !== armoryRouteState.filters.generation
         || previousArmoryFilters.releaseYear !== armoryRouteState.filters.releaseYear
@@ -1925,6 +1960,7 @@ export default function RacketApp() {
         ? 3
         : typeof saved?.version === "number" ? saved.version : 1;
       const savedArmoryFilters = normalizeArmoryFilters({
+        scope: typeof savedCatalog?.scope === "string" ? savedCatalog.scope : undefined,
         brand: typeof savedCatalog?.brand === "string" ? savedCatalog.brand : undefined,
         type: typeof savedCatalog?.type === "string" ? savedCatalog.type : undefined,
         generation: savedSessionVersion >= 3 && typeof savedCatalog?.generation === "string" ? savedCatalog.generation : undefined,
@@ -2016,6 +2052,7 @@ export default function RacketApp() {
   useEffect(() => {
     if (!sessionReady) return;
     const saved = writeSessionDomain(SESSION_DOMAIN_STORAGE_KEYS.catalog, {
+      scope: catalogScope,
       brand: catalogBrand,
       type: catalogType,
       generation: catalogGeneration,
@@ -2025,7 +2062,7 @@ export default function RacketApp() {
     });
     const frame = window.requestAnimationFrame(() => setSessionPersistence(saved ? "available" : "memory-only"));
     return () => window.cancelAnimationFrame(frame);
-  }, [sessionReady, catalogBrand, catalogType, catalogGeneration, catalogReleaseYear, catalogSearch, catalogSort, writeSessionDomain]);
+  }, [sessionReady, catalogScope, catalogBrand, catalogType, catalogGeneration, catalogReleaseYear, catalogSearch, catalogSort, writeSessionDomain]);
 
   useEffect(() => {
     if (!sessionReady) return;
@@ -2227,15 +2264,14 @@ export default function RacketApp() {
   useEffect(() => {
     if (activeView !== "armory" || selected || selectedFamily) return;
     const frame = window.requestAnimationFrame(() => {
-      document.querySelectorAll<HTMLElement>(".armory-view .brand-scroller, .armory-view .catalog-type-scroller").forEach((scroller) => {
-        const selectedChip = scroller.querySelector<HTMLElement>('button[aria-pressed="true"]');
-        if (!selectedChip) return;
-        const targetLeft = selectedChip.offsetLeft - ((scroller.clientWidth - selectedChip.offsetWidth) / 2);
-        scroller.scrollTo({ left: Math.max(0, targetLeft), behavior: "auto" });
-      });
+      const scroller = document.querySelector<HTMLElement>(".armory-view .brand-index__grid");
+      const selectedBrand = scroller?.querySelector<HTMLElement>('button[aria-pressed="true"]');
+      if (!scroller || !selectedBrand || scroller.scrollWidth <= scroller.clientWidth) return;
+      const targetLeft = selectedBrand.offsetLeft - ((scroller.clientWidth - selectedBrand.offsetWidth) / 2);
+      scroller.scrollTo({ left: Math.max(0, targetLeft), behavior: "auto" });
     });
     return () => window.cancelAnimationFrame(frame);
-  }, [activeView, selected, selectedFamily, catalogBrand, catalogType, catalogGeneration, catalogReleaseYear]);
+  }, [activeView, selected, selectedFamily, catalogBrand]);
 
   useEffect(() => {
     if (selected || selectedFamily || pendingViewFocusRef.current !== activeView) return;
@@ -2728,7 +2764,8 @@ export default function RacketApp() {
       next.search = patch.search.includes("\uFFFD") ? "" : patch.search.slice(0, armoryFilterConfig.maxSearchLength);
     }
     const current = armoryFiltersRef.current;
-    const changed = current.brand !== next.brand
+    const changed = current.scope !== next.scope
+      || current.brand !== next.brand
       || current.type !== next.type
       || current.generation !== next.generation
       || current.releaseYear !== next.releaseYear
@@ -2761,7 +2798,7 @@ export default function RacketApp() {
   };
 
   const clearCatalogFilters = (focusSearch = false) => {
-    commitArmoryFilters({ ...armoryFilterConfig.defaults });
+    commitArmoryFilters({ ...armoryFilterConfig.defaults, scope: armoryFiltersRef.current.scope });
     if (focusSearch) {
       window.requestAnimationFrame(() => catalogSearchRef.current?.focus({ preventScroll: true }));
     }
@@ -2876,7 +2913,7 @@ export default function RacketApp() {
   };
 
   const browseForCompare = () => {
-    clearCatalogFilters();
+    commitArmoryFilters({ ...armoryFilterConfig.defaults, scope: "models" });
     setCompareUndo(null);
     setLiveMessage("已进入完整拍库，选择一款即可加入对比");
     compareBrowseReturnRef.current = true;
@@ -2893,7 +2930,7 @@ export default function RacketApp() {
   };
 
   const browseFullCatalog = () => {
-    clearCatalogFilters();
+    commitArmoryFilters({ ...armoryFilterConfig.defaults, scope: "families" });
     goToView("armory");
   };
 
@@ -3126,11 +3163,11 @@ export default function RacketApp() {
   };
 
   const selectCatalogBrand = (brand: string, jumpToBrowse = false) => {
-    if (!jumpToBrowse) {
-      commitArmoryFilters({ brand });
-      return;
-    }
-    commitArmoryFilters({ brand, type: "全部", generation: "全部代际", releaseYear: "全部年份", search: "" });
+    const keepsGeneration = catalogGeneration === "全部代际"
+      || catalogFamilies.some((family) => (brand === "全部" || family.brand === brand) && family.generation === catalogGeneration);
+    commitArmoryFilters({ brand, generation: keepsGeneration ? catalogGeneration : "全部代际" });
+    setLiveMessage(brand === "全部" ? "已显示全部品牌" : `已切换到 ${brand} 拍库`);
+    if (!jumpToBrowse) return;
     window.requestAnimationFrame(() => {
       catalogBrowseRef.current?.scrollIntoView({
         behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
@@ -3375,62 +3412,83 @@ export default function RacketApp() {
           <section className="app-view armory-view" aria-labelledby="armory-title">
             <ViewTitle
               id="armory-title"
-              eyebrow={`${deepRackets.length} 份深度档案 · ${catalogFamilies.length} 个拍系`}
+              eyebrow="Racket Library · 2026"
               title="球拍库"
             />
-            <div className="dossier-explainer"><span>年鉴 × 六维雷达</span><p>每个型号都有独立雷达与六项规格标签；每项同时显示参数特点和相对本拍系中位值的差异。“主流”指拍库常见区间，不代表销量排名。</p></div>
-            <section className="catalog-coverage" aria-label="拍库覆盖范围">
-              <div><span>品牌</span><b>{catalogBrands.length}</b><small>主流性能品牌</small></div>
-              <div><span>拍系</span><b>{catalogFamilies.length}</b><small>按当前代去重</small></div>
-              <div><span>深档</span><b>{deepRackets.length}</b><small>每款型号一份</small></div>
-              <p>核验于 {catalogVerifiedAt}。排除儿童拍、握把尺寸和纯配色重复 SKU；地区官网在售范围可能不同。</p>
+            <section className="armory-overview" aria-label="拍库覆盖与数据说明">
+              <div className="armory-overview__copy"><span>年鉴 × 六维深档</span><p>从拍系看产品定位，或直接浏览全部型号。每款都有六维雷达、官方规格、参数特点和同系差异。</p></div>
+              <dl>
+                <div><dt>品牌</dt><dd>{catalogBrands.length}</dd></div>
+                <div><dt>拍系</dt><dd>{catalogFamilies.length}</dd></div>
+                <div><dt>型号</dt><dd>{deepRackets.length}</dd></div>
+              </dl>
+              <small>核验于 {catalogVerifiedAt} · 排除儿童拍、握把尺寸与纯配色重复 SKU</small>
             </section>
 
             <section className="brand-index" aria-labelledby="brand-index-title">
-              <div className="section-bar"><div><p>Brand index</p><h2 id="brand-index-title">先从品牌进入</h2></div>{catalogBrand !== "全部" && <button onClick={() => selectCatalogBrand("全部", true)}>查看全部 <span aria-hidden="true">›</span></button>}</div>
-              <div className="brand-index__grid">
+              <div className="section-bar"><div><p>Brand Index</p><h2 id="brand-index-title">选择品牌</h2></div><span className="brand-index__current">{catalogBrand === "全部" ? "正在浏览全部品牌" : `当前 · ${catalogBrand}`}</span></div>
+              <div className="brand-index__grid" role="group" aria-label="选择球拍品牌">
+                <button className="brand-index__all" aria-pressed={catalogBrand === "全部"} onClick={() => selectCatalogBrand("全部", true)}>
+                  <span className="brand-logo brand-logo--all" aria-hidden="true"><i /><i /><i /></span><b>全部品牌</b><small>{catalogFamilies.length} 拍系 · {catalogModelCount} 型号</small><em>ALL</em>
+                </button>
                 {catalogBrandStats.map((item) => (
-                  <button key={item.brand} aria-pressed={catalogBrand === item.brand} onClick={() => selectCatalogBrand(item.brand, true)}>
-                    <span>{item.brand.slice(0, 2)}</span><b>{item.brand}</b><small>{item.families} 拍系 · {item.models} 深档</small><i>{item.newest || "未注明"}</i>
+                  <button key={item.brand} aria-pressed={catalogBrand === item.brand} onClick={() => selectCatalogBrand(item.brand, true)} style={{ "--brand-accent": catalogBrandProfile(item.brand)?.accent ?? "var(--accent)" } as CSSProperties}>
+                    <BrandLogo brand={item.brand} /><b>{item.brand}</b><small>{item.families} 拍系 · {item.models} 型号</small><em>{item.newest || "未注明"}</em>
                   </button>
                 ))}
               </div>
             </section>
 
-            <div className="library-toolbar catalog-toolbar" ref={catalogBrowseRef}>
-              <label className="app-search" htmlFor="catalog-search"><span className="sr-only">搜索品牌、拍系、代际或具体型号</span><span aria-hidden="true">⌕</span><input ref={catalogSearchRef} id="catalog-search" type="search" inputMode="search" enterKeyHint="search" autoComplete="off" spellCheck={false} aria-describedby="catalog-result-summary" value={catalogSearch} onChange={(event) => updateCatalogSearch(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.nativeEvent.isComposing) { event.preventDefault(); submitCatalogSearch(); } else if (event.key === "Escape" && catalogSearch) { event.preventDefault(); clearCatalogSearch(); } }} placeholder="例如 Wilson 98、Yonex 100L" /><button onClick={clearCatalogSearch} aria-label="清除搜索" hidden={!catalogSearch}>×</button></label>
-              {!catalogSearch.trim() && <label className="catalog-sort" htmlFor="catalog-sort"><span className="sr-only">拍系排序</span><select id="catalog-sort" value={catalogSort} onChange={(event) => commitArmoryFilters({ sort: event.target.value as CatalogSort })}>{catalogSortOptions.map((option) => <option key={option}>{option}</option>)}</select></label>}
-            </div>
-            <div className="brand-scroller" role="group" aria-label="按品牌筛选拍系">
-              {["全部", ...catalogBrands].map((item) => <button key={item} aria-pressed={catalogBrand === item} onClick={() => selectCatalogBrand(item)}>{item}</button>)}
-            </div>
-            <div className="catalog-type-scroller" role="group" aria-label="按球拍类型筛选">
-              {catalogTypes.map((item) => <button key={item} aria-pressed={catalogType === item} onClick={() => commitArmoryFilters({ type: item })}>{item === "全部" ? "全部类型" : `${item}型`}</button>)}
-            </div>
-            <div className="catalog-filter-axis">
-              <span>代际</span>
-              <div className="catalog-type-scroller catalog-generation-scroller" role="group" aria-label="按球拍代际筛选">
-                {catalogGenerationOptions.map((item) => <button key={item} aria-pressed={catalogGeneration === item} onClick={() => commitArmoryFilters({ generation: item })}>{item}</button>)}
+            <section className="catalog-workbench" ref={catalogBrowseRef} aria-label="球拍库浏览控制台">
+              <div className="catalog-controlbar">
+                <div className="library-scope-switch" role="group" aria-label="选择浏览层级">
+                  <button aria-pressed={catalogScope === "families"} onClick={() => commitArmoryFilters({ scope: "families" })}><b>按拍系</b><span>{filteredFamilies.length}</span></button>
+                  <button aria-pressed={catalogScope === "models"} onClick={() => commitArmoryFilters({ scope: "models" })}><b>全部型号</b><span>{matchingCatalogRackets.length}</span></button>
+                </div>
+                <label className="app-search" htmlFor="catalog-search"><span className="sr-only">搜索品牌、拍系、代际或具体型号</span><span aria-hidden="true">⌕</span><input ref={catalogSearchRef} id="catalog-search" type="search" inputMode="search" enterKeyHint="search" autoComplete="off" spellCheck={false} aria-describedby="catalog-result-summary" value={catalogSearch} onChange={(event) => updateCatalogSearch(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.nativeEvent.isComposing) { event.preventDefault(); submitCatalogSearch(); } else if (event.key === "Escape" && catalogSearch) { event.preventDefault(); clearCatalogSearch(); } }} placeholder={catalogScope === "families" ? "搜索品牌或拍系，例如 Blade" : "搜索具体型号，例如 Yonex 100L"} /><button onClick={clearCatalogSearch} aria-label="清除搜索" hidden={!catalogSearch}>×</button></label>
+                <button className="catalog-filter-trigger" aria-expanded={catalogFiltersOpen} aria-controls="catalog-filter-panel" onClick={() => setCatalogFiltersOpen((open) => !open)}><span aria-hidden="true">≡</span><b>筛选</b>{catalogActiveFilterCount > 0 && <i>{catalogActiveFilterCount}</i>}</button>
+                <label className="catalog-sort" htmlFor="catalog-sort"><span className="sr-only">拍库排序</span><select id="catalog-sort" value={catalogSort} onChange={(event) => commitArmoryFilters({ sort: event.target.value as CatalogSort })}>{catalogSortOptions.map((option) => <option key={option}>{option}</option>)}</select></label>
               </div>
-            </div>
-            <div className="catalog-filter-axis">
-              <span>发行</span>
-              <div className="catalog-type-scroller catalog-generation-scroller" role="group" aria-label="按发行年份筛选">
-                {catalogReleaseYearOptions.map((item) => <button key={item} aria-pressed={catalogReleaseYear === item} onClick={() => commitArmoryFilters({ releaseYear: item })}>{item}</button>)}
-              </div>
-            </div>
-            <div id="catalog-result-summary" ref={catalogSummaryRef} className="library-summary" aria-live="polite" tabIndex={-1}><p>{catalogSearch.trim() ? <><b>{matchingCatalogRackets.length}</b> 个具体型号 · 可直接看雷达、档案或加入对比</> : <><b>{filteredFamilies.length}</b> 个拍系 · {visibleCatalogModelCount} 份型号深档命中{catalogReleaseYear !== "全部年份" && "（按型号发行时间）"}{catalogActiveFilterCount > 0 && ` · ${catalogActiveFilterLabels.join(" · ")}`}</>}</p><div className="library-summary__actions"><button onClick={copyArmoryLink}>复制当前视图</button>{(catalogActiveFilterCount > 0 || catalogSearch) && <button onClick={() => clearCatalogFilters(true)}>全部清除</button>}</div></div>
-            {catalogSearch.trim() && matchingCatalogRackets.length > 0 ? (
-              <div className="catalog-model-results" id="catalog-model-results" role="region" aria-label="具体型号搜索结果">
+              {catalogFiltersOpen && (
+                <div className="catalog-filter-panel" id="catalog-filter-panel" role="region" aria-label="筛选球拍库">
+                  <div className="catalog-filter-panel__header"><div><span>精确筛选</span><b>{catalogBrand === "全部" ? "全部品牌" : catalogBrand}</b></div><button onClick={() => setCatalogFiltersOpen(false)} aria-label="收起筛选面板">完成</button></div>
+                  <div className="catalog-filter-panel__grid">
+                    <fieldset><legend>球拍类型</legend><div className="catalog-type-options">{catalogTypes.map((item) => <button key={item} type="button" aria-pressed={catalogType === item} onClick={() => commitArmoryFilters({ type: item })}>{item === "全部" ? "全部" : `${item}型`}</button>)}</div></fieldset>
+                    <label><span>产品代际</span><select value={catalogGeneration} onChange={(event) => commitArmoryFilters({ generation: event.target.value as CatalogGeneration })}>{catalogGenerationsForBrand.map((item) => <option key={item}>{item}</option>)}</select><small>{catalogBrand === "全部" ? "选择品牌后仅显示该品牌代际" : `${catalogBrand} 的现行拍系代际`}</small></label>
+                    <label><span>发行时间</span><select value={catalogReleaseYear} onChange={(event) => commitArmoryFilters({ releaseYear: event.target.value as CatalogReleaseYear })}>{catalogReleaseYearOptions.map((item) => <option key={item}>{item}</option>)}</select><small>{catalogScope === "families" ? "按拍系公开发行时间" : "按具体型号发行时间"}</small></label>
+                  </div>
+                  {catalogActiveFilterCount > 0 && <button className="catalog-filter-panel__clear" onClick={clearCatalogFacets}>清除全部筛选</button>}
+                </div>
+              )}
+              {catalogActiveFilterCount > 0 && (
+                <div className="catalog-active-filters" aria-label="当前已启用筛选">
+                  <span>已选</span>
+                  {catalogBrand !== "全部" && <button onClick={() => selectCatalogBrand("全部")} aria-label={`移除品牌筛选 ${catalogBrand}`}>{catalogBrand}<i aria-hidden="true">×</i></button>}
+                  {catalogType !== "全部" && <button onClick={() => commitArmoryFilters({ type: "全部" })} aria-label={`移除类型筛选 ${catalogType}型`}>{catalogType}型<i aria-hidden="true">×</i></button>}
+                  {catalogGeneration !== "全部代际" && <button onClick={() => commitArmoryFilters({ generation: "全部代际" })} aria-label={`移除代际筛选 ${catalogGeneration}`}>{catalogGeneration}<i aria-hidden="true">×</i></button>}
+                  {catalogReleaseYear !== "全部年份" && <button onClick={() => commitArmoryFilters({ releaseYear: "全部年份" })} aria-label={`移除发行筛选 ${catalogReleaseYear}`}>{catalogReleaseYear}<i aria-hidden="true">×</i></button>}
+                  <button className="catalog-active-filters__clear" onClick={clearCatalogFacets}>全部清除</button>
+                </div>
+              )}
+              <div id="catalog-result-summary" ref={catalogSummaryRef} className="library-summary catalog-result-summary" aria-live="polite" tabIndex={-1}><p>{catalogScope === "models" ? <><b>{matchingCatalogRackets.length}</b> 个具体型号 · 可直接打开深档或加入对比{catalogSearch.trim() && ` · 搜索“${catalogSearch.trim()}”`}</> : <><b>{filteredFamilies.length}</b> 个拍系 · {visibleCatalogModelCount} 份型号深档{catalogSearch.trim() && ` · 搜索“${catalogSearch.trim()}”`}{catalogReleaseYear !== "全部年份" && "（按拍系发行时间）"}</>}</p><div className="library-summary__actions"><button onClick={copyArmoryLink}>复制当前视图</button>{(catalogActiveFilterCount > 0 || catalogSearch) && <button onClick={() => clearCatalogFilters(true)}>全部清除</button>}</div></div>
+            </section>
+
+            {catalogScope === "models" && matchingCatalogRackets.length > 0 ? (
+              <div className="catalog-model-results" id="catalog-model-results" role="region" aria-label="具体型号浏览结果">
                 {matchingCatalogRackets.slice(0, catalogResultLimit).map((racket) => (
                   <article className="catalog-model-result" key={racket.id}>
                     <button className="catalog-model-result__main" data-focus-key={`catalog-model-open-${racket.id}`} onClick={() => openRacket(racket.id)} aria-label={`查看 ${racket.model} 深度档案`}>
                       <RacketPhoto racket={racket} variant="thumb" />
-                      <span><small>{racket.brand} · {racket.familyName} · {racket.generation}</small><strong>{racket.model}</strong><em>{racket.stages.join(" · ")} / {racket.styles.join(" · ")}</em></span>
+                      <span><small>{racket.brand} · {racket.familyName} · {racket.generation}</small><strong>{racket.model}</strong><em>{racket.stages.join(" · ")} / {racket.styles.join(" · ")}</em><i>打开深度档案 <span aria-hidden="true">›</span></i></span>
                       <MiniRadar racket={racket} />
                     </button>
-                    <div className="catalog-model-result__tags"><RacketSpecTags racket={racket} /></div>
-                    <div className="catalog-model-result__actions"><button data-focus-key={`catalog-model-dossier-${racket.id}`} onClick={() => openRacket(racket.id)} aria-label={`打开 ${racket.model} 深度档案`}>深度档案</button><button data-focus-key={`catalog-model-compare-${racket.id}`} onClick={() => requestCompare(racket.id)} aria-pressed={compareIds.includes(racket.id)} aria-label={!compareIds.includes(racket.id) && compareIds.length >= 3 ? `管理已满的球拍对比，当前无法加入 ${racket.model}` : `${compareIds.includes(racket.id) ? "移出" : "加入"} ${racket.model} 对比`}>{compareIds.includes(racket.id) ? "✓ 已对比" : compareIds.length >= 3 ? "管理 3/3" : "+ 对比"}</button>{racket.familyId && <button data-focus-key={`catalog-model-family-${racket.id}`} onClick={() => openFamily(racket.familyId as string, racket.id)} aria-label={`打开 ${racket.familyName} 拍系并定位 ${racket.model}`}>所属拍系</button>}</div>
+                    <dl className="catalog-model-result__facts">
+                      <div><dt>拍面</dt><dd>{formatNumberSpec(officialHead(racket), "in²")}</dd></div>
+                      <div><dt>重量</dt><dd>{formatNumberSpec(officialWeight(racket), "g")}</dd></div>
+                      <div><dt>线床</dt><dd>{officialPattern(racket) ?? "—"}</dd></div>
+                    </dl>
+                    <div className="catalog-model-result__tags"><RacketSpecTags racket={racket} compact showSpecs={false} /></div>
+                    <div className="catalog-model-result__actions"><button data-focus-key={`catalog-model-compare-${racket.id}`} onClick={() => requestCompare(racket.id)} aria-pressed={compareIds.includes(racket.id)} aria-label={!compareIds.includes(racket.id) && compareIds.length >= 3 ? `管理已满的球拍对比，当前无法加入 ${racket.model}` : `${compareIds.includes(racket.id) ? "移出" : "加入"} ${racket.model} 对比`}>{compareIds.includes(racket.id) ? "✓ 已对比" : compareIds.length >= 3 ? "管理 3/3" : "+ 加入对比"}</button>{racket.familyId && <button data-focus-key={`catalog-model-family-${racket.id}`} onClick={() => openFamily(racket.familyId as string, racket.id)} aria-label={`打开 ${racket.familyName} 拍系并定位 ${racket.model}`}>查看所属拍系 <span aria-hidden="true">›</span></button>}</div>
                   </article>
                 ))}
                 {matchingCatalogRackets.length > catalogResultLimit && (
@@ -3444,12 +3502,12 @@ export default function RacketApp() {
                   </button>
                 )}
               </div>
-            ) : !catalogSearch.trim() && filteredFamilies.length > 0 ? (
+            ) : catalogScope === "families" && filteredFamilies.length > 0 ? (
               <div className="catalog-family-grid">
                 {filteredFamilies.map((family) => <CatalogFamilyCard key={family.id} family={family} onOpen={() => openFamily(family.id)} />)}
               </div>
             ) : (
-              <div className="app-empty"><span aria-hidden="true">⌕</span><h2>{catalogSearch.trim() ? "没有找到对应型号" : "没有符合条件的拍系"}</h2><p>{catalogSearch.trim() ? "试试减少关键词，或先清除品牌、类型、代际与发行条件。" : "当前品牌、类型、代际与发行年份组合没有结果，可以清除条件查看完整拍库。"}</p><button className="app-button app-button--primary" onClick={catalogSearch.trim() && catalogActiveFilterCount > 0 ? clearCatalogFacets : catalogSearch.trim() ? clearCatalogSearch : () => clearCatalogFilters(true)}>{catalogSearch.trim() && catalogActiveFilterCount > 0 ? "清除筛选条件" : catalogSearch.trim() ? "清除搜索" : "清除筛选"}</button></div>
+              <div className="app-empty"><span aria-hidden="true">⌕</span><h2>{catalogScope === "models" ? "没有找到对应型号" : "没有符合条件的拍系"}</h2><p>{catalogSearch.trim() ? `当前“${catalogSearch.trim()}”与筛选条件没有交集，可以减少关键词或清除筛选。` : "当前品牌、类型、代际与发行年份组合没有结果，可以清除条件查看完整拍库。"}</p><button className="app-button app-button--primary" onClick={catalogSearch.trim() && catalogActiveFilterCount > 0 ? clearCatalogFacets : catalogSearch.trim() ? clearCatalogSearch : () => clearCatalogFilters(true)}>{catalogSearch.trim() && catalogActiveFilterCount > 0 ? "清除筛选条件" : catalogSearch.trim() ? "清除搜索" : "清除筛选"}</button></div>
             )}
           </section>
         )}

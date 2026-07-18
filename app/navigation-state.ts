@@ -12,6 +12,7 @@ export type AppRoute = {
 };
 
 export type ArmoryFilterState = {
+  scope: string;
   brand: string;
   type: string;
   generation: string;
@@ -21,6 +22,7 @@ export type ArmoryFilterState = {
 };
 
 export type ArmoryFilterConfig = {
+  scopes: readonly string[];
   brands: readonly string[];
   types: readonly string[];
   generations: readonly string[];
@@ -48,6 +50,7 @@ export type ParsedTourRouteState = {
 };
 
 const armoryFilterQueryKeys = {
+  scope: "scope",
   brand: "brand",
   type: "type",
   generation: "gen",
@@ -138,6 +141,7 @@ export function normalizeArmoryFilters(
 ): ArmoryFilterState {
   const maxSearchLength = Math.max(0, config.maxSearchLength ?? 100);
   return {
+    scope: knownValue(filters?.scope ?? null, config.scopes, config.defaults.scope),
     brand: knownValue(filters?.brand ?? null, config.brands, config.defaults.brand),
     type: knownValue(filters?.type ?? null, config.types, config.defaults.type),
     generation: knownValue(filters?.generation ?? null, config.generations, config.defaults.generation),
@@ -157,6 +161,7 @@ export function formatArmoryRouteState(
 
   const normalized = normalizeArmoryFilters(filters, config);
   const query = new URLSearchParams();
+  if (normalized.scope !== config.defaults.scope) query.set(armoryFilterQueryKeys.scope, normalized.scope);
   if (normalized.brand !== config.defaults.brand) query.set(armoryFilterQueryKeys.brand, normalized.brand);
   if (normalized.type !== config.defaults.type) query.set(armoryFilterQueryKeys.type, normalized.type);
   if (normalized.generation !== config.defaults.generation) query.set(armoryFilterQueryKeys.generation, normalized.generation);
@@ -172,6 +177,7 @@ export function parseArmoryRouteState(hash: string, config: ArmoryFilterConfig):
   const query = new URLSearchParams(queryFromHash(hash));
   const filters = route.view === "armory"
     ? normalizeArmoryFilters({
+      scope: query.get(armoryFilterQueryKeys.scope) ?? undefined,
       brand: query.get(armoryFilterQueryKeys.brand) ?? undefined,
       type: query.get(armoryFilterQueryKeys.type) ?? undefined,
       generation: query.get(armoryFilterQueryKeys.generation) ?? undefined,

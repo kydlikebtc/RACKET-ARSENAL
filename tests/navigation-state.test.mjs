@@ -13,12 +13,14 @@ import {
 } from "../app/navigation-state.ts";
 
 const armoryFilterConfig = {
+  scopes: ["families", "models"],
   brands: ["全部", "Wilson", "HEAD", "YONEX"],
   types: ["全部", "控制", "旋转", "力量"],
   generations: ["全部代际", "V10", "第 8 代", "2026"],
   releaseYears: ["全部年份", "2026", "2025", "2024", "2023及更早", "官网未注明"],
   sorts: ["最新发行", "品牌顺序", "型号数量"],
   defaults: {
+    scope: "families",
     brand: "全部",
     type: "全部",
     generation: "全部代际",
@@ -123,6 +125,7 @@ test("parses routes independently from Armory query state", () => {
 
 test("round-trips every Armory filter in a stable shareable order", () => {
   const filters = {
+    scope: "models",
     brand: "Wilson",
     type: "控制",
     generation: "V10",
@@ -134,7 +137,7 @@ test("round-trips every Armory filter in a stable shareable order", () => {
 
   assert.equal(
     hash,
-    "#armory?brand=Wilson&type=%E6%8E%A7%E5%88%B6&gen=V10&year=2025&q=Blade+98&sort=%E5%93%81%E7%89%8C%E9%A1%BA%E5%BA%8F",
+    "#armory?scope=models&brand=Wilson&type=%E6%8E%A7%E5%88%B6&gen=V10&year=2025&q=Blade+98&sort=%E5%93%81%E7%89%8C%E9%A1%BA%E5%BA%8F",
   );
   assert.deepEqual(parseArmoryRouteState(hash, armoryFilterConfig), {
     route: { view: "armory" },
@@ -151,6 +154,7 @@ test("preserves Armory filters on nested family and racket overlay routes", () =
     racketId: "Blade 98 16×19 V10",
   };
   const filters = {
+    scope: "families",
     brand: "Wilson",
     type: "控制",
     generation: "V10",
@@ -199,6 +203,7 @@ test("cleans invalid, duplicate, unknown, and overlong Armory parameters once", 
 
 test("normalizes whitespace and rejects filter values outside their allowlists", () => {
   assert.deepEqual(normalizeArmoryFilters({
+    scope: "models",
     brand: "HEAD",
     type: "不存在",
     generation: "2026",
@@ -206,6 +211,7 @@ test("normalizes whitespace and rejects filter values outside their allowlists",
     search: "  Speed\n\t MP   2024  ",
     sort: "品牌顺序",
   }, armoryFilterConfig), {
+    scope: "models",
     brand: "HEAD",
     type: "全部",
     generation: "2026",

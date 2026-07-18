@@ -82,9 +82,9 @@ test("keeps racket imagery and app interactions wired", async () => {
   assert.match(page, /function ModelSpecValue/);
   assert.match(page, /<small>\{tag\.characteristic\}<\/small>/);
   assert.match(page, /\{tag\.known && <em>\{tag\.familyPosition\}<\/em>\}/);
-  assert.match(page, /className="catalog-model-result__tags"><RacketSpecTags racket=\{racket\}/);
+  assert.match(page, /className="catalog-model-result__tags"><RacketSpecTags racket=\{racket\} compact showSpecs=\{false\}/);
   assert.match(page, /<RacketSpecTags racket=\{selected\} expanded showSummary \/>/);
-  assert.match(page, />深度档案</);
+  assert.match(page, /打开深度档案/);
   assert.match(page, /非实验室测量/);
   assert.doesNotMatch(page, /libraryMode|library-mode-switch/);
   assert.match(page, /className="catalog-family-grid"/);
@@ -227,7 +227,9 @@ test("keeps racket imagery and app interactions wired", async () => {
   assert.match(css, /\.match-draft-banner/);
   assert.match(css, /\.match-storage-warning/);
   assert.match(css, /\.skip-link/);
-  assert.match(css, /\.catalog-filter-axis/);
+  assert.match(css, /\.catalog-filter-panel/);
+  assert.match(css, /\.catalog-workbench[\s\S]*?position:\s*sticky/);
+  assert.match(css, /\.brand-logo img[\s\S]*?object-fit:\s*contain/);
   assert.match(css, /\.compare-spec-table-scroll:focus-visible[\s\S]*?var\(--accent\) 72%/);
   assert.match(css, /\.model-matrix__scroll:focus-visible[\s\S]*?var\(--family-accent\) 72%/);
   assert.match(css, /\.mini-radar svg[\s\S]*?height:\s*106px[\s\S]*?width:\s*120px/);
