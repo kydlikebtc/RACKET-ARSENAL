@@ -12,6 +12,9 @@ import {
   type CatalogFamily,
 } from "./catalog-data";
 import { catalogBrandProfile } from "./brand-data";
+import { buildCuratedListEntries, curatedCriteriaSummary, curatedLists } from "./curated-lists";
+import { HONESTY_NOTES } from "./honesty-notes";
+import { normalizeRecentRackets, recordRecentRacket, removeRecentRacket } from "./recent-rackets";
 import {
   catalogRacketId,
   deepRackets,
@@ -190,6 +193,7 @@ const radarSeries = ["var(--acid)", "var(--copper)", "var(--sky)"];
 const radarDash = ["none", "10 5", "2 5"];
 const compareBaselineIds = ["catalog-wilson-blade-v10-blade-100-v10", "catalog-yonex-ezone-8-ezone-100", "catalog-babolat-pure-aero-gen9-pure-aero-gen9"];
 const deepRacketById = new Map(deepRackets.map((racket) => [racket.id, racket]));
+const curatedListEntries = buildCuratedListEntries(curatedLists, deepRackets);
 const catalogFamilyById = new Map(catalogFamilies.map((family) => [family.id, family]));
 for (const family of catalogFamilies) {
   family.models.forEach((_, modelIndex) => {
@@ -903,10 +907,12 @@ export default function RacketApp() {
   const [catalogSort, setCatalogSort] = useState<CatalogSort>("最新发行");
   const [catalogResultLimit, setCatalogResultLimit] = useState(24);
   const [catalogFiltersOpen, setCatalogFiltersOpen] = useState(false);
+  const [openCuratedCriteria, setOpenCuratedCriteria] = useState<Record<string, boolean>>({});
   const [matchFlow, setMatchFlow] = useState(emptyMatchFlow);
   const [sessionReady, setSessionReady] = useState(false);
   const [sessionPersistence, setSessionPersistence] = useState<"unknown" | "available" | "memory-only">("unknown");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [recentRacketIds, setRecentRacketIds] = useState<string[]>([]);
   const [selectedFamilyId, setSelectedFamilyId] = useState<string | null>(null);
   const [familyTargetRacketId, setFamilyTargetRacketId] = useState<string | null>(null);
   const [detailReturnFamilyId, setDetailReturnFamilyId] = useState<string | null>(null);
@@ -2079,6 +2085,7 @@ export default function RacketApp() {
         ? parseArmoryRouteState(window.location.hash, armoryFilterConfig).filters
         : savedArmoryFilters;
       applyArmoryFiltersToState(initialArmoryFilters);
+      setRecentRacketIds(normalizeRecentRackets(savedCatalog?.recents, (id) => deepRacketById.get(id)?.id ?? null));
     } catch {
       // A browser history or storage restriction falls back to the server-rendered defaults.
     }
@@ -2164,10 +2171,19 @@ export default function RacketApp() {
       releaseYear: catalogReleaseYear,
       search: catalogSearch,
       sort: catalogSort,
+      recents: recentRacketIds,
     });
     const frame = window.requestAnimationFrame(() => setSessionPersistence(saved ? "available" : "memory-only"));
     return () => window.cancelAnimationFrame(frame);
-  }, [sessionReady, catalogScope, catalogBrand, catalogType, catalogGeneration, catalogReleaseYear, catalogSearch, catalogSort, writeSessionDomain]);
+  }, [sessionReady, catalogScope, catalogBrand, catalogType, catalogGeneration, catalogReleaseYear, catalogSearch, catalogSort, recentRacketIds, writeSessionDomain]);
+
+  useEffect(() => {
+    if (!selectedId) return;
+    const canonicalId = deepRacketById.get(selectedId)?.id;
+    if (!canonicalId) return;
+    const frame = window.requestAnimationFrame(() => setRecentRacketIds((current) => recordRecentRacket(current, canonicalId)));
+    return () => window.cancelAnimationFrame(frame);
+  }, [selectedId]);
 
   useEffect(() => {
     if (!sessionReady || decisionHydratedRef.current) return;
@@ -2594,6 +2610,32 @@ export default function RacketApp() {
     queueOverlayHistoryPatch({
       paikuRacketScrollTop: scrollTop,
     });
+  };
+
+  const recentRackets = useMemo(
+    () => recentRacketIds.map((id) => deepRacketById.get(id)).filter((racket): racket is Racket => Boolean(racket)),
+    [recentRacketIds],
+  );
+
+  const focusRecentShelfAnchor = () => {
+    window.requestAnimationFrame(() => {
+      const anchor = document.getElementById("recent-shelf-title") ?? document.getElementById("main-content");
+      anchor?.focus();
+    });
+  };
+
+  const removeRecent = (id: string) => {
+    const racket = deepRacketById.get(id);
+    setRecentRacketIds((current) => removeRecentRacket(current, id));
+    setLiveMessage(racket ? `已从最近看过移除 ${racket.brand} ${racket.model}` : "已从最近看过移除该球拍");
+    focusRecentShelfAnchor();
+  };
+
+  const clearRecentRackets = () => {
+    if (recentRacketIds.length === 0) return;
+    setRecentRacketIds([]);
+    setLiveMessage("已清空最近看过");
+    focusRecentShelfAnchor();
   };
 
   const openRacket = (id: string) => {
@@ -3572,6 +3614,64 @@ export default function RacketApp() {
               <button data-focus-key="discover-match-insight" onClick={openMatchProfile}>{matchFlow.draft ? "继续未完成处方" : hasCompletedMatch ? "调整换拍处方" : "开始 3 步换拍处方"} <span aria-hidden="true">→</span></button>
             </section>
 
+            <section className="curated-lists" aria-labelledby="curated-lists-title">
+              <div className="section-bar"><div><p>拍库严选</p><h2 id="curated-lists-title">按公开规格自动筛出的严选榜单</h2></div></div>
+              <div className="curated-lists__grid">
+                {curatedListEntries.map(({ list, rackets }) => {
+                  const criteriaOpen = Boolean(openCuratedCriteria[list.id]);
+                  return (
+                    <article key={list.id} className="curated-list" aria-labelledby={`curated-title-${list.id}`}>
+                      <header className="curated-list__header">
+                        <h3 id={`curated-title-${list.id}`}>{list.title}</h3>
+                        <p>{list.tagline}</p>
+                      </header>
+                      <button
+                        className="curated-list__criteria-toggle"
+                        aria-expanded={criteriaOpen}
+                        aria-controls={`curated-criteria-${list.id}`}
+                        data-focus-key={`curated-criteria-${list.id}`}
+                        onClick={() => setOpenCuratedCriteria((current) => ({ ...current, [list.id]: !current[list.id] }))}
+                      >
+                        <b>入选标准</b>
+                        <small>{curatedCriteriaSummary(list)}</small>
+                        <span aria-hidden="true">{criteriaOpen ? "−" : "+"}</span>
+                      </button>
+                      <div id={`curated-criteria-${list.id}`} className="curated-list__criteria" hidden={!criteriaOpen}>
+                        <div>
+                          <h4>硬性规格条件</h4>
+                          <ul>{list.hardCriteria.map((criterion) => <li key={criterion.label}>{criterion.label}</li>)}</ul>
+                        </div>
+                        <div>
+                          <h4>评分门槛</h4>
+                          <ul>{list.scoreCriteria.map((criterion) => <li key={criterion.label}>{criterion.label}</li>)}</ul>
+                          <p className="curated-list__note">六维评分为{HONESTY_NOTES.relativeAssessment}</p>
+                        </div>
+                      </div>
+                      {rackets.length > 0 ? (
+                        <ul className="curated-list__entries">
+                          {rackets.map((racket) => (
+                            <li key={racket.id} className="curated-entry">
+                              <div className="curated-entry__identity">
+                                <span>{racket.brand} · {racket.generation ?? racket.year}</span>
+                                <b>{racket.model}</b>
+                                <small>{formatNumberSpec(officialHead(racket), "in²")} · {formatNumberSpec(officialWeight(racket), "g")} · {officialPattern(racket) ?? HONESTY_NOTES.unpublished}</small>
+                              </div>
+                              <div className="curated-entry__actions">
+                                <button className="app-button app-button--soft" data-focus-key={`curated-open-${list.id}-${racket.id}`} onClick={() => openRacket(racket.id)}>查看档案</button>
+                                <button className="app-button app-button--glass" data-focus-key={`curated-compare-${list.id}-${racket.id}`} onClick={() => requestCompare(racket.id)} aria-pressed={compareIds.includes(racket.id)}>{compareIds.includes(racket.id) ? "✓ 已加入对比" : compareIds.length >= 3 ? "管理对比 3/3" : "+ 加入对比"}</button>
+                              </div>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="curated-list__empty">当前拍库暂无满足全部标准的型号</p>
+                      )}
+                    </article>
+                  );
+                })}
+              </div>
+            </section>
+
             <div className="discover-shortcuts">
               <button onClick={browseFullCatalog}>
                 <span>统一球拍库</span><b>{catalogModelCount} 款深度档案</b><small>按品牌、类型与代际浏览，每款都可看雷达与完整规格</small><i aria-hidden="true">›</i>
@@ -3580,6 +3680,30 @@ export default function RacketApp() {
                 <span>Tour Locker</span><b>ATP + WTA 前 8</b><small>看明星球员的官网公开用拍</small><i aria-hidden="true">›</i>
               </button>
             </div>
+
+            {recentRackets.length > 0 && (
+              <section className="recent-shelf" aria-labelledby="recent-shelf-title">
+                <div className="recent-shelf__header">
+                  <div>
+                    <h2 id="recent-shelf-title" tabIndex={-1}>最近看过</h2>
+                    <p>{sessionPersistence === "memory-only" ? "仅保留在本页，刷新或关闭页面后会丢失" : "仅保存在本机"}</p>
+                  </div>
+                  <button className="recent-shelf__clear" data-focus-key="recent-clear" onClick={clearRecentRackets} aria-label="清空最近看过">清空</button>
+                </div>
+                <ul className="recent-shelf__track">
+                  {recentRackets.map((racket) => (
+                    <li key={racket.id} className="recent-shelf__item">
+                      <button className="recent-shelf__open" data-focus-key={`recent-open-${racket.id}`} onClick={() => openRacket(racket.id)}>
+                        <RacketPhoto racket={racket} variant="thumb" />
+                        <span>{racket.brand}</span>
+                        <b>{racket.model}</b>
+                      </button>
+                      <button className="recent-shelf__remove" data-focus-key={`recent-remove-${racket.id}`} aria-label={`从最近看过移除 ${racket.brand} ${racket.model}`} onClick={() => removeRecent(racket.id)}>×</button>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
           </section>
         )}
 
