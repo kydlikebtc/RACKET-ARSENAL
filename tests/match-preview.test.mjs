@@ -64,10 +64,13 @@ test("stays consistent across every stage, style, and priority pair", () => {
 test("renders the capsule group as an accessible, honest preview control", () => {
   assert.match(page, /className="match-priority-preview__capsules" role="group" aria-label="预览不同优先方向"/u);
   assert.match(page, /aria-pressed=\{displayPriority === item\} onClick=\{\(\) => previewMatchPriority\(item\)\}/u);
-  assert.match(page, /预览中：\{previewPriority\} 优先（未保存）· 你的档案仍为 \{profilePriority\} 优先/u);
+  assert.match(page, /正在按 \{previewPriority\} 优先试算；你的档案仍是 \{profilePriority\} 优先/u);
+  assert.match(page, /恢复档案结果/u);
+  assert.match(page, /预览 \$\{nextPreview\} 优先，三条升级路线已重新计算/u);
   assert.match(page, /`预览 \$\{nextPreview\} 优先，\$\{changedCount\} 把球拍名次变化`/u);
   assert.match(page, /预览 \$\{nextPreview\} 优先，名次没有变化/u);
   assert.match(page, /较档案榜单上升 \$\{change\.delta\} 位/u);
+  assert.match(page, /if \(prescriptionBaseline \|\| previewPriority === null/u);
 });
 
 test("keeps the preview strictly in memory and off the URL", () => {

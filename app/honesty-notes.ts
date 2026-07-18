@@ -27,7 +27,7 @@ export const HONESTY_NOTES = {
   similarRacketsCoverage: "官网规格不全的型号未参与排序。",
   /** 对比页（决策室）差异翻译与对决徽章共用的单一免责区块。 */
   compare:
-    "差异翻译基于品牌官网公开硬规格的拍库相对推断；六维评分与胜负徽章为拍库相对评估（满分 100）。两者均非实验室测量，不代表两拍实际优劣，不替代实际试打。",
+    "差异翻译基于品牌官网公开硬规格的拍库相对推断；六维徽章采用 2 分容差，微小分差按接近处理。两者均非实验室测量，不代表两拍实际优劣，不替代实际试打。",
 } as const;
 
 export type HonestyNoteKey = keyof typeof HONESTY_NOTES;

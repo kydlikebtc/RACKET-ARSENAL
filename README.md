@@ -2,16 +2,18 @@
 
 中文网球拍选购指南：11 个品牌、259 款官网核验型号，从「处方问卷」到「决策室对比」，帮你在不试打之前把功课做透。
 
-![version](https://img.shields.io/badge/version-0.5.0-blue)
+![version](https://img.shields.io/badge/version-0.6.0-blue)
 ![tests](https://img.shields.io/badge/tests-174%20passed-brightgreen)
 ![Next.js](https://img.shields.io/badge/Next.js-16-black)
 ![Cloudflare Workers](https://img.shields.io/badge/Cloudflare-Workers-f38020)
 
-![拍库](public/og-app.png)
+![拍库](public/og-v06.png)
 
 ## ✨ 功能特性
 
 单页应用，五大页签，全部功能无需登录。
+
+v0.6.0 将新增能力重新编排成一条更清晰的决策路径：发现页按场景选拍，处方页解释推荐依据，档案页可在概览 / 规格 / 六维 / 相似拍之间直达，决策室则以概览 / 规格 / 试打三个工作区逐步收敛。
 
 ### 发现
 

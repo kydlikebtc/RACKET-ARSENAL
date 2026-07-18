@@ -65,7 +65,9 @@ test("renders the sync section honestly on the match result screen", () => {
   assert.match(page, /\{HONESTY_NOTES\.tourSync\}/u);
   assert.match(HONESTY_NOTES.tourSync, /相对评估/u);
   assert.match(HONESTY_NOTES.tourSync, /非球员真实打法/u);
-  assert.match(page, /按系内最同频型号 \$\{item\.viaRacket\.model\} 估算/u);
+  assert.match(page, /系内适配型号估算 · \$\{item\.mapping\}/u);
+  assert.match(page, /<RacketPhoto racket=\{item\.viaRacket\} variant="thumb" \/>/u);
+  assert.match(page, /\/ 99 适配/u);
   assert.match(page, /data-focus-key=\{`tour-sync-open-\$\{item\.player\.id\}`\}/u);
   assert.match(page, /查看全部 \{tourPlayers\.length\} 位球星/u);
   assert.match(page, /priority: displayPriority \}, recommendationScore\)/u);

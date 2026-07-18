@@ -2,7 +2,7 @@
 
 /* eslint-disable @next/next/no-img-element */
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import {
   catalogBrands,
   catalogFamilies,
@@ -35,7 +35,7 @@ import {
 } from "./racket-profiles";
 import { tourPlayers, tourRankAsOf, tourSources, type Tour, type TourPlayer } from "./tour-data";
 import { buildSimilarRackets } from "./similar-rackets";
-import { buildCompareDiffInsights } from "./compare-insights";
+import { buildCompareDiffInsights, compareDiffLabels } from "./compare-insights";
 import { buildDuelVerdicts, duelScoreSummary } from "./compare-duel";
 import { tourCatalogTargets, tourRacketTargetId } from "./tour-links";
 import { catalogReleaseYear as parseCatalogReleaseYear, catalogSearchHistoryMode, matchesCatalogFamilySearch, matchesCatalogRacketSearch, matchesCatalogReleaseYearFilter } from "./catalog-search";
@@ -132,8 +132,55 @@ import {
 } from "./decision-storage";
 import { changedRankCount, diffRecommendationRanks } from "./match-preview";
 import { buildTourPlayerSync } from "./tour-sync";
+import { purchaseLinkHealth } from "./purchase-link-health";
 
 type Racket = DeepRacket;
+type ComparePanel = "overview" | "specs" | "trial";
+const comparePanelOrder: readonly ComparePanel[] = ["overview", "specs", "trial"];
+
+function moveHorizontalTab<T extends string>(
+  event: ReactKeyboardEvent<HTMLDivElement>,
+  values: readonly T[],
+  current: T,
+  onSelect: (value: T) => void,
+) {
+  if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key) || values.length === 0) return;
+  event.preventDefault();
+  const currentIndex = Math.max(0, values.indexOf(current));
+  const nextIndex = event.key === "Home"
+    ? 0
+    : event.key === "End"
+      ? values.length - 1
+      : event.key === "ArrowLeft"
+        ? (currentIndex - 1 + values.length) % values.length
+        : (currentIndex + 1) % values.length;
+  onSelect(values[nextIndex]);
+  const tabs = event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="tab"]');
+  tabs[nextIndex]?.focus();
+}
+
+function moveRating(
+  event: ReactKeyboardEvent<HTMLButtonElement>,
+  current: number,
+  onSelect: (value: number) => void,
+) {
+  const values = [1, 2, 3, 4, 5] as const;
+  if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End"].includes(event.key)) return;
+  event.preventDefault();
+  const currentIndex = Math.max(0, values.indexOf(current as (typeof values)[number]));
+  const nextIndex = event.key === "Home"
+    ? 0
+    : event.key === "End"
+      ? values.length - 1
+      : event.key === "ArrowLeft" || event.key === "ArrowUp"
+        ? (currentIndex - 1 + values.length) % values.length
+        : (currentIndex + 1) % values.length;
+  const nextValue = values[nextIndex];
+  onSelect(nextValue);
+  const group = event.currentTarget.closest<HTMLElement>('[role="radiogroup"]');
+  const radios = group?.querySelectorAll<HTMLButtonElement>('[role="radio"]');
+  radios?.[nextIndex]?.focus();
+}
 
 const scoreLabels: Record<ScoreKey, string> = {
   control: "控制",
@@ -254,6 +301,25 @@ function BrandLogo({ brand }: { brand: string }) {
       {profile && !failed
         ? <img src={profile.logo} alt="" aria-hidden="true" loading="lazy" decoding="async" onError={() => setFailed(true)} />
         : <span>{brand}</span>}
+    </span>
+  );
+}
+
+function purchaseLinkStatusLabel(racketId: string) {
+  const record = purchaseLinkHealth[racketId];
+  if (!record) return "购买链接待核验";
+  return record.status === "ok" ? "购买链接已核验" : record.status === "changed" ? "购买页已跳转" : "购买链接暂不可用";
+}
+
+function PurchaseLinkBadge({ racketId, compact = false }: { racketId: string; compact?: boolean }) {
+  const record = purchaseLinkHealth[racketId];
+  if (!record) return <span className="purchase-link-badge purchase-link-badge--unknown">购买链接待核验</span>;
+  const label = purchaseLinkStatusLabel(racketId);
+  return (
+    <span className={`purchase-link-badge purchase-link-badge--${record.status}${compact ? " purchase-link-badge--compact" : ""}`}>
+      <i aria-hidden="true" />
+      <span>{label}</span>
+      {!compact && <small>{record.checkedAt}</small>}
     </span>
   );
 }
@@ -952,6 +1018,7 @@ export default function RacketApp() {
   const [catalogResultLimit, setCatalogResultLimit] = useState(24);
   const [catalogFiltersOpen, setCatalogFiltersOpen] = useState(false);
   const [openCuratedCriteria, setOpenCuratedCriteria] = useState<Record<string, boolean>>({});
+  const [activeCuratedListId, setActiveCuratedListId] = useState(curatedLists[0]?.id ?? "");
   const [matchFlow, setMatchFlow] = useState(emptyMatchFlow);
   const [breakdownOpenIds, setBreakdownOpenIds] = useState<readonly string[]>([]);
   const [previewPriority, setPreviewPriority] = useState<MatchPriority | null>(null);
@@ -968,6 +1035,9 @@ export default function RacketApp() {
   const [compareUndo, setCompareUndo] = useState<CompareUndo | null>(null);
   const [pendingCompareId, setPendingCompareId] = useState<string | null>(null);
   const [duelOpponentId, setDuelOpponentId] = useState<string | null>(null);
+  const [duelShare, setDuelShare] = useState<{ racketId: string; racketName: string; url: string } | null>(null);
+  const [duelShareNotice, setDuelShareNotice] = useState("");
+  const [comparePanel, setComparePanel] = useState<ComparePanel>("overview");
   const [prescriptionBaselineId, setPrescriptionBaselineId] = useState("");
   const [decisionCandidates, setDecisionCandidates] = useState<Record<string, { status: DecisionCandidateStatus; note: string }>>({});
   const [savedDecisionRoom, setSavedDecisionRoom] = useState<DecisionRoomState | null>(null);
@@ -990,6 +1060,12 @@ export default function RacketApp() {
   const catalogSearchRef = useRef<HTMLInputElement | null>(null);
   const catalogSummaryRef = useRef<HTMLDivElement | null>(null);
   const compareTableScrollRef = useRef<HTMLDivElement | null>(null);
+  const duelLinkInputRef = useRef<HTMLInputElement | null>(null);
+  const duelShareDialogRef = useRef<HTMLElement | null>(null);
+  const duelShareRef = useRef<typeof duelShare>(null);
+  const duelReturnFocusRef = useRef<HTMLElement | null>(null);
+  const pendingDuelFocusRef = useRef(false);
+  const trialFeedbackTriggerRef = useRef<HTMLElement | null>(null);
   const catalogResultLimitRef = useRef(24);
   const familyScrollTopRef = useRef(0);
   const familyMatrixScrollLeftRef = useRef(0);
@@ -1060,7 +1136,8 @@ export default function RacketApp() {
     ? prescriptionResults.map(({ racket, match }) => ({ racket, match }))
     : generalRecommendations;
   const previewRankChanges = useMemo(() => {
-    if (previewPriority === null || previewPriority === profilePriority) return null;
+    // 有当前拍时三张卡代表三条升级路线，不是名次；避免用升降徽章误导。
+    if (prescriptionBaseline || previewPriority === null || previewPriority === profilePriority) return null;
     const committedRanking = prescriptionBaseline
       ? buildSwapPrescription(deepRackets, prescriptionBaseline, profileStage, profileStyle, profilePriority, 3)
       : buildRecommendations(deepRackets, profileStage, profileStyle, profilePriority);
@@ -1145,6 +1222,10 @@ export default function RacketApp() {
 
   const selected = selectedId ? deepRackets.find((racket) => racket.id === selectedId) ?? null : null;
   const selectedFamily = selectedFamilyId ? catalogFamilies.find((family) => family.id === selectedFamilyId) ?? null : null;
+  const activeCuratedList = curatedListEntries.find(({ list }) => list.id === activeCuratedListId) ?? curatedListEntries[0];
+  const activeCuratedScene = activeCuratedList?.list ?? null;
+  const activeCuratedRackets = activeCuratedList?.rackets ?? [];
+  const activeCuratedCriteriaOpen = activeCuratedScene ? Boolean(openCuratedCriteria[activeCuratedScene.id]) : false;
   const compareIds = useMemo(() => compareSlotIds(compareSlots), [compareSlots]);
   const compared = compareIds.map((id) => deepRackets.find((racket) => racket.id === id)).filter(Boolean) as Racket[];
   const compareInsights = useMemo(() => buildCompareDiffInsights(compareIds.map((id) => deepRacketById.get(id)).filter((racket): racket is Racket => Boolean(racket))), [compareIds]);
@@ -1443,7 +1524,7 @@ export default function RacketApp() {
       window.cancelAnimationFrame(frame);
       observer.disconnect();
     };
-  }, [activeView, compareSlots]);
+  }, [activeView, compareSlots, comparePanel]);
 
   useEffect(() => {
     const previousScrollRestoration = window.history.scrollRestoration;
@@ -1860,6 +1941,11 @@ export default function RacketApp() {
       routeReadyRef.current = true;
     };
     const onPopState = () => {
+      if (duelShareRef.current) {
+        pendingDuelFocusRef.current = true;
+        duelShareRef.current = null;
+        setDuelShare(null);
+      }
       suppressHashRouteRef.current = true;
       if (suppressHashTimer) window.clearTimeout(suppressHashTimer);
       readRoute("pop");
@@ -1868,6 +1954,11 @@ export default function RacketApp() {
       }, 0);
     };
     const onHashChange = () => {
+      if (duelShareRef.current) {
+        pendingDuelFocusRef.current = true;
+        duelShareRef.current = null;
+        setDuelShare(null);
+      }
       if (!suppressHashRouteRef.current) readRoute("hash");
     };
     readRoute();
@@ -2400,14 +2491,32 @@ export default function RacketApp() {
   }, [sessionReady, replacePaikuHistory]);
 
   useEffect(() => {
-    const dialog = selected ? racketDialogRef.current : selectedFamily ? familyDialogRef.current : null;
+    const dialog = duelShare ? duelShareDialogRef.current : selected ? racketDialogRef.current : selectedFamily ? familyDialogRef.current : null;
     document.body.classList.toggle("app-locked", Boolean(dialog));
-    if (!dialog) return;
+    if (!dialog) {
+      if (!pendingDuelFocusRef.current) return;
+      const focusFrame = window.requestAnimationFrame(() => {
+        const target = duelReturnFocusRef.current;
+        if (target?.isConnected) target.focus({ preventScroll: true });
+        pendingDuelFocusRef.current = false;
+        duelReturnFocusRef.current = null;
+      });
+      return () => window.cancelAnimationFrame(focusFrame);
+    }
 
-    const background = document.querySelectorAll<HTMLElement>(".skip-link, .desktop-sidebar, .app-content, .mobile-tabbar, .compare-tray");
+    const background = document.querySelectorAll<HTMLElement>(duelShare
+      ? ".skip-link, .desktop-sidebar, .app-content, .mobile-tabbar, .compare-tray, .detail-backdrop"
+      : ".skip-link, .desktop-sidebar, .app-content, .mobile-tabbar, .compare-tray");
     background.forEach((element) => element.setAttribute("inert", ""));
     const focusFrame = window.requestAnimationFrame(() => {
-      if (selectedFamily) {
+      if (duelShare) {
+        dialog.querySelector<HTMLElement>("[data-dialog-close]")?.focus();
+      } else if (pendingDuelFocusRef.current) {
+        const target = duelReturnFocusRef.current;
+        if (target?.isConnected) target.focus({ preventScroll: true });
+        pendingDuelFocusRef.current = false;
+        duelReturnFocusRef.current = null;
+      } else if (selectedFamily) {
         const scrollArea = dialog.querySelector<HTMLElement>(".family-inspector__scroll");
         const matrixScrollArea = dialog.querySelector<HTMLElement>(".model-matrix__scroll");
         if (scrollArea) scrollArea.scrollTop = familyScrollTopRef.current;
@@ -2471,7 +2580,7 @@ export default function RacketApp() {
       background.forEach((element) => element.removeAttribute("inert"));
       window.removeEventListener("keydown", handleKey);
     };
-  }, [selected, selectedFamily, detailReturnFamilyId, replacePaikuHistory]);
+  }, [duelShare, selected, selectedFamily, detailReturnFamilyId, replacePaikuHistory]);
 
   useEffect(() => {
     if (selected || selectedFamily || !pendingPageFocusRef.current) return;
@@ -2619,7 +2728,7 @@ export default function RacketApp() {
     return () => window.clearTimeout(timer);
   }, [liveMessage, actionableCompareUndo, toastPaused]);
 
-  const goToView = (view: AppView, scrollMode: "top" | "restore" = "top") => {
+  const goToView = (view: AppView, scrollMode: "top" | "restore" = "top", historyMode: "push" | "replace" = "push") => {
     setPreviewPriority(null);
     const currentRoute = parseAppRoute(window.location.hash);
     const sameView = activeView === view && !currentRoute.familyId && !currentRoute.racketId;
@@ -2701,7 +2810,7 @@ export default function RacketApp() {
     lastRouteRef.current = nextRoute;
     const targetTop = sameView ? 0 : scrollMode === "restore" ? viewScrollPositionsRef.current[view] : 0;
     if (!sameView) {
-      pushPaikuHistory({
+      const nextHistoryState = {
         paiku: true,
         paikuOverlayPushed: false,
         paikuMatchPushed: false,
@@ -2713,7 +2822,9 @@ export default function RacketApp() {
           paikuMatchJourneyDepth: carriedJourneyDepth,
           paikuMatchOrigin: carriedJourneyOrigin,
         } : {}),
-      }, "", formatCurrentRoute(nextRoute));
+      };
+      if (historyMode === "replace") replacePaikuHistory(nextHistoryState, "", formatCurrentRoute(nextRoute));
+      else pushPaikuHistory(nextHistoryState, "", formatCurrentRoute(nextRoute));
     }
     const behavior = sameView && !window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "smooth" : "auto";
     window.requestAnimationFrame(() => window.scrollTo({ top: targetTop, behavior }));
@@ -2755,9 +2866,17 @@ export default function RacketApp() {
 
   const removeRecent = (id: string) => {
     const racket = deepRacketById.get(id);
+    const currentIndex = recentRacketIds.indexOf(id);
+    const nextFocusId = recentRacketIds[currentIndex + 1] ?? recentRacketIds[currentIndex - 1] ?? null;
     setRecentRacketIds((current) => removeRecentRacket(current, id));
     setLiveMessage(racket ? `已从最近看过移除 ${racket.brand} ${racket.model}` : "已从最近看过移除该球拍");
-    focusRecentShelfAnchor();
+    window.requestAnimationFrame(() => {
+      if (nextFocusId) {
+        document.querySelector<HTMLElement>(`[data-focus-key="recent-open-${nextFocusId}"]`)?.focus();
+        return;
+      }
+      focusRecentShelfAnchor();
+    });
   };
 
   const clearRecentRackets = () => {
@@ -2900,8 +3019,18 @@ export default function RacketApp() {
     setSelectedFamilyId(null);
   };
 
+  const dismissDuelShare = () => {
+    pendingDuelFocusRef.current = true;
+    if ((window.history.state as Record<string, unknown> | null)?.paikuDuelShare) {
+      window.history.back();
+      return;
+    }
+    duelShareRef.current = null;
+    setDuelShare(null);
+  };
+
   useEffect(() => {
-    closeTopOverlayRef.current = selected ? closeDetail : selectedFamily ? closeFamily : () => undefined;
+    closeTopOverlayRef.current = duelShare ? dismissDuelShare : selected ? closeDetail : selectedFamily ? closeFamily : () => undefined;
   });
 
   const commitCompareSlots = (nextSlots: CompareSlots, kind: CompareUndo["kind"], message: string) => {
@@ -2912,6 +3041,11 @@ export default function RacketApp() {
     const originFocus = captureFocusIdentity(originElement);
     compareSlotsRef.current = afterSlots;
     setCompareSlots(afterSlots);
+    if (feedbackRacketId && !afterSlots.some(({ id }) => id === feedbackRacketId)) {
+      trialFeedbackTriggerRef.current = null;
+      setFeedbackRacketId(null);
+      setTrialFeedbackDraft(emptyTrialFeedbackDraft);
+    }
     const duelWasActive = duelStateActive(beforeSlots, duelOpponentRef.current);
     const duelStillActive = duelStateActive(afterSlots, duelOpponentRef.current);
     let duelExitNote = "";
@@ -3223,17 +3357,88 @@ export default function RacketApp() {
     }
   };
 
-  const startDuel = async (id: string) => {
+  const startDuel = (id: string) => {
     const racket = deepRacketById.get(id);
     if (!racket) return;
+    duelReturnFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    pendingDuelFocusRef.current = false;
     const url = new URL(window.location.href);
     url.hash = formatCompareRouteState({ view: "compare" }, [{ slot: 0, id: racket.id }], { duel: true });
+    const shareState = { racketId: racket.id, racketName: racket.model, url: url.href };
+    setDuelShareNotice("");
+    duelShareRef.current = shareState;
+    pushPaikuHistory({ ...((window.history.state as Record<string, unknown> | null) ?? {}), paikuDuelShare: true }, "", window.location.href);
+    setDuelShare(shareState);
+  };
+
+  const copyDuelLink = async () => {
+    if (!duelShare) return;
     try {
-      await navigator.clipboard.writeText(url.href);
+      await navigator.clipboard.writeText(duelShare.url);
+      setDuelShareNotice("链接已复制，可以直接发给朋友应战。");
       setLiveMessage("已复制对决链接，发给朋友选拍应战");
     } catch {
-      setLiveMessage("浏览器未允许复制，请直接复制地址栏链接");
+      duelLinkInputRef.current?.focus();
+      duelLinkInputRef.current?.select();
+      setDuelShareNotice("浏览器未允许自动复制，链接已为你选中。");
+      setLiveMessage("链接已选中，请手动复制");
     }
+  };
+
+  const shareDuelLink = async () => {
+    if (!duelShare || typeof navigator.share !== "function") {
+      await copyDuelLink();
+      return;
+    }
+    try {
+      await navigator.share({ title: `${duelShare.racketName} 球拍对决`, text: `我用 ${duelShare.racketName} 守擂，选一把球拍来应战。`, url: duelShare.url });
+      setDuelShareNotice("系统分享已打开；分享完成后可以回到这里继续。");
+      setLiveMessage("对决邀请已打开系统分享");
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
+      await copyDuelLink();
+    }
+  };
+
+  const previewDuel = () => {
+    if (!duelShare) return;
+    const racket = deepRacketById.get(duelShare.racketId);
+    if (!racket) return;
+    const slots: CompareSlots = [{ slot: 0, id: racket.id }];
+    duelOpponentRef.current = racket.id;
+    setDuelOpponentId(racket.id);
+    setComparePanel("overview");
+    commitCompareSlots(slots, "load-recommended", `已用 ${racket.model} 建立好友对决`);
+    pendingDuelFocusRef.current = false;
+    duelReturnFocusRef.current = null;
+    duelShareRef.current = null;
+    const historyState = { ...((window.history.state as Record<string, unknown> | null) ?? {}) };
+    delete historyState.paikuDuelShare;
+    replacePaikuHistory(historyState, "", window.location.href);
+    setDuelShare(null);
+    goToView("compare", "top", "replace");
+  };
+
+  const startPairCompare = (baseId: string, candidateId: string) => {
+    const base = deepRacketById.get(baseId);
+    const candidate = deepRacketById.get(candidateId);
+    if (!base || !candidate) return;
+    const slots = addCompareId(addCompareId([], base.id).slots, candidate.id).slots;
+    duelOpponentRef.current = null;
+    setDuelOpponentId(null);
+    setComparePanel("overview");
+    commitCompareSlots(slots, "load-recommended", `已建立 ${base.model} 与 ${candidate.model} 的双拍对比`);
+    goToView("compare");
+  };
+
+  const jumpDossierSection = (section: "overview" | "specs" | "radar" | "similar") => {
+    const target = racketDialogRef.current?.querySelector<HTMLElement>(`#dossier-${section}`);
+    if (!target) return;
+    target.scrollIntoView({
+      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+      block: "start",
+    });
+    target.focus({ preventScroll: true });
   };
 
   const copyCompareLink = async () => {
@@ -3298,10 +3503,28 @@ export default function RacketApp() {
     }
   };
 
+  const closeTrialFeedback = () => {
+    const trigger = trialFeedbackTriggerRef.current;
+    setFeedbackRacketId(null);
+    setTrialFeedbackDraft(emptyTrialFeedbackDraft);
+    window.requestAnimationFrame(() => {
+      if (trigger?.isConnected) trigger.focus({ preventScroll: true });
+      trialFeedbackTriggerRef.current = null;
+    });
+  };
+
   const openTrialFeedback = (racketId: string) => {
+    trialFeedbackTriggerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     setFeedbackRacketId(racketId);
     setTrialFeedbackDraft(emptyTrialFeedbackDraft);
-    window.requestAnimationFrame(() => document.getElementById("trial-feedback-title")?.focus({ preventScroll: true }));
+    window.requestAnimationFrame(() => {
+      const form = document.querySelector<HTMLElement>(".trial-feedback-card");
+      form?.scrollIntoView({
+        behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+        block: "start",
+      });
+      document.getElementById("trial-feedback-title")?.focus({ preventScroll: true });
+    });
   };
 
   const submitTrialFeedback = () => {
@@ -3340,8 +3563,7 @@ export default function RacketApp() {
       setDecisionStorageStatus("memory-only");
       setLiveMessage("试打反馈已保留在本页，当前浏览器无法持久保存");
     }
-    setFeedbackRacketId(null);
-    setTrialFeedbackDraft(emptyTrialFeedbackDraft);
+    closeTrialFeedback();
   };
 
   const shareCurrentView = async (label: string) => {
@@ -3476,7 +3698,7 @@ export default function RacketApp() {
   };
 
   const toggleMatchBreakdown = (id: string) => {
-    setBreakdownOpenIds((current) => current.includes(id) ? current.filter((openId) => openId !== id) : [...current, id]);
+    setBreakdownOpenIds((current) => current.includes(id) ? [] : [id]);
   };
 
   // Instant preview only mutates in-memory state: no snapshot persistence, no
@@ -3487,6 +3709,10 @@ export default function RacketApp() {
     if (nextPreview === previewPriority) return;
     setPreviewPriority(nextPreview);
     if (nextPreview === null) return;
+    if (prescriptionBaseline) {
+      setLiveMessage(`预览 ${nextPreview} 优先，三条升级路线已重新计算`);
+      return;
+    }
     const committedRanking = prescriptionBaseline
       ? buildSwapPrescription(deepRackets, prescriptionBaseline, profileStage, profileStyle, profilePriority, 3)
       : buildRecommendations(deepRackets, profileStage, profileStyle, profilePriority);
@@ -3837,62 +4063,87 @@ export default function RacketApp() {
               <button data-focus-key="discover-match-insight" onClick={openMatchProfile}>{matchFlow.draft ? "继续未完成处方" : hasCompletedMatch ? "调整换拍处方" : "开始 3 步换拍处方"} <span aria-hidden="true">→</span></button>
             </section>
 
-            <section className="curated-lists" aria-labelledby="curated-lists-title">
-              <div className="section-bar"><div><p>拍库严选</p><h2 id="curated-lists-title">按公开规格自动筛出的严选榜单</h2></div></div>
-              <div className="curated-lists__grid">
-                {curatedListEntries.map(({ list, rackets }) => {
-                  const criteriaOpen = Boolean(openCuratedCriteria[list.id]);
-                  return (
-                    <article key={list.id} className="curated-list" aria-labelledby={`curated-title-${list.id}`}>
-                      <header className="curated-list__header">
-                        <h3 id={`curated-title-${list.id}`}>{list.title}</h3>
-                        <p>{list.tagline}</p>
-                      </header>
-                      <button
-                        className="curated-list__criteria-toggle"
-                        aria-expanded={criteriaOpen}
-                        aria-controls={`curated-criteria-${list.id}`}
-                        data-focus-key={`curated-criteria-${list.id}`}
-                        onClick={() => setOpenCuratedCriteria((current) => ({ ...current, [list.id]: !current[list.id] }))}
-                      >
-                        <b>入选标准</b>
-                        <small>{curatedCriteriaSummary(list)}</small>
-                        <span aria-hidden="true">{criteriaOpen ? "−" : "+"}</span>
+            {recentRackets.length > 0 && (
+              <section className="recent-shelf" aria-labelledby="recent-shelf-title">
+                <div className="recent-shelf__header">
+                  <div>
+                    <p>继续上次浏览</p>
+                    <h2 id="recent-shelf-title" tabIndex={-1}>最近看过</h2>
+                    <small>{sessionPersistence === "memory-only" ? "仅保留在本页，刷新或关闭页面后会丢失" : "仅保存在本机"} · {recentRackets.length}/12</small>
+                  </div>
+                  <button className="recent-shelf__clear" data-focus-key="recent-clear" onClick={clearRecentRackets} aria-label="清空最近看过">清空</button>
+                </div>
+                <ul className="recent-shelf__track" aria-label="最近浏览球拍，可横向滑动">
+                  {recentRackets.map((racket) => (
+                    <li key={racket.id} className="recent-shelf__item">
+                      <button className="recent-shelf__open" data-focus-key={`recent-open-${racket.id}`} onClick={() => openRacket(racket.id)}>
+                        <RacketPhoto racket={racket} variant="thumb" />
+                        <span>{racket.brand}</span>
+                        <b>{racket.model}</b>
+                        <small>继续看档案 <span aria-hidden="true">›</span></small>
                       </button>
-                      <div id={`curated-criteria-${list.id}`} className="curated-list__criteria" hidden={!criteriaOpen}>
-                        <div>
-                          <h4>硬性规格条件</h4>
-                          <ul>{list.hardCriteria.map((criterion) => <li key={criterion.label}>{criterion.label}</li>)}</ul>
-                        </div>
-                        <div>
-                          <h4>评分门槛</h4>
-                          <ul>{list.scoreCriteria.map((criterion) => <li key={criterion.label}>{criterion.label}</li>)}</ul>
-                          <p className="curated-list__note">六维评分为{HONESTY_NOTES.relativeAssessment}</p>
-                        </div>
-                      </div>
-                      {rackets.length > 0 ? (
-                        <ul className="curated-list__entries">
-                          {rackets.map((racket) => (
-                            <li key={racket.id} className="curated-entry">
-                              <div className="curated-entry__identity">
+                      <button className="recent-shelf__remove" data-focus-key={`recent-remove-${racket.id}`} aria-label={`从最近看过移除 ${racket.brand} ${racket.model}`} onClick={() => removeRecent(racket.id)}>×</button>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
+
+            <section className="curated-lists" aria-labelledby="curated-lists-title">
+              <div className="section-bar"><div><p>按场景选拍</p><h2 id="curated-lists-title">先选目标，再看符合条件的球拍</h2></div><span>规则筛选 · 不代表销量排名</span></div>
+              <div
+                className="curated-lists__tabs"
+                role="tablist"
+                aria-label="选择选拍场景"
+                onKeyDown={(event) => moveHorizontalTab(event, curatedListEntries.map((entry) => entry.list.id), activeCuratedScene?.id ?? curatedListEntries[0].list.id, setActiveCuratedListId)}
+              >
+                {curatedListEntries.map(({ list, rackets }) => (
+                  <button id={`curated-tab-${list.id}`} key={list.id} role="tab" tabIndex={activeCuratedScene?.id === list.id ? 0 : -1} aria-selected={activeCuratedScene?.id === list.id} aria-controls="curated-panel-active" onClick={() => setActiveCuratedListId(list.id)}>
+                    <span>{list.title}</span><small>{rackets.length} 把符合</small>
+                  </button>
+                ))}
+              </div>
+              {activeCuratedScene && (
+                  <article id="curated-panel-active" role="tabpanel" className="curated-list" aria-labelledby={`curated-tab-${activeCuratedScene.id}`}>
+                    <header className="curated-list__header">
+                      <div><span>SCENE 0{curatedListEntries.findIndex((entry) => entry.list.id === activeCuratedScene.id) + 1}</span><h3 id={`curated-title-${activeCuratedScene.id}`}>{activeCuratedScene.title}</h3></div>
+                      <p>{activeCuratedScene.tagline}</p>
+                    </header>
+                    <button
+                      className="curated-list__criteria-toggle"
+                      aria-expanded={activeCuratedCriteriaOpen}
+                      aria-controls={`curated-criteria-${activeCuratedScene.id}`}
+                      data-focus-key={`curated-criteria-${activeCuratedScene.id}`}
+                      onClick={() => setOpenCuratedCriteria((current) => ({ ...current, [activeCuratedScene.id]: !current[activeCuratedScene.id] }))}
+                    >
+                      <b>为什么它们入选</b>
+                      <small>{curatedCriteriaSummary(activeCuratedScene)}</small>
+                      <span aria-hidden="true">{activeCuratedCriteriaOpen ? "收起" : "查看"}</span>
+                    </button>
+                    <div id={`curated-criteria-${activeCuratedScene.id}`} className="curated-list__criteria" hidden={!activeCuratedCriteriaOpen}>
+                      <div><h4>硬性规格条件</h4><ul>{activeCuratedScene.hardCriteria.map((criterion) => <li key={criterion.label}>{criterion.label}</li>)}</ul></div>
+                      <div><h4>评分门槛</h4><ul>{activeCuratedScene.scoreCriteria.map((criterion) => <li key={criterion.label}>{criterion.label}</li>)}</ul><p className="curated-list__note">六维评分为{HONESTY_NOTES.relativeAssessment}</p></div>
+                    </div>
+                    {activeCuratedRackets.length > 0 ? (
+                      <ul className="curated-list__entries">
+                        {activeCuratedRackets.map((racket) => (
+                          <li key={racket.id} className="curated-entry">
+                            <button className="curated-entry__main" data-focus-key={`curated-open-${activeCuratedScene.id}-${racket.id}`} onClick={() => openRacket(racket.id)}>
+                              <RacketPhoto racket={racket} variant="thumb" />
+                              <span className="curated-entry__identity">
                                 <span>{racket.brand} · {racket.generation ?? racket.year}</span>
                                 <b>{racket.model}</b>
                                 <small>{formatNumberSpec(officialHead(racket), "in²")} · {formatNumberSpec(officialWeight(racket), "g")} · {officialPattern(racket) ?? HONESTY_NOTES.unpublished}</small>
-                              </div>
-                              <div className="curated-entry__actions">
-                                <button className="app-button app-button--soft" data-focus-key={`curated-open-${list.id}-${racket.id}`} onClick={() => openRacket(racket.id)}>查看档案</button>
-                                <button className="app-button app-button--glass" data-focus-key={`curated-compare-${list.id}-${racket.id}`} onClick={() => requestCompare(racket.id)} aria-pressed={compareIds.includes(racket.id)}>{compareIds.includes(racket.id) ? "✓ 已加入对比" : compareIds.length >= 3 ? "管理对比 3/3" : "+ 加入对比"}</button>
-                              </div>
-                            </li>
-                          ))}
-                        </ul>
-                      ) : (
-                        <p className="curated-list__empty">当前拍库暂无满足全部标准的型号</p>
-                      )}
-                    </article>
-                  );
-                })}
-              </div>
+                                <span className="curated-entry__scores">{activeCuratedScene.scoreCriteria.map((criterion) => <em key={criterion.score}>{scoreLabels[criterion.score]} {racket.scores[criterion.score]}</em>)}</span>
+                              </span>
+                            </button>
+                            <button className="curated-entry__compare" data-focus-key={`curated-compare-${activeCuratedScene.id}-${racket.id}`} onClick={() => requestCompare(racket.id)} aria-pressed={compareIds.includes(racket.id)} aria-label={compareIds.includes(racket.id) ? `移出 ${racket.model} 决策室` : compareIds.length >= 3 ? `管理已满对比，并用 ${racket.model} 替换候选` : `加入 ${racket.model} 决策室`}>{compareIds.includes(racket.id) ? "✓" : compareIds.length >= 3 ? "⇄" : "+"}</button>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : <p className="curated-list__empty">当前拍库暂无满足全部标准的型号，可前往球拍库放宽筛选。</p>}
+                  </article>
+              )}
             </section>
 
             <div className="discover-shortcuts">
@@ -3904,29 +4155,6 @@ export default function RacketApp() {
               </button>
             </div>
 
-            {recentRackets.length > 0 && (
-              <section className="recent-shelf" aria-labelledby="recent-shelf-title">
-                <div className="recent-shelf__header">
-                  <div>
-                    <h2 id="recent-shelf-title" tabIndex={-1}>最近看过</h2>
-                    <p>{sessionPersistence === "memory-only" ? "仅保留在本页，刷新或关闭页面后会丢失" : "仅保存在本机"}</p>
-                  </div>
-                  <button className="recent-shelf__clear" data-focus-key="recent-clear" onClick={clearRecentRackets} aria-label="清空最近看过">清空</button>
-                </div>
-                <ul className="recent-shelf__track">
-                  {recentRackets.map((racket) => (
-                    <li key={racket.id} className="recent-shelf__item">
-                      <button className="recent-shelf__open" data-focus-key={`recent-open-${racket.id}`} onClick={() => openRacket(racket.id)}>
-                        <RacketPhoto racket={racket} variant="thumb" />
-                        <span>{racket.brand}</span>
-                        <b>{racket.model}</b>
-                      </button>
-                      <button className="recent-shelf__remove" data-focus-key={`recent-remove-${racket.id}`} aria-label={`从最近看过移除 ${racket.brand} ${racket.model}`} onClick={() => removeRecent(racket.id)}>×</button>
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            )}
           </section>
         )}
 
@@ -3996,20 +4224,24 @@ export default function RacketApp() {
                   <p>优先方向：{displayPriority}。{prescriptionBaseline ? "每个候选都会说明相对当前球拍的收益、取舍与适应成本。" : "选择你当前使用的球拍，可查看更具体的迁移差异。"}</p>
                   <button onClick={restartMatchProfile}>修改答案</button>
                 </div>
-                <div className="match-priority-preview">
+                <section className="match-priority-preview" aria-labelledby="match-priority-preview-title">
+                  <div className="match-priority-preview__head">
+                    <div><span>即时试算</span><h3 id="match-priority-preview-title">换个优先方向，看看候选怎么变</h3></div>
+                    <span className="match-priority-preview__saved"><i aria-hidden="true" />档案：{profilePriority}优先</span>
+                  </div>
                   <div className="match-priority-preview__capsules" role="group" aria-label="预览不同优先方向">
                     {matchPriorities.map((item) => (
-                      <button key={item} type="button" aria-pressed={displayPriority === item} onClick={() => previewMatchPriority(item)}>{item === "护臂" ? "护臂 / 容错" : item}</button>
+                      <button key={item} type="button" aria-pressed={displayPriority === item} onClick={() => previewMatchPriority(item)} aria-label={`${item === profilePriority ? "档案已保存，" : ""}预览${item}优先`}><span>{item === "护臂" ? "护臂 / 容错" : item}</span>{item === profilePriority && <i aria-hidden="true" />}</button>
                     ))}
                   </div>
                   {previewPriority !== null && previewPriority !== profilePriority && (
-                    <p className="match-priority-preview__status">预览中：{previewPriority} 优先（未保存）· 你的档案仍为 {profilePriority} 优先</p>
+                    <div className="match-priority-preview__status" role="status"><span>仅预览</span><p>正在按 {previewPriority} 优先试算；你的档案仍是 {profilePriority} 优先。</p><button onClick={() => previewMatchPriority(profilePriority)}>恢复档案结果</button></div>
                   )}
-                </div>
+                </section>
                 <div className="match-result-list">
                   {recommendations.slice(0, 3).map(({ racket, match }, index) => (
                     <article key={racket.id} className="match-result-card">
-                      <span className="match-result-card__rank">{index + 1}</span>
+                      <span className="match-result-card__rank" aria-label={prescriptionBaseline ? `升级路线 ${index + 1}` : `推荐第 ${index + 1} 名`}>{prescriptionBaseline ? String.fromCharCode(65 + index) : index + 1}</span>
                       <button className="match-result-card__main" data-focus-key={`match-result-open-${racket.id}`} onClick={() => openRacket(racket.id)}>
                         <RacketPhoto racket={racket} variant="thumb" />
                         <span className="match-result-card__copy">
@@ -4026,25 +4258,32 @@ export default function RacketApp() {
                           {prescriptionBaseline && prescriptionResultById.get(racket.id) && <em>{prescriptionDeltaSummary(prescriptionResultById.get(racket.id) as PrescriptionResult)} · 适应成本 {prescriptionResultById.get(racket.id)?.adaptation}</em>}
                         </span>
                       </button>
-                      <div className="match-result-card__score"><b>{Math.round(match)}</b><small>指数</small></div>
-                      <button className="match-result-card__add" data-focus-key={`match-result-compare-${racket.id}`} onClick={() => requestCompare(racket.id)} aria-pressed={compareIds.includes(racket.id)} aria-label={!compareIds.includes(racket.id) && compareIds.length >= 3 ? `决策室已有三把候选，管理后再加入 ${racket.model}` : `${compareIds.includes(racket.id) ? "移出" : "加入"} ${racket.model} 决策室`}>{compareIds.includes(racket.id) ? "✓" : compareIds.length >= 3 ? "⇄" : "+"}</button>
-                      {!prescriptionBaseline && (() => {
-                        const breakdown = recommendationBreakdown(racket, profileStage, profileStyle, displayPriority);
+                      <div className="match-result-card__score"><b>{Math.round(match)}</b><small>{prescriptionBaseline ? "适配 / 99" : "匹配 / 99"}</small></div>
+                      <button className="match-result-card__add" data-focus-key={`match-result-compare-${racket.id}`} onClick={() => requestCompare(racket.id)} aria-pressed={compareIds.includes(racket.id)} aria-label={compareIds.includes(racket.id) ? `移出 ${racket.model} 决策室` : compareIds.length >= 3 ? `管理已满对比，并用 ${racket.model} 替换候选` : `加入 ${racket.model} 决策室`}>{compareIds.includes(racket.id) ? "✓" : compareIds.length >= 3 ? "⇄" : "+"}</button>
+                      {(() => {
+                        const breakdown = prescriptionBaseline ? null : recommendationBreakdown(racket, profileStage, profileStyle, displayPriority);
+                        const swapResult = prescriptionResultById.get(racket.id);
                         const expanded = breakdownOpenIds.includes(racket.id);
                         return (
                           <div className="match-result-breakdown">
-                            <button type="button" className="match-result-breakdown__trigger" aria-expanded={expanded} aria-controls={`match-breakdown-${racket.id}`} aria-label={`查看 ${racket.model} 的匹配指数拆解`} onClick={() => toggleMatchBreakdown(racket.id)}>
-                              <span>为什么是它</span><i aria-hidden="true">{expanded ? "−" : "+"}</i>
+                            <button type="button" className="match-result-breakdown__trigger" aria-expanded={expanded} aria-controls={`match-breakdown-${racket.id}`} aria-label={`查看 ${racket.model} 的${prescriptionBaseline ? "换拍理由" : "匹配指数拆解"}`} onClick={() => toggleMatchBreakdown(racket.id)}>
+                              <span>{prescriptionBaseline ? "为什么值得换" : "为什么是它"}</span><i aria-hidden="true">{expanded ? "收起" : "展开"}</i>
                             </button>
                             <div id={`match-breakdown-${racket.id}`} role="region" aria-label={`${racket.model} 匹配指数拆解`} className="match-result-breakdown__panel" hidden={!expanded}>
-                              <ul>
-                                <li>基础分 +{breakdown.base}</li>
-                                <li>{breakdown.stageHit ? `阶段命中 +${breakdown.stagePoints}（适合${profileStage}）` : `阶段未命中 +0（该拍标注：${racket.stages.join("、")}）`}</li>
-                                <li>{breakdown.styleHit ? `打法命中 +${breakdown.stylePoints}（匹配${profileStyle}）` : `打法未命中 +0（该拍标注：${racket.styles.join("、")}）`}</li>
-                                <li>{breakdown.priorityMode === "均衡" ? `六维均衡加权 +${breakdown.priorityPoints.toFixed(1)}（六维均值×0.18 + 最低维×0.06）` : `${displayPriority}加权 +${breakdown.priorityPoints.toFixed(1)}（${displayPriority} ${racket.scores[priorityScoreKeyMap[displayPriority]]}×0.2 + 六维均值×0.04）`}</li>
-                              </ul>
-                              <p className="match-result-breakdown__total">合计 {breakdown.raw.toFixed(1)} ≈ 卡面 {Math.round(match)}{breakdown.capped ? `（原始 ${breakdown.raw.toFixed(1)}，封顶 99）` : ""}</p>
-                              <p className="match-result-breakdown__note">{HONESTY_NOTES.matchIndex}</p>
+                              {swapResult ? (
+                                <>
+                                  <div className="match-result-breakdown__chips">{swapResult.gains.map((gain) => <span key={gain}>收益 · {gain}</span>)}{swapResult.tradeoff && <span className="is-tradeoff">取舍 · {swapResult.tradeoff}</span>}<span>适应成本 · {swapResult.adaptation}</span></div>
+                                  <p className="match-result-breakdown__total">{prescriptionDeltaSummary(swapResult)}</p>
+                                  <p className="match-result-breakdown__note">这是相对当前拍的升级路线，不代表绝对排名。{HONESTY_NOTES.matchIndex}</p>
+                                </>
+                              ) : breakdown ? (
+                                <>
+                                  <div className="match-result-breakdown__chips"><span className={breakdown.stageHit ? "" : "is-miss"}>{breakdown.stageHit ? `阶段匹配 +${breakdown.stagePoints}` : "阶段未命中 +0"}</span><span className={breakdown.styleHit ? "" : "is-miss"}>{breakdown.styleHit ? `打法匹配 +${breakdown.stylePoints}` : "打法未命中 +0"}</span><span>{displayPriority}加权 +{breakdown.priorityPoints.toFixed(1)}</span></div>
+                                  <details className="match-result-breakdown__formula"><summary>查看计算方式</summary><ul><li>基础分 +{breakdown.base}</li><li>{breakdown.stageHit ? `阶段命中 +${breakdown.stagePoints}（适合${profileStage}）` : `阶段未命中 +0（该拍标注：${racket.stages.join("、")}）`}</li><li>{breakdown.styleHit ? `打法命中 +${breakdown.stylePoints}（匹配${profileStyle}）` : `打法未命中 +0（该拍标注：${racket.styles.join("、")}）`}</li><li>{breakdown.priorityMode === "均衡" ? `六维均衡加权 +${breakdown.priorityPoints.toFixed(1)}（六维均值×0.18 + 最低维×0.06）` : `${displayPriority}加权 +${breakdown.priorityPoints.toFixed(1)}（${displayPriority} ${racket.scores[priorityScoreKeyMap[displayPriority]]}×0.2 + 六维均值×0.04）`}</li></ul></details>
+                                  <p className="match-result-breakdown__total">合计 {breakdown.raw.toFixed(1)} ≈ 卡面 {Math.round(match)}{breakdown.capped ? `（原始 ${breakdown.raw.toFixed(1)}，封顶 99）` : ""}</p>
+                                  <p className="match-result-breakdown__note">{HONESTY_NOTES.matchIndex}</p>
+                                </>
+                              ) : null}
                             </div>
                           </div>
                         );
@@ -4054,25 +4293,26 @@ export default function RacketApp() {
                 </div>
                 <section className="match-sync" aria-labelledby="match-sync-title">
                   <div className="match-sync__head">
-                    <p>Tour Sync</p>
-                    <h3 id="match-sync-title">球星同频</h3>
+                    <div><p>Tour Sync</p><h3 id="match-sync-title">球星关联拍适配</h3></div>
+                    <span>按{displayPriority}优先计算</span>
                   </div>
-                  <p className="match-sync__note">{HONESTY_NOTES.tourSync}</p>
                   <ul className="match-sync__list">
                     {tourPlayerSync.slice(0, 4).map((item) => (
                       <li key={item.player.id}>
-                        <button type="button" data-focus-key={`tour-sync-open-${item.player.id}`} onClick={() => openTourPlayer(item.player.id)} aria-label={`${item.player.nameZh}，${item.player.tour} 第 ${item.player.rank} 位，同频 ${item.syncScore}%，${item.mapping}，打开球星卡`}>
+                        <button type="button" data-focus-key={`tour-sync-open-${item.player.id}`} onClick={() => openTourPlayer(item.player.id)} aria-label={`${item.player.nameZh}，${item.player.tour} 第 ${item.player.rank} 位，关联零售拍适配 ${item.syncScore} 分，${item.mapping}，打开球星卡`}>
+                          <RacketPhoto racket={item.viaRacket} variant="thumb" />
                           <span className="match-sync__who">
+                            <small>{item.player.tour} #{item.player.rank} · {item.player.countryCode}</small>
                             <strong>{item.player.nameZh}</strong>
-                            <small>{item.player.tour} #{item.player.rank} · {item.mapping}</small>
-                            <small>{tourCatalogTargets[item.player.id]?.kind === "family" ? `按系内最同频型号 ${item.viaRacket.model} 估算` : `依据型号 ${item.viaRacket.model}`}</small>
+                            <span>{item.viaRacket.model}</span>
+                            <em>{tourCatalogTargets[item.player.id]?.kind === "family" ? `系内适配型号估算 · ${item.mapping}` : `零售型号映射 · ${item.mapping}`}</em>
                           </span>
-                          <span className="match-sync__score"><b>同频 {item.syncScore}%</b><i aria-hidden="true">›</i></span>
+                          <span className="match-sync__score"><b>{item.syncScore}</b><small>/ 99 适配</small><i aria-hidden="true">›</i></span>
                         </button>
                       </li>
                     ))}
                   </ul>
-                  <button type="button" className="match-sync__all" data-focus-key="tour-sync-all" onClick={() => goToView("tour")}>查看全部 {tourPlayers.length} 位球星</button>
+                  <div className="match-sync__foot"><p className="match-sync__note">{HONESTY_NOTES.tourSync}</p><button type="button" className="match-sync__all" data-focus-key="tour-sync-all" onClick={() => goToView("tour")}>查看全部 {tourPlayers.length} 位球星 <span aria-hidden="true">›</span></button></div>
                 </section>
                 <div className="match-results-actions"><button className="app-button app-button--primary" onClick={compareIds.length > 0 ? () => goToView("compare") : compareTopMatches}>{compareIds.length > 0 ? `进入决策室 ${compareIds.length}/3` : "把前两名放入决策室"}</button><button className="app-button app-button--soft" onClick={browseFullCatalog}>浏览完整拍库</button></div>
               </section>
@@ -4273,7 +4513,20 @@ export default function RacketApp() {
                     </div>
                   </section>
                 )}
-                <div className="compare-product-grid">
+                <div
+                  className="compare-panel-tabs"
+                  role="tablist"
+                  aria-label="切换决策室内容"
+                  onKeyDown={(event) => moveHorizontalTab(event, comparePanelOrder, comparePanel, setComparePanel)}
+                >
+                  {([
+                    ["overview", "概览", compared.length >= 2 ? "雷达与结论" : "候选轮廓"],
+                    ["specs", "规格", "完整参数"],
+                    ["trial", "试打", currentDecisionFeedback.length > 0 ? `${currentDecisionFeedback.length} 条记录` : "状态与备注"],
+                  ] as const).map(([panel, label, hint]) => <button id={`compare-tab-${panel}`} key={panel} role="tab" tabIndex={comparePanel === panel ? 0 : -1} aria-selected={comparePanel === panel} aria-controls="compare-panel-active" onClick={() => setComparePanel(panel)}><b>{label}</b><small>{hint}</small></button>)}
+                </div>
+                <div id="compare-panel-active" role="tabpanel" aria-labelledby={`compare-tab-${comparePanel}`} className="compare-panel-surface">
+                <div className={`compare-product-grid compare-product-grid--${comparePanel}`}>
                   {compareSlotRackets.map(({ slot, racket }) => {
                     if (racket) {
                       const candidate = decisionCandidates[racket.id] ?? { status: "candidate" as const, note: "" };
@@ -4283,11 +4536,17 @@ export default function RacketApp() {
                           {duelActive && slot === 0 && racket.id === duelOpponentId && <span className="compare-duel-opponent">对方战拍</span>}
                           <button className={`compare-product-grid__remove${pendingCompareRacket ? " is-replace" : ""}`} data-compare-remove-id={racket.id} onClick={() => pendingCompareRacket ? replacePendingCompare(racket.id) : toggleCompare(racket.id)} aria-label={pendingCompareRacket ? `用 ${pendingCompareRacket.model} 替换 ${racket.model}` : `从决策室移除 ${racket.model}`}>{pendingCompareRacket ? "⇄" : "×"}</button>
                           <button className="compare-product-grid__main" data-focus-key={`compare-slot-${slot}-${racket.id}`} disabled={Boolean(pendingCompareRacket)} onClick={() => openRacket(racket.id)} aria-label={pendingCompareRacket ? `请先选择是否用 ${pendingCompareRacket.model} 替换 ${racket.model}` : `${duelActive && slot === 0 && racket.id === duelOpponentId ? "对方战拍，" : ""}查看 ${racket.model} 深度档案`} title={pendingCompareRacket ? "请先完成或取消本次替换" : undefined}><RacketPhoto racket={racket} variant="thumb" /><span>{racket.brand}</span><h3>{racket.model}</h3></button>
-                          <div className="decision-candidate__tools">
-                            <label><span>决策状态</span><select value={candidate.status} disabled={Boolean(pendingCompareRacket)} onChange={(event) => updateDecisionCandidateStatus(racket.id, event.target.value as DecisionCandidateStatus)} aria-label={`${racket.model} 的决策状态`}>{Object.entries(decisionStatusLabels).map(([status, label]) => <option key={status} value={status}>{label}</option>)}</select></label>
-                            <button type="button" onClick={() => openTrialFeedback(racket.id)} disabled={Boolean(pendingCompareRacket)}>记录试打</button>
-                          </div>
-                          <label className="decision-candidate__note"><span>一句话判断</span><textarea value={candidate.note} maxLength={120} rows={2} placeholder="例如：发球更省力，但反手需要适应" onChange={(event) => updateDecisionCandidateNote(racket.id, event.target.value)} aria-label={`${racket.model} 的决策备注`} /></label>
+                          {comparePanel === "trial" ? (
+                            <>
+                              <div className="decision-candidate__tools">
+                                <label><span>决策状态</span><select value={candidate.status} disabled={Boolean(pendingCompareRacket)} onChange={(event) => updateDecisionCandidateStatus(racket.id, event.target.value as DecisionCandidateStatus)} aria-label={`${racket.model} 的决策状态`}>{Object.entries(decisionStatusLabels).map(([status, label]) => <option key={status} value={status}>{label}</option>)}</select></label>
+                                <button type="button" onClick={() => openTrialFeedback(racket.id)} disabled={Boolean(pendingCompareRacket)}>记录试打</button>
+                              </div>
+                              <label className="decision-candidate__note"><span>一句话判断</span><textarea value={candidate.note} maxLength={120} rows={2} placeholder="例如：发球更省力，但反手需要适应" onChange={(event) => updateDecisionCandidateNote(racket.id, event.target.value)} aria-label={`${racket.model} 的决策备注`} /></label>
+                            </>
+                          ) : (
+                            <div className="decision-candidate__quick-specs"><span>{formatNumberSpec(officialWeight(racket), "g")}</span><span>{formatNumberSpec(officialHead(racket), "in²")}</span><span>{officialPattern(racket) ?? "—"}</span></div>
+                          )}
                         </article>
                       );
                     }
@@ -4297,18 +4556,18 @@ export default function RacketApp() {
                   })}
                 </div>
 
-                {feedbackRacketId && deepRacketById.get(feedbackRacketId) && (
+                {comparePanel === "trial" && feedbackRacketId && deepRacketById.get(feedbackRacketId) && (
                   <form className="trial-feedback-card" onSubmit={(event) => { event.preventDefault(); submitTrialFeedback(); }}>
                     <header>
                       <div><span>Trial log</span><h2 id="trial-feedback-title" tabIndex={-1}>记录 {deepRacketById.get(feedbackRacketId)?.model} 试打</h2><p>凭实际击球感受打分，系统会把结论带回候选状态。</p></div>
-                      <button type="button" onClick={() => setFeedbackRacketId(null)} aria-label="关闭试打记录">×</button>
+                      <button type="button" onClick={closeTrialFeedback} aria-label="关闭试打记录">×</button>
                     </header>
                     <div className="trial-feedback-card__ratings">
                       {(["control", "power", "comfort"] as const).map((metric) => (
                         <fieldset key={metric}>
                           <legend>{trialMetricLabels[metric]} <b>{trialFeedbackDraft[metric]}/5</b></legend>
                           <div role="radiogroup" aria-label={`${trialMetricLabels[metric]}评分`}>
-                            {[1, 2, 3, 4, 5].map((score) => <button key={score} type="button" role="radio" aria-checked={trialFeedbackDraft[metric] === score} onClick={() => setTrialFeedbackDraft((current) => ({ ...current, [metric]: score }))}>{score}</button>)}
+                            {[1, 2, 3, 4, 5].map((score) => <button key={score} type="button" role="radio" tabIndex={trialFeedbackDraft[metric] === score ? 0 : -1} aria-checked={trialFeedbackDraft[metric] === score} onKeyDown={(event) => moveRating(event, trialFeedbackDraft[metric], (value) => setTrialFeedbackDraft((current) => ({ ...current, [metric]: value })))} onClick={() => setTrialFeedbackDraft((current) => ({ ...current, [metric]: score }))}>{score}</button>)}
                           </div>
                         </fieldset>
                       ))}
@@ -4317,56 +4576,76 @@ export default function RacketApp() {
                       <label><span>本次结论</span><select value={trialFeedbackDraft.verdict} onChange={(event) => setTrialFeedbackDraft((current) => ({ ...current, verdict: event.target.value as TrialFeedbackDraft["verdict"] }))}>{trialVerdicts.map((verdict) => <option key={verdict}>{verdict}</option>)}</select></label>
                       <label><span>场上感受</span><textarea value={trialFeedbackDraft.note} maxLength={240} rows={3} placeholder="记录底线、发球、网前或手臂负担的真实感受" onChange={(event) => setTrialFeedbackDraft((current) => ({ ...current, note: event.target.value }))} /></label>
                     </div>
-                    <footer><small>试打记录仅保存在当前浏览器。</small><div><button type="button" onClick={() => setFeedbackRacketId(null)}>取消</button><button className="app-button app-button--primary" type="submit">保存试打</button></div></footer>
+                    <footer><small>试打记录仅保存在当前浏览器。</small><div><button type="button" onClick={closeTrialFeedback}>取消</button><button className="app-button app-button--primary" type="submit">保存试打</button></div></footer>
                   </form>
                 )}
 
-                <section className="compare-radar-card">
-                  <div><p>六维轮廓</p><h2>{compared.length > 1 ? "重叠雷达图" : "单拍雷达图"}</h2><span>官网硬规格与拍系定位生成的相对评估；非实验室测量。</span></div>
-                  <RadarChart chartRackets={compared} seriesSlots={compareSlots.map(({ slot }) => slot)} />
-                </section>
+                {comparePanel === "overview" && (
+                  <>
+                    {duelVerdicts && duelOpponent && duelChallenger && (
+                      <section className="compare-duel-arena" aria-labelledby="compare-duel-arena-title">
+                        <div className="compare-duel-arena__title"><span>好友对决</span><h2 id="compare-duel-arena-title">六维战报</h2><small>微小分差按接近处理，不代表实际胜负</small></div>
+                        <div className="compare-duel-arena__players">
+                          <div><RacketPhoto racket={duelOpponent} variant="thumb" /><span>守擂</span><b>{duelOpponent.model}</b><strong>{duelVerdicts.aWins}</strong></div>
+                          <i>VS</i>
+                          <div><RacketPhoto racket={duelChallenger} variant="thumb" /><span>应战</span><b>{duelChallenger.model}</b><strong>{duelVerdicts.bWins}</strong></div>
+                        </div>
+                        <p className="compare-duel-scoreline">{duelScoreSummary(duelVerdicts, duelOpponent.model, duelChallenger.model)}</p>
+                      </section>
+                    )}
+                    <section className="compare-radar-card">
+                      <div><p>六维轮廓</p><h2>{compared.length > 1 ? "重叠雷达图" : "单拍雷达图"}</h2><span>先看轮廓取舍，再到“规格”核对硬参数。</span></div>
+                      <RadarChart chartRackets={compared} seriesSlots={compareSlots.map(({ slot }) => slot)} />
+                    </section>
 
-                {compared.length >= 2 && (
-                  <section className="compare-insights" aria-labelledby="compare-insights-title">
-                    <div className="compare-insights__head"><p>白话解读</p><h2 id="compare-insights-title">差异翻译</h2><span>按官网公开规格的确定性规则生成</span></div>
-                    {compareInsights.status === "no-comparable-specs"
-                      ? <p className="compare-insights__empty">两把球拍的公开规格不足以生成差异解读。</p>
-                      : compareInsights.status === "no-significant-diff"
-                        ? <p className="compare-insights__empty">六项公开规格均处于相近区间，无显著差异可解读。</p>
-                        : <ul className="compare-insights__list">{compareInsights.insights.map((insight) => <li key={insight.key}>{insight.sentence}</li>)}</ul>}
-                    {compareInsights.excludedLabels.length > 0 && <p className="compare-insights__excluded">以下参数官网未公开或无法归一比较，未参与解读：{compareInsights.excludedLabels.join("、")}</p>}
-                  </section>
+                    {compared.length >= 2 && (
+                      <section className="compare-insights" aria-labelledby="compare-insights-title">
+                        <div className="compare-insights__head"><div><p>白话解读</p><h2 id="compare-insights-title">最值得注意的差异</h2></div><span>{6 - compareInsights.excludedLabels.length}/6 项规格可比较</span></div>
+                        {compareInsights.status === "no-comparable-specs"
+                          ? <p className="compare-insights__empty">当前候选没有足够的共同公开规格，无法生成可靠解读。</p>
+                          : compareInsights.status === "no-significant-diff"
+                            ? <p className="compare-insights__empty">已公开且可比较的 {6 - compareInsights.excludedLabels.length} 项规格未达到显著差异阈值。</p>
+                            : <ul className="compare-insights__list">{compareInsights.insights.map((insight, index) => <li key={insight.key}><span><b>0{index + 1}</b><strong>{compareDiffLabels[insight.key]}</strong></span><p>{insight.sentence.replace("基于规格推断。", "")}</p></li>)}</ul>}
+                        {compared.length === 3 && <p className="compare-insights__scope">三拍对比按每个维度中差距最大的两把生成解读。</p>}
+                        {compareInsights.excludedLabels.length > 0 && <p className="compare-insights__excluded">未参与解读：{compareInsights.excludedLabels.join("、")}（官网未公开或无法归一）。</p>}
+                        <p className="compare-insights__basis">{HONESTY_NOTES.specInference} · 进入“规格”可查看原始数值</p>
+                      </section>
+                    )}
+                    {compared.length >= 2 && <p className="compare-honesty-note">{HONESTY_NOTES.compare}</p>}
+                  </>
                 )}
 
-                {duelVerdicts && duelOpponent && duelChallenger && (
-                  <p className="compare-duel-scoreline">{duelScoreSummary(duelVerdicts, duelOpponent.model, duelChallenger.model)}</p>
+                {comparePanel === "specs" && (
+                  <>
+                    <p className="compare-scroll-hint" id="compare-scroll-hint">横向滑动或使用方向键，查看全部球拍参数</p>
+                    <div ref={compareTableScrollRef} className="compare-spec-table-scroll" role="region" aria-label="球拍规格对比表" aria-describedby="compare-scroll-hint" tabIndex={compareTableScrollable ? 0 : -1}>
+                      <table className="compare-spec-table">
+                        <thead><tr><th scope="col">属性</th>{compareSlotRackets.map(({ slot, racket }) => <th scope="col" className={racket ? undefined : "is-empty"} key={slot}>{racket?.model ?? `空槽 ${slot + 1}`}</th>)}</tr></thead>
+                        <tbody>{comparisonRows.map((row) => {
+                          const isMaxDiffRow = row.rowKind === "spec" && compareInsights.highlightKey === row.key;
+                          const rowVerdict = row.rowKind === "score" && row.scoreKey && duelVerdicts ? duelVerdicts.verdicts[row.scoreKey] : null;
+                          return <tr key={row.key} className={isMaxDiffRow ? "is-max-diff" : undefined}><th scope="row">{row.label}{isMaxDiffRow && <i className="compare-max-diff-badge">差异最大</i>}</th>{compareSlotRackets.map(({ slot, racket }) => {
+                            const duelSide = rowVerdict && racket ? racket.id === duelOpponent?.id ? "a" : racket.id === duelChallenger?.id ? "b" : null : null;
+                            const duelBadge = duelSide && rowVerdict === "tie"
+                              ? <i className="compare-duel-badge compare-duel-badge--tie">接近</i>
+                              : duelSide && rowVerdict === duelSide
+                                ? <i className={`compare-duel-badge compare-duel-badge--${duelSide}`}>{duelSide === "a" ? "守擂略高" : "应战略高"}</i>
+                                : null;
+                            return <td key={slot} className={racket ? undefined : "is-empty"}>{racket ? row.value(racket) : "—"}{duelBadge}</td>;
+                          })}</tr>;
+                        })}</tbody>
+                      </table>
+                    </div>
+                    <div className="compare-buy-grid" style={{ "--compare-count": 3 } as CSSProperties}>
+                      {compareSlotRackets.map(({ slot, racket }) => racket
+                        ? <a key={slot} href={racket.buyUrl} target="_blank" rel="noreferrer" aria-label={`前往 ${racket.brand} 官网查看 ${racket.model}，${purchaseLinkStatusLabel(racket.id)}，新标签页打开`}><span>前往 {racket.brand} 官网 <i aria-hidden="true">↗</i></span><PurchaseLinkBadge racketId={racket.id} compact /></a>
+                        : <span className="compare-buy-grid__empty" key={slot}>空槽 {slot + 1}</span>)}
+                    </div>
+                    {compared.length >= 2 && <p className="compare-honesty-note">{HONESTY_NOTES.compare}</p>}
+                  </>
                 )}
-                <p className="compare-scroll-hint" id="compare-scroll-hint">横向滑动或使用方向键，查看全部球拍参数</p>
-                <div ref={compareTableScrollRef} className="compare-spec-table-scroll" role="region" aria-label="球拍规格对比表" aria-describedby="compare-scroll-hint" tabIndex={compareTableScrollable ? 0 : -1}>
-                  <table className="compare-spec-table">
-                    <thead><tr><th scope="col">属性</th>{compareSlotRackets.map(({ slot, racket }) => <th scope="col" className={racket ? undefined : "is-empty"} key={slot}>{racket?.model ?? `空槽 ${slot + 1}`}</th>)}</tr></thead>
-                    <tbody>{comparisonRows.map((row) => {
-                      const isMaxDiffRow = row.rowKind === "spec" && compareInsights.highlightKey === row.key;
-                      const rowVerdict = row.rowKind === "score" && row.scoreKey && duelVerdicts ? duelVerdicts.verdicts[row.scoreKey] : null;
-                      return <tr key={row.key} className={isMaxDiffRow ? "is-max-diff" : undefined}><th scope="row">{row.label}{isMaxDiffRow && <i className="compare-max-diff-badge">差异最大</i>}</th>{compareSlotRackets.map(({ slot, racket }) => {
-                        const duelSide = rowVerdict && racket ? racket.id === duelOpponent?.id ? "a" : racket.id === duelChallenger?.id ? "b" : null : null;
-                        const duelBadge = duelSide && rowVerdict === "tie"
-                          ? <i className="compare-duel-badge compare-duel-badge--tie">战平</i>
-                          : duelSide && rowVerdict === duelSide
-                            ? <i className="compare-duel-badge">领先</i>
-                            : null;
-                        return <td key={slot} className={racket ? undefined : "is-empty"}>{racket ? row.value(racket) : "—"}{duelBadge}</td>;
-                      })}</tr>;
-                    })}</tbody>
-                  </table>
-                </div>
-                {compared.length >= 2 && <p className="compare-honesty-note">{HONESTY_NOTES.compare}</p>}
-                <div className="compare-buy-grid" style={{ "--compare-count": 3 } as CSSProperties}>
-                  {compareSlotRackets.map(({ slot, racket }) => racket
-                    ? <a key={slot} href={racket.buyUrl} target="_blank" rel="noreferrer" aria-label={`前往 ${racket.brand} 官网查看 ${racket.model}，新标签页打开`}>前往 {racket.brand} 官网 <span aria-hidden="true">↗</span></a>
-                    : <span className="compare-buy-grid__empty" key={slot}>空槽 {slot + 1}</span>)}
-                </div>
-                {currentDecisionFeedback.length > 0 && (
+
+                {comparePanel === "trial" && currentDecisionFeedback.length > 0 && (
                   <section className="trial-feedback-history" aria-labelledby="trial-feedback-history-title">
                     <div><span>Trial history</span><h2 id="trial-feedback-history-title">最近试打记录</h2><small>用场上反馈校正参数判断</small></div>
                     <ol>{currentDecisionFeedback.slice(0, 6).map((item, index) => {
@@ -4375,6 +4654,7 @@ export default function RacketApp() {
                     })}</ol>
                   </section>
                 )}
+                </div>
               </div>
             )}
           </section>
@@ -4474,41 +4754,46 @@ export default function RacketApp() {
       {selected && (
         <div className="detail-backdrop" role="presentation" onPointerDown={closeDetail}>
           <section ref={racketDialogRef} className="racket-inspector" role="dialog" aria-modal="true" aria-labelledby="inspector-title" onPointerDown={(event) => event.stopPropagation()} style={{ "--racket-accent": selected.accent } as CSSProperties}>
-            <header className="racket-inspector__header"><button data-dialog-close onClick={closeDetail} aria-label={detailReturnFamilyId ? "返回拍系详情" : "关闭详情"}>‹</button><span>{detailReturnFamilyId ? `返回 ${selected.familyName} 拍系` : selected.brand}</span><div className="inspector-header-actions"><button onClick={() => shareCurrentView(`${selected.brand} ${selected.model} 深度档案`)} aria-label={`分享 ${selected.model} 深度档案链接`}>分享</button><button data-focus-key={`dossier-duel-${selected.id}`} onClick={() => startDuel(selected.id)} aria-label={`发起 ${selected.model} 球拍对决，复制对决链接`}>发起对决</button><button data-focus-key={`dossier-header-compare-${selected.id}`} onClick={() => requestCompare(selected.id)} aria-pressed={compareIds.includes(selected.id)} aria-label={`${compareIds.includes(selected.id) ? "移出" : compareIds.length >= 3 ? "管理已满对比，当前无法加入" : "加入"} ${selected.model} 对比`}>{compareIds.includes(selected.id) ? "✓ 移出" : compareIds.length >= 3 ? "管理 3/3" : "+ 对比"}</button></div></header>
+            <header className="racket-inspector__header"><button data-dialog-close onClick={closeDetail} aria-label={detailReturnFamilyId ? "返回拍系详情" : "关闭详情"}>‹</button><span>{detailReturnFamilyId ? `返回 ${selected.familyName} 拍系` : selected.brand}</span><div className="inspector-header-actions"><button onClick={() => shareCurrentView(`${selected.brand} ${selected.model} 深度档案`)} aria-label={`分享 ${selected.model} 深度档案链接`}>分享</button><button className="is-primary" data-focus-key={`dossier-header-compare-${selected.id}`} onClick={() => requestCompare(selected.id)} aria-pressed={compareIds.includes(selected.id)} aria-label={`${compareIds.includes(selected.id) ? "移出" : compareIds.length >= 3 ? "管理已满对比，当前无法加入" : "加入"} ${selected.model} 对比`}>{compareIds.includes(selected.id) ? "✓ 已对比" : compareIds.length >= 3 ? "管理 3/3" : "+ 对比"}</button></div></header>
             <div className="racket-inspector__scroll" onScroll={(event) => persistRacketScroll(event.currentTarget.scrollTop)}>
+              <nav className="dossier-nav" aria-label="深度档案章节">
+                <button onClick={() => jumpDossierSection("overview")}>概览</button><button onClick={() => jumpDossierSection("specs")}>规格</button><button onClick={() => jumpDossierSection("radar")}>六维</button><button onClick={() => jumpDossierSection("similar")}>相似拍</button>
+              </nav>
               {selectedGallery.length > 0 ? <ProductGallery key={selected.id} images={selectedGallery} alt={`${selected.brand} ${selected.model}`} accent={selected.accent} /> : <RacketPhoto racket={selected} variant="detail" />}
               {selected.images?.length
                 ? <p className="inspector-image-note">图片来自该型号官网商品页{selected.imageVerifiedAt ? ` · 核验 ${selected.imageVerifiedAt}` : ""}；{selected.images.length > 1 ? "可左右切换查看官方角度。" : "当前官网仅提供这一商品角度。"}</p>
                 : selected.familyId && <p className="inspector-image-note">图片为 {selected.familyName} 拍系的官网代表图；具体子型号外观与细节请以官网页面为准。</p>}
-              <div className="racket-inspector__title"><p>{selected.series} · {selected.generation ?? selected.year}</p><h2 id="inspector-title">{selected.model}</h2><strong>发行 {selected.releaseDate ?? selected.year}</strong><span>{selected.stages.join(" · ")} / {selected.styles.join(" · ")}</span></div>
+              <div className="racket-inspector__title" id="dossier-overview" tabIndex={-1}><p>{selected.series} · {selected.generation ?? selected.year}</p><h2 id="inspector-title">{selected.model}</h2><strong>发行 {selected.releaseDate ?? selected.year}</strong><span>{selected.stages.join(" · ")} / {selected.styles.join(" · ")}</span></div>
               <RacketSpecTags racket={selected} expanded showSummary />
               <p className="racket-inspector__summary">{selected.summary}</p>
               <p className="racket-inspector__verdict">{selected.verdict}</p>
               {selected.familyId && <button className="racket-inspector__family-path" data-focus-key={`dossier-family-${selected.id}`} onClick={() => openFamily(selected.familyId as string, selected.id)}>查看 {selected.familyName} 拍系全部型号 <span aria-hidden="true">›</span></button>}
-              <dl className="inspector-specs">
+              <section className="dossier-decision-strip" aria-label="从这把球拍开始决策"><div><span>和朋友比一把</span><b>用 {selected.model} 守擂</b><small>生成链接，朋友打开后直接选拍应战</small></div><button data-focus-key={`dossier-duel-${selected.id}`} onClick={() => startDuel(selected.id)} aria-label={`发起 ${selected.model} 球拍对决`}>发起好友对决 <span aria-hidden="true">↗</span></button><PurchaseLinkBadge racketId={selected.id} /></section>
+              <dl className="inspector-specs" id="dossier-specs" tabIndex={-1} aria-label={`${selected.model} 完整规格`}>
                 <div><dt>裸拍重量</dt><dd>{formatNumberSpec(officialWeight(selected), "g")}</dd></div><div><dt>拍面</dt><dd>{formatNumberSpec(officialHead(selected), "in²")}</dd></div><div><dt>线床</dt><dd>{officialPattern(selected) ?? "—"}</dd></div><div><dt>平衡点</dt><dd>{officialBalance(selected)}</dd></div><div><dt>框厚</dt><dd>{officialBeam(selected)}</dd></div><div><dt>长度</dt><dd>{officialLength(selected)}</dd></div><div><dt>阶段</dt><dd>{selected.stages.join(" / ")}</dd></div><div><dt>打法</dt><dd>{selected.styles.join(" / ")}</dd></div><div><dt>资料完整度</dt><dd>{selected.specCoverage ?? "—"}</dd></div>
               </dl>
-              <section className="inspector-radar"><div><p>六维属性</p><span>官网规格 × 拍系定位</span></div><RadarChart chartRackets={[selected]} /></section>
+              <section className="inspector-radar" id="dossier-radar" tabIndex={-1} aria-label={`${selected.model} 六维属性`}><div><p>六维属性</p><span>官网规格 × 拍系定位</span></div><RadarChart chartRackets={[selected]} /></section>
               {similarRackets && (
-                <section className="similar-rackets" aria-labelledby="similar-rackets-title">
-                  <div className="similar-rackets__head"><p>他牌平替</p><h3 id="similar-rackets-title">找相似的拍</h3></div>
+                <section className="similar-rackets" id="dossier-similar" tabIndex={-1} aria-labelledby="similar-rackets-title">
+                  <div className="similar-rackets__head"><div><p>跨品牌近似</p><h3 id="similar-rackets-title">找相似的拍</h3></div><span>按 5 项官网规格排序</span></div>
                   {similarRackets.status === "missing-specs"
                     ? <p className="similar-rackets__empty">该型号官网未公开{similarRackets.missing.join("、")}，无法进行规格相似度排序。</p>
                     : similarRackets.entries.length === 0
                       ? <p className="similar-rackets__empty">暂无官网规格齐全的他牌型号可参与相似度排序。</p>
                       : (
                         <ul className="similar-rackets__list">
-                          {similarRackets.entries.map((entry) => (
+                          {similarRackets.entries.map((entry, index) => (
                             <li key={entry.id}>
+                              <RacketPhoto racket={entry.racket} variant="thumb" />
                               <div className="similar-rackets__info">
-                                <span>{entry.racket.brand}</span>
+                                <span>{index === 0 ? "最接近" : `第 ${index + 1} 接近`} · {entry.racket.brand}</span>
                                 <b>{entry.racket.model}</b>
                                 <small>{formatNumberSpec(officialWeight(entry.racket), "g")} · {formatNumberSpec(officialHead(entry.racket), "in²")} · {officialPattern(entry.racket) ?? "—"}</small>
                                 <em className="similar-rackets__diff">{entry.nearIdentical ? entry.maxDiffLabel : `最大差异 ${entry.maxDiffLabel}`}</em>
                               </div>
                               <div className="similar-rackets__actions">
                                 <button data-focus-key={`similar-open-${entry.id}`} onClick={() => openRacket(entry.id)} aria-label={`打开 ${entry.racket.model} 深度档案`}>查看档案</button>
-                                <button data-focus-key={`similar-compare-${entry.id}`} onClick={() => requestCompare(entry.id)} aria-pressed={compareIds.includes(entry.id)} aria-label={`${compareIds.includes(entry.id) ? "移出" : compareIds.length >= 3 ? "管理已满对比，当前无法加入" : "加入"} ${entry.racket.model} 对比`}>{compareIds.includes(entry.id) ? "✓ 移出" : compareIds.length >= 3 ? "管理 3/3" : "+ 对比"}</button>
+                                <button className="is-primary" data-focus-key={`similar-compare-${entry.id}`} onClick={() => startPairCompare(selected.id, entry.id)} aria-label={`将 ${selected.model} 与 ${entry.racket.model} 放入决策室对比`}>与当前拍对比</button>
                               </div>
                             </li>
                           ))}
@@ -4519,7 +4804,24 @@ export default function RacketApp() {
               )}
               <p className="inspector-note">{selected.profileBasis} 参数标签为公开硬规格的导向归纳，静态平衡不等于挥重。六维评分非实验室测量；穿线、磅数与个人动作都会改变最终手感，不替代实际试打。</p>
             </div>
-            <footer className="racket-inspector__actions"><button className="app-button app-button--soft" data-focus-key={`dossier-footer-compare-${selected.id}`} onClick={compareIds.includes(selected.id) ? activeView === "compare" ? closeDetail : () => goToView("compare") : () => requestCompare(selected.id)}>{compareIds.includes(selected.id) ? activeView === "compare" ? "返回球拍对比" : `查看对比 ${compareIds.length}/3` : compareIds.length >= 3 ? "管理对比 3/3" : "+ 加入对比"}</button><a className="app-button app-button--primary" href={selected.buyUrl} target="_blank" rel="noreferrer" aria-label={`前往 ${selected.buyLabel} 查看 ${selected.model}，新标签页打开`}>前往 {selected.buyLabel} <span aria-hidden="true">↗</span></a></footer>
+            <footer className="racket-inspector__actions"><button className="app-button app-button--soft" data-focus-key={`dossier-footer-compare-${selected.id}`} onClick={compareIds.includes(selected.id) ? activeView === "compare" ? closeDetail : () => goToView("compare") : () => requestCompare(selected.id)}>{compareIds.includes(selected.id) ? activeView === "compare" ? "返回球拍对比" : `查看对比 ${compareIds.length}/3` : compareIds.length >= 3 ? "管理对比 3/3" : "+ 加入对比"}</button><a className="app-button app-button--primary" href={selected.buyUrl} target="_blank" rel="noreferrer" aria-label={`前往 ${selected.buyLabel} 查看 ${selected.model}，${purchaseLinkStatusLabel(selected.id)}，新标签页打开`}><span>前往 {selected.buyLabel} <i aria-hidden="true">↗</i></span><PurchaseLinkBadge racketId={selected.id} compact /></a></footer>
+          </section>
+        </div>
+      )}
+
+      {duelShare && (
+        <div className="duel-share-backdrop" role="presentation" onPointerDown={dismissDuelShare}>
+          <section ref={duelShareDialogRef} className="duel-share-sheet" role="dialog" aria-modal="true" aria-labelledby="duel-share-title" onPointerDown={(event) => event.stopPropagation()}>
+            <button data-dialog-close className="duel-share-sheet__close" onClick={dismissDuelShare} aria-label="关闭好友对决分享">×</button>
+            <span className="duel-share-sheet__eyebrow">FRIEND DUEL</span>
+            <h2 id="duel-share-title">用 {duelShare.racketName} 守擂</h2>
+            <p>朋友打开链接后，会先看到你的战拍，再从 259 款拍库中选一把应战。</p>
+            <div className="duel-share-sheet__versus"><span><small>你的战拍</small><b>{duelShare.racketName}</b></span><i>VS</i><span><small>朋友选择</small><b>等待应战</b></span></div>
+            <label><span>挑战链接</span><input ref={duelLinkInputRef} value={duelShare.url} readOnly onFocus={(event) => event.currentTarget.select()} /></label>
+            <div className="duel-share-sheet__actions"><button className="app-button app-button--primary" onClick={shareDuelLink}>分享给朋友</button><button className="app-button app-button--soft" onClick={copyDuelLink}>复制链接</button></div>
+            {duelShareNotice && <p className="duel-share-sheet__notice" role="status" aria-live="polite">{duelShareNotice}</p>}
+            <button className="duel-share-sheet__preview" onClick={previewDuel}>先预览朋友看到的对决 <span aria-hidden="true">›</span></button>
+            <small>六维战报采用 2 分容差；这是拍库相对评估，不代表实际胜负。</small>
           </section>
         </div>
       )}

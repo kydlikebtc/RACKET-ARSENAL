@@ -145,7 +145,9 @@ test("dossier view mounts the similar-rackets block with honest wording and focu
   assert.match(page, /data-focus-key=\{`similar-open-\$\{entry\.id\}`\}/);
   assert.match(page, /data-focus-key=\{`similar-compare-\$\{entry\.id\}`\}/);
   assert.match(page, /openRacket\(entry\.id\)/);
-  assert.match(page, /requestCompare\(entry\.id\)/);
+  assert.match(page, /startPairCompare\(selected\.id, entry\.id\)/);
+  assert.match(page, /与当前拍对比/);
+  assert.match(page, /<RacketPhoto racket=\{entry\.racket\} variant="thumb" \/>/);
   assert.match(page, /HONESTY_NOTES\.similarRackets\}/);
   assert.match(page, /HONESTY_NOTES\.similarRacketsCoverage\}/);
   assert.match(HONESTY_NOTES.similarRackets, /规格相似不等于手感等价/);
