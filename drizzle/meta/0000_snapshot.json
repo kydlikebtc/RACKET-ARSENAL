@@ -1,0 +1,257 @@
+{
+  "version": "6",
+  "dialect": "sqlite",
+  "id": "1a5ac895-9a04-4bf2-9025-4ed8ab5c58cc",
+  "prevId": "00000000-0000-0000-0000-000000000000",
+  "tables": {
+    "decision_candidates": {
+      "name": "decision_candidates",
+      "columns": {
+        "owner_key": {
+          "name": "owner_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "racket_id": {
+          "name": "racket_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "note": {
+          "name": "note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "''"
+        },
+        "sort_order": {
+          "name": "sort_order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      },
+      "indexes": {
+        "decision_candidates_owner_order_idx": {
+          "name": "decision_candidates_owner_order_idx",
+          "columns": [
+            "owner_key",
+            "sort_order"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "decision_candidates_owner_key_decision_rooms_owner_key_fk": {
+          "name": "decision_candidates_owner_key_decision_rooms_owner_key_fk",
+          "tableFrom": "decision_candidates",
+          "tableTo": "decision_rooms",
+          "columnsFrom": [
+            "owner_key"
+          ],
+          "columnsTo": [
+            "owner_key"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "decision_candidates_owner_key_racket_id_pk": {
+          "columns": [
+            "owner_key",
+            "racket_id"
+          ],
+          "name": "decision_candidates_owner_key_racket_id_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "decision_candidates_status_check": {
+          "name": "decision_candidates_status_check",
+          "value": "\"decision_candidates\".\"status\" IN ('candidate', 'trial', 'eliminated', 'final')"
+        },
+        "decision_candidates_note_length_check": {
+          "name": "decision_candidates_note_length_check",
+          "value": "length(\"decision_candidates\".\"note\") <= 120"
+        }
+      }
+    },
+    "decision_rooms": {
+      "name": "decision_rooms",
+      "columns": {
+        "owner_key": {
+          "name": "owner_key",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "baseline_id": {
+          "name": "baseline_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "trial_feedback": {
+      "name": "trial_feedback",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "owner_key": {
+          "name": "owner_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "racket_id": {
+          "name": "racket_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "control": {
+          "name": "control",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "power": {
+          "name": "power",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "comfort": {
+          "name": "comfort",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "verdict": {
+          "name": "verdict",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "note": {
+          "name": "note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "''"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      },
+      "indexes": {
+        "trial_feedback_owner_created_idx": {
+          "name": "trial_feedback_owner_created_idx",
+          "columns": [
+            "owner_key",
+            "created_at"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "trial_feedback_control_check": {
+          "name": "trial_feedback_control_check",
+          "value": "\"trial_feedback\".\"control\" BETWEEN 1 AND 5"
+        },
+        "trial_feedback_power_check": {
+          "name": "trial_feedback_power_check",
+          "value": "\"trial_feedback\".\"power\" BETWEEN 1 AND 5"
+        },
+        "trial_feedback_comfort_check": {
+          "name": "trial_feedback_comfort_check",
+          "value": "\"trial_feedback\".\"comfort\" BETWEEN 1 AND 5"
+        },
+        "trial_feedback_verdict_length_check": {
+          "name": "trial_feedback_verdict_length_check",
+          "value": "length(\"trial_feedback\".\"verdict\") BETWEEN 1 AND 40"
+        },
+        "trial_feedback_note_length_check": {
+          "name": "trial_feedback_note_length_check",
+          "value": "length(\"trial_feedback\".\"note\") <= 240"
+        }
+      }
+    }
+  },
+  "views": {},
+  "enums": {},
+  "_meta": {
+    "schemas": {},
+    "tables": {},
+    "columns": {}
+  },
+  "internal": {
+    "indexes": {}
+  }
+}
