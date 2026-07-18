@@ -35,6 +35,8 @@ export type ParsedCompareRouteState = {
   hasExplicitSlots: boolean;
   rejectedSlots: ReadonlyArray<CompareSlotIndex>;
   rejectedCount: number;
+  /** True only for a well-formed duel link: compare view, vs=1 exactly once, and a resolved slot-0 racket. */
+  duel: boolean;
   canonicalHash: string;
   shouldReplace: boolean;
 };
@@ -78,12 +80,17 @@ function normalizedHash(hash: string) {
   return hash.startsWith("#") ? hash : `#${hash}`;
 }
 
-/** Encodes the three stable compare slots so a comparison can be reopened or shared. */
-export function formatCompareRouteState(route: AppRoute, input: unknown) {
+/**
+ * Encodes the three stable compare slots so a comparison can be reopened or
+ * shared. The optional duel flag appends `vs=1` after the slot keys; it is
+ * only honored on the compare view so no other view can carry a duel marker.
+ */
+export function formatCompareRouteState(route: AppRoute, input: unknown, options?: { duel?: boolean }) {
   const baseHash = formatAppRoute(route);
   if (route.view !== "compare") return baseHash;
   const query = new URLSearchParams();
   for (const { slot, id } of normalizeCompareSlots(input)) query.set(compareRouteKeys[slot], id);
+  if (options?.duel) query.set("vs", "1");
   const value = query.toString();
   return value ? `${baseHash}?${value}` : baseHash;
 }
@@ -131,13 +138,19 @@ export function parseCompareRouteState(
     }
   }
   const rejectedSlots = ([0, 1, 2] as const).filter((slot) => rejectedSlotSet.has(slot));
-  const canonicalHash = formatCompareRouteState(route, slots);
+  const vsValues = query.getAll("vs");
+  const duel = route.view === "compare"
+    && vsValues.length === 1
+    && vsValues[0] === "1"
+    && slots.some(({ slot }) => slot === 0);
+  const canonicalHash = formatCompareRouteState(route, slots, { duel });
   return {
     route,
     slots,
     hasExplicitSlots,
     rejectedSlots,
     rejectedCount: rejectedSlots.length,
+    duel,
     canonicalHash,
     shouldReplace: normalizedHash(hash) !== canonicalHash,
   };

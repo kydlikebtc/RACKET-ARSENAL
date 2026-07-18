@@ -112,13 +112,13 @@ function clampScore(value: number) {
   return Math.max(50, Math.min(97, Math.round(value)));
 }
 
-function beamAverage(beam: string | null) {
+export function beamAverage(beam: string | null) {
   if (!beam) return null;
   const values = beam.match(/\d+(?:\.\d+)?/g)?.map(Number) ?? [];
   return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null;
 }
 
-function normalizedPattern(pattern: string | null) {
+export function normalizedPattern(pattern: string | null) {
   return pattern?.replace(/\s/g, "").toLowerCase().replace(/x/g, "×") ?? null;
 }
 
@@ -143,7 +143,7 @@ function numericFamilyPosition(values: Array<number | null>, current: number | n
   return `本系${prefix ? `${prefix} ` : " "}${difference > 0 ? "+" : ""}${formatDelta(difference)} ${unit}`;
 }
 
-const patternRanks: Record<string, number> = {
+export const patternRanks: Record<string, number> = {
   "16×17": -2,
   "16×18": -1,
   "18×16": -1,
