@@ -4452,7 +4452,24 @@ export default function RacketApp() {
               id="armory-title"
               eyebrow="Racket Library · 2026"
               title="球拍库"
+              action={<span className="m-only armory-title-count">{catalogFamilies.length} 拍系 · {catalogModelCount} 型号</span>}
             />
+            <div className="armory-mheader m-only">
+              <label className="armory-mheader__search" htmlFor="catalog-search-m">
+                <span className="sr-only">搜索品牌、拍系、代际或具体型号</span>
+                <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="5.4" fill="none" stroke="currentColor" strokeWidth="1.7" /><rect x="11" y="10.4" width="4.6" height="1.7" rx="0.85" transform="rotate(45 11 10.4)" fill="currentColor" /></svg>
+                <input id="catalog-search-m" type="search" inputMode="search" enterKeyHint="search" autoComplete="off" spellCheck={false} aria-describedby="catalog-result-summary" value={catalogSearch} onChange={(event) => updateCatalogSearch(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.nativeEvent.isComposing) { event.preventDefault(); submitCatalogSearch(); } else if (event.key === "Escape" && catalogSearch) { event.preventDefault(); clearCatalogSearch(); } }} placeholder={`搜索 ${catalogModelCount} 款型号 · 支持 16x19`} />
+                {catalogSearch ? <button type="button" onClick={clearCatalogSearch} aria-label="清除搜索">✕</button> : null}
+              </label>
+              <div className="armory-mheader__chips m-hscroll">
+                <button type="button" className={`m-chip armory-mheader__filter${catalogActiveFilterCount > 0 ? " m-chip--active" : ""}`} aria-expanded={catalogFiltersOpen} aria-controls="catalog-filter-panel" onClick={() => setCatalogFiltersOpen(true)}>
+                  <svg viewBox="0 0 12 12" aria-hidden="true"><rect x="1" y="2" width="10" height="1.6" rx="0.8" fill="currentColor" /><rect x="3" y="5.2" width="6" height="1.6" rx="0.8" fill="currentColor" /><rect x="4.6" y="8.4" width="2.8" height="1.6" rx="0.8" fill="currentColor" /></svg>
+                  筛选{catalogActiveFilterCount > 0 && ` · ${catalogActiveFilterCount}`}
+                </button>
+                <button type="button" className={`m-chip${catalogScope === "families" ? " m-chip--active" : ""}`} aria-pressed={catalogScope === "families"} onClick={() => commitArmoryFilters({ scope: "families" })}>按拍系 {filteredFamilies.length}</button>
+                <button type="button" className={`m-chip${catalogScope === "models" ? " m-chip--active" : ""}`} aria-pressed={catalogScope === "models"} onClick={() => commitArmoryFilters({ scope: "models" })}>全部型号 {matchingCatalogRackets.length}</button>
+              </div>
+            </div>
             <section className="armory-overview" aria-label="拍库覆盖与数据说明">
               <div className="armory-overview__copy"><span>年鉴 × 六维深档</span><p>从拍系看产品定位，或直接浏览全部型号。每款都有六维雷达、官方规格、参数特点和同系差异。</p></div>
               <dl>
@@ -4463,7 +4480,7 @@ export default function RacketApp() {
               <small>核验于 {catalogVerifiedAt} · 排除儿童拍、握把尺寸与纯配色重复 SKU</small>
             </section>
 
-            <section className="brand-index" aria-labelledby="brand-index-title">
+            <section className={`brand-index${catalogSearch.trim() ? " brand-index--m-searching" : ""}`} aria-labelledby="brand-index-title">
               <div className="section-bar"><div><p>Brand Index</p><h2 id="brand-index-title">选择品牌</h2></div><span className="brand-index__current">{catalogBrand === "全部" ? "正在浏览全部品牌" : `当前 · ${catalogBrand}`}</span></div>
               <div className="brand-index__grid" role="group" aria-label="选择球拍品牌">
                 <button className="brand-index__all" aria-pressed={catalogBrand === "全部"} onClick={() => selectCatalogBrand("全部", true)}>
