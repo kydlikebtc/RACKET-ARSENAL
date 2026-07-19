@@ -10263,6 +10263,12 @@ a:active {
     background: rgba(235, 235, 245, 0.12);
   }
 
+  .armory-view .brand-index__grid .brand-logo {
+    background: rgba(245, 245, 247, 0.92);
+    border-radius: 6px;
+    padding: 2px 5px;
+  }
+
   .armory-mheader__search button {
     background: rgba(235, 235, 245, 0.24);
     color: #d3d3da;
