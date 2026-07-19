@@ -1128,6 +1128,7 @@ export default function RacketApp() {
   const [catalogSort, setCatalogSort] = useState<CatalogSort>("最新发行");
   const [catalogResultLimit, setCatalogResultLimit] = useState(24);
   const [catalogFiltersOpen, setCatalogFiltersOpen] = useState(false);
+  const [discoverSearch, setDiscoverSearch] = useState("");
   const [openCuratedCriteria, setOpenCuratedCriteria] = useState<Record<string, boolean>>({});
   const [activeCuratedListId, setActiveCuratedListId] = useState(curatedLists[0]?.id ?? "");
   const [matchFlow, setMatchFlow] = useState(emptyMatchFlow);
@@ -1308,6 +1309,16 @@ export default function RacketApp() {
         return bYear - aYear || a.brand.localeCompare(b.brand, "en") || a.model.localeCompare(b.model, "en");
       });
   }, [catalogBrand, catalogType, catalogGeneration, catalogReleaseYear, catalogSearch, catalogSort]);
+
+  // 发现页移动端全目录搜索：与球拍库同源——复用 catalog-search 匹配函数，
+  // 采用同款「拍系 + 具体型号」双结果模型；仅在 ≤760px 渲染，桌面端不出现。
+  const discoverSearchQuery = discoverSearch.trim();
+  const discoverSearchFamilies = useMemo(() => (
+    discoverSearchQuery ? catalogFamilies.filter((family) => matchesCatalogFamilySearch(family, discoverSearchQuery)) : []
+  ), [discoverSearchQuery]);
+  const discoverSearchRackets = useMemo(() => (
+    discoverSearchQuery ? deepRackets.filter((racket) => matchesCatalogRacketSearch(racket, discoverSearchQuery)) : []
+  ), [discoverSearchQuery]);
 
   const catalogGenerationsForBrand = useMemo(() => {
     const families = catalogBrand === "全部"
@@ -4116,6 +4127,28 @@ export default function RacketApp() {
       <main className="app-content" id="main-content" tabIndex={-1}>
         {activeView === "discover" && (
           <section className="app-view discover-view" aria-labelledby="discover-title">
+            <div className="m-only m-header m-discover-head">
+              <div className="m-discover-head__row">
+                <p className="m-large-title">发现</p>
+                <span className="m-discover-head__badge" aria-hidden="true">拍</span>
+              </div>
+              <p className="m-discover-head__meta">{catalogModelCount} 款现行型号 · {catalogFamilies.length} 个拍系 · 核验 {catalogVerifiedAt}</p>
+              <div className="m-discover-search">
+                <span aria-hidden="true">⌕</span>
+                <input
+                  type="search"
+                  inputMode="search"
+                  enterKeyHint="search"
+                  autoComplete="off"
+                  spellCheck={false}
+                  value={discoverSearch}
+                  onChange={(event) => setDiscoverSearch(event.target.value)}
+                  placeholder="搜索品牌、拍系或型号"
+                  aria-label="搜索全部球拍目录"
+                />
+                {discoverSearchQuery !== "" && <button type="button" data-focus-key="m-discover-search-clear" onClick={() => setDiscoverSearch("")} aria-label="清除搜索">×</button>}
+              </div>
+            </div>
             <ViewTitle
               id="discover-title"
               eyebrow={hasCompletedMatch ? `${profileStage} · ${profileStyle} · ${profilePriority}优先` : "为你的打法准备"}
@@ -4134,6 +4167,114 @@ export default function RacketApp() {
                     ? "进度仅保留在本页；刷新或关闭页面后会丢失。"
                     : "进度已保存在本机，可以从上次的问题继续。"}</p>
                 <button data-focus-key="discover-match-draft" onClick={openMatchProfile}>继续换拍处方 <span aria-hidden="true">›</span></button>
+              </div>
+            )}
+
+            {discoverSearchQuery !== "" && (
+              <div className="m-only m-discover-results" role="region" aria-label="全目录搜索结果">
+                <p className="m-discover-results__count" role="status">{discoverSearchFamilies.length} 个拍系 · {discoverSearchRackets.length} 个型号</p>
+                {discoverSearchFamilies.length === 0 && discoverSearchRackets.length === 0 && (
+                  <p className="m-discover-results__empty">没有找到「{discoverSearchQuery}」，可以试试品牌、拍系或型号关键词。</p>
+                )}
+                {discoverSearchFamilies.slice(0, 6).map((family) => (
+                  <button key={family.id} type="button" className="m-discover-result" data-focus-key={`m-discover-family-${family.id}`} onClick={() => openFamily(family.id)}>
+                    {family.image
+                      ? <img src={family.image} alt="" aria-hidden="true" loading="lazy" decoding="async" />
+                      : <span className="m-discover-result__fallback" aria-hidden="true">{family.brand}</span>}
+                    <span className="m-discover-result__copy">
+                      <b>{family.brand} {family.family}</b>
+                      <small>拍系 · {family.generation} · {family.models.length} 款型号</small>
+                    </span>
+                    <i aria-hidden="true">›</i>
+                  </button>
+                ))}
+                {discoverSearchRackets.slice(0, 24).map((racket) => (
+                  <button key={racket.id} type="button" className="m-discover-result" data-focus-key={`m-discover-racket-${racket.id}`} onClick={() => openRacket(racket.id)}>
+                    <RacketPhoto racket={racket} variant="thumb" />
+                    <span className="m-discover-result__copy">
+                      <b>{racket.model}</b>
+                      <small>{racket.brand} · {racket.generation ?? racket.year}</small>
+                    </span>
+                    <i aria-hidden="true">›</i>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {discoverSearchQuery === "" && (
+              <div className="m-only m-discover-body">
+                <section className="m-curated" aria-label="拍库严选榜单">
+                  <div className="m-sec-head">
+                    <h2>拍库严选</h2>
+                    <button type="button" data-focus-key="m-curated-armory" onClick={browseFullCatalog}>进球拍库 <span aria-hidden="true">›</span></button>
+                  </div>
+                  <div className="m-hscroll m-curated__track">
+                    {curatedListEntries.map(({ list, rackets }) => (
+                      <article key={list.id} className="m-card m-curated__card">
+                        <header><b>{list.title}</b><span>{rackets.length} 把</span></header>
+                        <p className="m-curated__tagline">{list.tagline}</p>
+                        <div className="m-curated__criteria">
+                          {[...list.hardCriteria, ...list.scoreCriteria].map((criterion) => <span key={criterion.label}>{criterion.label}</span>)}
+                        </div>
+                        {rackets.map((racket) => (
+                          <button key={racket.id} type="button" className="m-curated__racket" data-focus-key={`m-curated-open-${list.id}-${racket.id}`} onClick={() => openRacket(racket.id)}>
+                            <RacketPhoto racket={racket} variant="thumb" />
+                            <span><b>{racket.model}</b><small>{racket.brand} · {racket.generation ?? racket.year}</small></span>
+                            <em>{scoreLabels[list.scoreCriteria[0].score]} {racket.scores[list.scoreCriteria[0].score]}</em>
+                          </button>
+                        ))}
+                        <footer>入选标准公开 · 由规格与评分自动筛出，可复算</footer>
+                      </article>
+                    ))}
+                  </div>
+                </section>
+
+                <section className="m-rec" aria-label="为你推荐">
+                  <div className="m-sec-head">
+                    <h2>为你推荐{hasCompletedMatch && <small>{profileStage} · {profileStyle} · {profilePriority}优先</small>}</h2>
+                    {hasCompletedMatch && <button type="button" data-focus-key="m-rec-redo" onClick={openMatchProfile}>重做处方 <span aria-hidden="true">›</span></button>}
+                  </div>
+                  {hasCompletedMatch ? (
+                    <div className="m-hscroll m-rec__track">
+                      {recommendations.slice(0, 6).map(({ racket, match }) => (
+                        <button key={racket.id} type="button" className="m-rec__card" data-focus-key={`m-rec-open-${racket.id}`} onClick={() => openRacket(racket.id)}>
+                          <span className="m-rec__photo">
+                            <RacketPhoto racket={racket} variant="thumb" />
+                            <em>{Math.round(match)} 匹配</em>
+                          </span>
+                          <small>{prescriptionResultById.get(racket.id)?.role ?? racket.series}</small>
+                          <b>{racket.model}</b>
+                          <span className="m-rec__sub">{racket.brand} · {racket.generation ?? racket.year}</span>
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <button type="button" className="m-rec__cta" data-focus-key="m-rec-cta" onClick={openMatchProfile}>
+                      <b>3 步换拍处方</b>
+                      <span>阶段 → 打法 → 优先项，约 2 分钟。答案只存本机。</span>
+                      <em>{matchFlow.draft ? "继续问卷 →" : "开始问卷 →"}</em>
+                    </button>
+                  )}
+                </section>
+
+                {recentRackets.length > 0 && (
+                  <section className="m-recent" aria-label="最近浏览">
+                    <div className="m-sec-head m-sec-head--minor">
+                      <h2>最近浏览 <small>· 只存本机</small></h2>
+                      <button type="button" data-focus-key="m-recent-clear" onClick={clearRecentRackets} aria-label="清空最近浏览">清空</button>
+                    </div>
+                    <div className="m-hscroll m-recent__track">
+                      {recentRackets.map((racket) => (
+                        <button key={racket.id} type="button" className="m-recent__item" data-focus-key={`m-recent-open-${racket.id}`} onClick={() => openRacket(racket.id)}>
+                          <span><RacketPhoto racket={racket} variant="thumb" /></span>
+                          <small>{racket.model}</small>
+                        </button>
+                      ))}
+                    </div>
+                  </section>
+                )}
+
+                <p className="m-discover-foot">六维评分与匹配指数为{HONESTY_NOTES.relativeAssessment}。官网未公开的参数如实标注。<br />处方答案与浏览记录只存本机 · 数据核验 {catalogVerifiedAt}</p>
               </div>
             )}
 
