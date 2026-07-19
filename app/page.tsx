@@ -4427,6 +4427,20 @@ export default function RacketApp() {
 
         {activeView === "match" && (
           <section className="app-view match-view" aria-labelledby="match-title">
+            <div className="m-only m-header m-match-head">
+              <div className="m-match-head__row">
+                <p className="m-large-title">处方</p>
+                {!matchRouteNotice && matchFlow.draft && (
+                  <button
+                    type="button"
+                    data-focus-key="m-match-cancel"
+                    onClick={cancelCurrentMatch}
+                    aria-label={matchFlow.committed ? "取消修改并保留原档案" : sessionPersistence === "memory-only" ? "暂停并退出匹配，进度仅保留在本页" : "保存进度并退出匹配"}
+                  >×</button>
+                )}
+              </div>
+              <p className="m-match-head__meta">3 步换拍处方 · 答案默认不出本机</p>
+            </div>
             <ViewTitle
               id="match-title"
               eyebrow="从当前球拍出发 · 三步收敛"
@@ -4467,6 +4481,13 @@ export default function RacketApp() {
               </section>
             ) : matchStep < 3 ? (
               <section className="match-question">
+                <div className="m-only m-match-progress">
+                  {matchStep > 0
+                    ? <button type="button" data-focus-key="m-match-back" onClick={goToPreviousMatchStep}>‹ 上一步</button>
+                    : <span className="m-match-progress__spacer" aria-hidden="true" />}
+                  <span className="m-match-progress__bar" aria-hidden="true"><i style={{ width: `${Math.round(((matchStep + 1) / 3) * 100)}%` }} /></span>
+                  <span className="m-match-progress__label" aria-hidden="true">{matchStep + 1}/3</span>
+                </div>
                 <p>步骤 {matchStep + 1} / 3</p>
                 <h2 ref={matchHeadingRef} tabIndex={-1}>{matchStep === 0 ? "你现在处于哪个阶段？" : matchStep === 1 ? "哪种打法最像你？" : "最想优先获得什么？"}</h2>
                 <p className="match-question__hint">
@@ -4533,6 +4554,21 @@ export default function RacketApp() {
                         const expanded = breakdownOpenIds.includes(racket.id);
                         return (
                           <div className="match-result-breakdown">
+                            <div className="m-only m-result-chips">
+                              {swapResult ? (
+                                <>
+                                  {swapResult.gains.map((gain) => <span key={gain} className="is-gain">{gain}</span>)}
+                                  {swapResult.tradeoff && <span className="is-tradeoff">{swapResult.tradeoff}</span>}
+                                  <span className="is-cost">适应成本 {swapResult.adaptation}</span>
+                                </>
+                              ) : breakdown ? (
+                                <>
+                                  <span className={breakdown.stageHit ? "is-gain" : "is-cost"}>{breakdown.stageHit ? `阶段匹配 +${breakdown.stagePoints}` : "阶段未命中 +0"}</span>
+                                  <span className={breakdown.styleHit ? "is-gain" : "is-cost"}>{breakdown.styleHit ? `打法匹配 +${breakdown.stylePoints}` : "打法未命中 +0"}</span>
+                                  <span className="is-cost">{displayPriority}加权 +{breakdown.priorityPoints.toFixed(1)}</span>
+                                </>
+                              ) : null}
+                            </div>
                             <button type="button" className="match-result-breakdown__trigger" aria-expanded={expanded} aria-controls={`match-breakdown-${racket.id}`} aria-label={`查看 ${racket.model} 的${prescriptionBaseline ? "换拍理由" : "匹配指数拆解"}`} onClick={() => toggleMatchBreakdown(racket.id)}>
                               <span>{prescriptionBaseline ? "为什么值得换" : "为什么是它"}</span><i aria-hidden="true">{expanded ? "收起" : "展开"}</i>
                             </button>
@@ -4582,6 +4618,7 @@ export default function RacketApp() {
                   <div className="match-sync__foot"><p className="match-sync__note">{HONESTY_NOTES.tourSync}</p><button type="button" className="match-sync__all" data-focus-key="tour-sync-all" onClick={() => goToView("tour")}>查看全部 {tourPlayers.length} 位球星 <span aria-hidden="true">›</span></button></div>
                 </section>
                 <div className="match-results-actions"><button className="app-button app-button--primary" onClick={compareIds.length > 0 ? () => goToView("compare") : compareTopMatches}>{compareIds.length > 0 ? `进入决策室 ${compareIds.length}/3` : "把前两名放入决策室"}</button><button className="app-button app-button--soft" onClick={browseFullCatalog}>浏览完整拍库</button></div>
+                <p className="m-only m-match-foot">{HONESTY_NOTES.matchIndex}未命中项如实显示 +0。</p>
               </section>
             )}
           </section>
