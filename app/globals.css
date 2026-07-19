@@ -10001,6 +10001,15 @@ a:active {
     position: absolute;
   }
 
+  .compare-product-grid--overview .compare-duel-opponent,
+  .compare-product-grid--specs .compare-duel-opponent {
+    border-radius: 6px;
+    font-size: 8px;
+    left: 4px;
+    padding: 2px 6px;
+    top: 4px;
+  }
+
   .compare-product-grid--overview .compare-add-slot,
   .compare-product-grid--specs .compare-add-slot {
     background: var(--m-accent-soft);
