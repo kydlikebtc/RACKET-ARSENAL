@@ -1,0 +1,2604 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js">
+</script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#dcdce0;font-family:-apple-system,'SF Pro Text','PingFang SC','Noto Sans SC',sans-serif;display:flex;justify-content:center;padding:24px 0}
+
+a{color:#1769e8;text-decoration:none}
+a:hover{color:#1155c9}
+
+*::-webkit-scrollbar{display:none}
+
+@keyframes ra-slide-in{from{transform:translateX(100%)}
+to{transform:translateX(0)}
+}
+
+@keyframes ra-sheet-up{from{transform:translateY(100%)}
+to{transform:translateY(0)}
+}
+
+@keyframes ra-fade{from{opacity:0}
+to{opacity:1}
+}
+
+@keyframes ra-spin{to{transform:rotate(360deg)}
+}
+
+</style>
+<script src="data.js">
+</script>
+<script src="app-logic.js">
+</script>
+</helmet>
+<x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" width="{{w}
+}
+" height="{{h}
+}
+" hint-size="393px,852px">
+<div style="width:393px;height:852px;background:#f2f2f7;display:flex;flex-direction:column;overflow:hidden;box-sizing:border-box;position:relative;font-family:-apple-system,'SF Pro Text','PingFang SC','Noto Sans SC',sans-serif;color:#0b0b0f">
+<!-- ============ 发现 ============ -->
+<sc-if value="{{isDiscover}
+}
+" hint-placeholder-val="{{true}
+}
+">
+<div style="position:absolute;inset:0;bottom:82px;display:flex;flex-direction:column">
+<div style="padding:54px 20px 8px;background:rgba(242,242,247,.94);backdrop-filter:blur(20px);z-index:5;border-bottom:.5px solid rgba(60,60,67,.1)">
+<div style="display:flex;align-items:center;justify-content:space-between;overflow:hidden;transition:height .25s,opacity .25s" heightx="auto">
+<div style="font-size:{{dTitleSize}
+}
+px;font-weight:700;transition:font-size .22s">发现</div>
+<div style="width:34px;height:34px;border-radius:50%;background:#1769e8;color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700">拍</div>
+</div>
+<sc-if value="{{dExpanded}
+}
+" hint-placeholder-val="{{true}
+}
+">
+<div style="font-size:12px;color:#8e8e93;margin-top:1px">{{metaLine}
+}
+</div>
+</sc-if>
+<div style="margin-top:8px;height:36px;background:#e3e3e9;border-radius:11px;display:flex;align-items:center;gap:8px;padding:0 12px">
+<svg width="14" height="14" viewBox="0 0 16 16">
+<circle cx="7" cy="7" r="5.4" fill="none" stroke="#8e8e93" stroke-width="1.7">
+</circle>
+<rect x="11" y="10.4" width="4.6" height="1.7" rx=".85" transform="rotate(45 11 10.4)" fill="#8e8e93">
+</rect>
+</svg>
+<input value="{{dSearch}
+}
+" onChange="{{onDSearch}
+}
+" placeholder="搜索品牌、拍系或型号" style="flex:1;border:none;background:transparent;outline:none;font-size:15px;color:#0b0b0f;font-family:inherit">
+</input>
+<sc-if value="{{dSearchActive}
+}
+" hint-placeholder-val="{{false}
+}
+">
+<span onClick="{{clearDSearch}
+}
+" style="font-size:12px;color:#8e8e93;background:#d5d5db;border-radius:50%;width:18px;height:18px;display:flex;align-items:center;justify-content:center;cursor:pointer">✕</span>
+</sc-if>
+</div>
+</div>
+<div onScroll="{{onDScroll}
+}
+" style="flex:1;overflow-y:auto;overscroll-behavior:contain">
+<sc-if value="{{refreshing}
+}
+" hint-placeholder-val="{{false}
+}
+">
+<div style="display:flex;justify-content:center;padding:10px 0">
+<span style="width:18px;height:18px;border:2px solid #c7c7cc;border-top-color:#1769e8;border-radius:50%;animation:ra-spin .7s linear infinite">
+</span>
+</div>
+</sc-if>
+<sc-if value="{{dSearchActive}
+}
+" hint-placeholder-val="{{false}
+}
+">
+<div style="padding:8px 20px">
+<div style="font-size:12px;color:#8e8e93;margin:6px 0 8px">{{dSearchCount}
+}
+</div>
+<sc-for list="{{dSearchResults}
+}
+" as="it" hint-placeholder-count="0">
+<div onClick="{{it.open}
+}
+" style="display:flex;align-items:center;gap:12px;background:#fff;border-radius:14px;padding:10px 12px;margin-bottom:8px;cursor:pointer">
+<div style="width:40px;height:40px;flex:none;background-image:url({{it.img}
+}
+);background-size:contain;background-repeat:no-repeat;background-position:center;mix-blend-mode:multiply">
+</div>
+<div style="flex:1;min-width:0">
+<div style="font-size:14px;font-weight:600">{{it.name}
+}
+</div>
+<div style="font-size:11.5px;color:#8e8e93">{{it.sub}
+}
+</div>
+</div>
+<svg width="7" height="12" viewBox="0 0 8 14">
+<path d="M1 1l6 6-6 6" stroke="#c7c7cc" stroke-width="2" fill="none" stroke-linecap="round">
+</path>
+</svg>
+</div>
+</sc-for>
+</div>
+</sc-if>
+<sc-if value="{{dSearchIdle}
+}
+" hint-placeholder-val="{{true}
+}
+">
+<div style="display:flex;align-items:baseline;justify-content:space-between;padding:14px 20px 8px">
+<span style="font-size:20px;font-weight:700">拍库严选</span>
+<span onClick="{{goArmory}
+}
+" style="font-size:13px;color:#1769e8;font-weight:500;cursor:pointer">进球拍库 ›</span>
+</div>
+<div style="display:flex;gap:12px;padding:0 20px 4px;overflow-x:auto">
+<sc-for list="{{curatedCards}
+}
+" as="c" hint-placeholder-count="2">
+<div style="flex:none;width:296px;background:#fff;border-radius:16px;padding:14px 14px 8px">
+<div style="display:flex;align-items:center;justify-content:space-between">
+<span style="font-size:16px;font-weight:700">{{c.title}
+}
+</span>
+<span style="font-size:11px;font-weight:600;color:#1769e8;background:rgba(23,105,232,.1);padding:3px 8px;border-radius:99px">{{c.count}
+}
+</span>
+</div>
+<div style="font-size:12px;color:#8e8e93;margin:3px 0 8px">{{c.tagline}
+}
+</div>
+<div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:4px">
+<sc-for list="{{c.criteria}
+}
+" as="cr" hint-placeholder-count="3">
+<span style="font-size:10px;color:#6d6d72;background:#f2f2f7;padding:2.5px 7px;border-radius:6px">{{cr.label}
+}
+</span>
+</sc-for>
+</div>
+<sc-for list="{{c.rackets}
+}
+" as="r" hint-placeholder-count="0">
+<div onClick="{{r.open}
+}
+" style="display:flex;align-items:center;gap:10px;padding:7px 0;border-top:.5px solid rgba(60,60,67,.12);cursor:pointer">
+<div style="width:38px;height:38px;flex:none;background-image:url({{r.img}
+}
+);background-size:contain;background-repeat:no-repeat;background-position:center;mix-blend-mode:multiply">
+</div>
+<div style="flex:1;min-width:0">
+<div style="font-size:13.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{r.name}
+}
+</div>
+<div style="font-size:11.5px;color:#8e8e93">{{r.sub}
+}
+</div>
+</div>
+<span style="font-size:14px;font-weight:700;color:#1769e8">{{r.score}
+}
+</span>
+</div>
+</sc-for>
+<div style="font-size:11px;color:#8e8e93;padding:8px 0 6px;border-top:.5px solid rgba(60,60,67,.12)">入选标准公开 · 由规格与评分自动筛出,可复算</div>
+</div>
+</sc-for>
+</div>
+<div style="display:flex;align-items:baseline;justify-content:space-between;padding:14px 20px 8px">
+<div>
+<span style="font-size:20px;font-weight:700">为你推荐</span>
+<span style="font-size:12px;color:#8e8e93;margin-left:8px">{{recSub}
+}
+</span>
+</div>
+<sc-if value="{{hasRec}
+}
+" hint-placeholder-val="{{false}
+}
+">
+<span onClick="{{goMatch}
+}
+" style="font-size:13px;color:#1769e8;font-weight:500;cursor:pointer">重做处方 ›</span>
+</sc-if>
+</div>
+<sc-if value="{{hasRec}
+}
+" hint-placeholder-val="{{false}
+}
+">
+<div style="display:flex;gap:10px;padding:0 20px;overflow-x:auto">
+<sc-for list="{{recCards}
+}
+" as="r" hint-placeholder-count="0">
+<div onClick="{{r.open}
+}
+" style="flex:none;width:150px;background:#fff;border-radius:16px;padding:10px;cursor:pointer">
+<div style="position:relative;height:108px;background:#f6f6f8;border-radius:12px;display:flex;align-items:center;justify-content:center">
+<div style="width:88px;height:88px;background-image:url({{r.img}
+}
+);background-size:contain;background-repeat:no-repeat;background-position:center;mix-blend-mode:multiply">
+</div>
+<span style="position:absolute;top:6px;right:6px;font-size:11px;font-weight:700;color:#fff;background:#1769e8;padding:2.5px 7px;border-radius:99px">{{r.match}
+}
+</span>
+</div>
+<div style="font-size:11px;color:#1769e8;font-weight:600;margin-top:7px">{{r.role}
+}
+</div>
+<div style="font-size:13px;font-weight:600;line-height:1.3;height:34px;overflow:hidden">{{r.name}
+}
+</div>
+<div style="font-size:10.5px;color:#8e8e93">{{r.sub}
+}
+</div>
+</div>
+</sc-for>
+</div>
+</sc-if>
+<sc-if value="{{noRec}
+}
+" hint-placeholder-val="{{true}
+}
+">
+<div onClick="{{goMatch}
+}
+" style="margin:0 20px;background:linear-gradient(135deg,#1769e8,#3f8bff);border-radius:16px;padding:16px;color:#fff;cursor:pointer">
+<div style="font-size:16px;font-weight:700">3 步换拍处方</div>
+<div style="font-size:12.5px;opacity:.85;margin-top:3px">阶段 → 打法 → 优先项,约 2 分钟。答案只存本机。</div>
+<div style="display:inline-block;margin-top:10px;font-size:13px;font-weight:600;background:rgba(255,255,255,.2);padding:6px 14px;border-radius:99px">开始问卷 →</div>
+</div>
+</sc-if>
+<sc-if value="{{hasRecent}
+}
+" hint-placeholder-val="{{false}
+}
+">
+<div style="padding:16px 20px 6px;font-size:15px;font-weight:600;color:#6d6d72">最近浏览 <span style="font-size:11px;font-weight:400;color:#c0c0c6">· 只存本机</span>
+</div>
+<div style="display:flex;gap:14px;padding:0 20px;overflow-x:auto">
+<sc-for list="{{recentRow}
+}
+" as="r" hint-placeholder-count="0">
+<div onClick="{{r.open}
+}
+" style="width:62px;flex:none;text-align:center;cursor:pointer">
+<div style="width:56px;height:56px;background:#fff;border-radius:14px;display:flex;align-items:center;justify-content:center;margin:0 auto">
+<div style="width:42px;height:42px;background-image:url({{r.img}
+}
+);background-size:contain;background-repeat:no-repeat;background-position:center;mix-blend-mode:multiply">
+</div>
+</div>
+<div style="font-size:10px;color:#8e8e93;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{r.name}
+}
+</div>
+</div>
+</sc-for>
+</div>
+</sc-if>
+<div style="padding:18px 20px 20px;font-size:10.5px;line-height:1.7;color:#b0b0b6">六维评分与匹配指数为拍库相对评估,非实验室测量。官网未公开的参数如实标注。<br>处方答案与浏览记录只存本机 · 数据核验 {{verifiedAt}
+}
+</div>
+</sc-if>
+</div>
+</div>
+</sc-if>
+<!-- ============ 处方 ============ -->
+<sc-if value="{{isMatch}
+}
+" hint-placeholder-val="{{false}
+}
+">
+<div style="position:absolute;inset:0;bottom:82px;display:flex;flex-direction:column">
+<div style="padding:54px 20px 10px;background:rgba(242,242,247,.94);z-index:5">
+<div style="font-size:28px;font-weight:700">处方</div>
+<div style="font-size:12px;color:#8e8e93;margin-top:1px">3 步换拍处方 · 答案默认不出本机</div>
+</div>
+<div style="flex:1;overflow-y:auto;padding:6px 20px 20px">
+<sc-if value="{{mIdle}
+}
+" hint-placeholder-val="{{true}
+}
+">
+<div style="background:#fff;border-radius:16px;padding:18px">
+<div style="font-size:18px;font-weight:700">找到和你打法同频的下一把</div>
+<div style="font-size:13px;color:#6d6d72;line-height:1.7;margin-top:6px">回答 3 个问题:阶段 → 打法 → 优先项。推荐评分逐项透明,未命中如实显示 +0。</div>
+<div style="display:flex;gap:8px;margin-top:14px">
+<span style="flex:1;text-align:center;font-size:12px;color:#6d6d72;background:#f2f2f7;border-radius:10px;padding:9px 0">① 阶段</span>
+<span style="flex:1;text-align:center;font-size:12px;color:#6d6d72;background:#f2f2f7;border-radius:10px;padding:9px 0">② 打法</span>
+<span style="flex:1;text-align:center;font-size:12px;color:#6d6d72;background:#f2f2f7;border-radius:10px;padding:9px 0">③ 优先项</span>
+</div>
+<div onClick="{{mStart}
+}
+" style="margin-top:14px;background:#1769e8;color:#fff;border-radius:12px;text-align:center;padding:13px 0;font-size:15px;font-weight:600;cursor:pointer">开始问卷</div>
+</div>
+<div style="background:#fff;border-radius:16px;padding:14px 16px;margin-top:12px">
+<div style="display:flex;align-items:center;justify-content:space-between">
+<div>
+<div style="font-size:14px;font-weight:600">当前用拍(可选)</div>
+<div style="font-size:11.5px;color:#8e8e93;margin-top:2px">{{baselineLine}
+}
+</div>
+</div>
+<span onClick="{{openBaselineSheet}
+}
+" style="font-size:13px;color:#1769e8;font-weight:500;cursor:pointer">{{baselineAction}
+}
+</span>
+</div>
+</div>
+</sc-if>
+<sc-if value="{{mQuestion}
+}
+" hint-placeholder-val="{{false}
+}
+">
+<div style="display:flex;align-items:center;gap:8px;margin:4px 0 14px">
+<span onClick="{{mBack}
+}
+" style="font-size:13px;color:#1769e8;cursor:pointer;font-weight:500">‹ 上一步</span>
+<div style="flex:1;height:4px;background:#e3e3e9;border-radius:2px;overflow:hidden">
+<div style="height:100%;background:#1769e8;border-radius:2px;transition:width .3s;width:{{mProgress}
+}
+">
+</div>
+</div>
+<span style="font-size:12px;color:#8e8e93">{{mStepLabel}
+}
+</span>
+</div>
+<div style="font-size:21px;font-weight:700;margin-bottom:4px">{{mQuestionTitle}
+}
+</div>
+<div style="font-size:12.5px;color:#8e8e93;margin-bottom:14px">{{mQuestionSub}
+}
+</div>
+<sc-for list="{{mOptions}
+}
+" as="o" hint-placeholder-count="3">
+<div onClick="{{o.pick}
+}
+" style="background:{{o.bg}
+}
+;border:1.5px solid {{o.border}
+}
+;border-radius:14px;padding:14px;margin-bottom:10px;cursor:pointer;transition:border-color .15s">
+<div style="display:flex;align-items:center;justify-content:space-between">
+<span style="font-size:15.5px;font-weight:600">{{o.label}
+}
+</span>
+<sc-if value="{{o.picked}
+}
+" hint-placeholder-val="{{false}
+}
+">
+<span style="width:20px;height:20px;border-radius:50%;background:#1769e8;color:#fff;font-size:12px;display:flex;align-items:center;justify-content:center">✓</span>
+</sc-if>
+</div>
+<div style="font-size:12px;color:#8e8e93;margin-top:3px">{{o.desc}
+}
+</div>
+</div>
+</sc-for>
+</sc-if>
+<sc-if value="{{mResult}
+}
+" hint-placeholder-val="{{false}
+}
+">
+<div style="background:#fff;border-radius:14px;padding:12px 14px;display:flex;align-items:center;justify-content:space-between">
+<div style="font-size:12.5px;color:#6d6d72;line-height:1.6">{{mProfileLine}
+}
+<br>
+<span style="color:#8e8e93">{{mBaselineNote}
+}
+</span>
+</div>
+<span onClick="{{mRedo}
+}
+" style="font-size:13px;color:#1769e8;font-weight:500;cursor:pointer;flex:none;margin-left:10px">重做</span>
+</div>
+<div style="font-size:13px;font-weight:600;color:#6d6d72;margin:14px 0 8px">侧重秒切 <span style="font-weight:400;color:#b0b0b6">· 即时重算,不改答案</span>
+</div>
+<div style="display:flex;gap:7px;overflow-x:auto;padding-bottom:4px">
+<sc-for list="{{mQuickChips}
+}
+" as="q" hint-placeholder-count="7">
+<span onClick="{{q.pick}
+}
+" style="flex:none;font-size:12.5px;font-weight:600;padding:6px 13px;border-radius:99px;cursor:pointer;background:{{q.bg}
+}
+;color:{{q.color}
+}
+;border:1px solid {{q.border}
+}
+">{{q.label}
+}
+</span>
+</sc-for>
+</div>
+<sc-for list="{{mResults}
+}
+" as="r" hint-placeholder-count="0">
+<div style="background:#fff;border-radius:16px;padding:14px;margin-top:12px">
+<div style="display:flex;align-items:center;gap:12px;cursor:pointer" onClick="{{r.open}
+}
+">
+<div style="width:64px;height:64px;background:#f6f6f8;border-radius:12px;display:flex;align-items:center;justify-content:center;flex:none">
+<div style="width:52px;height:52px;background-image:url({{r.img}
+}
+);background-size:contain;background-repeat:no-repeat;background-position:center;mix-blend-mode:multiply">
+</div>
+</div>
+<div style="flex:1;min-width:0">
+<div style="display:flex;align-items:center;gap:6px">
+<span style="font-size:11px;font-weight:700;color:#1769e8;background:rgba(23,105,232,.1);padding:2px 7px;border-radius:6px">{{r.role}
+}
+</span>
+<sc-if value="{{r.rankBadge}
+}
+" hint-placeholder-val="{{false}
+}
+">
+<span style="font-size:10.5px;font-weight:700;color:{{r.rankColor}
+}
+">{{r.rankBadge}
+}
+</span>
+</sc-if>
+</div>
+<div style="font-size:15px;font-weight:700;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{r.name}
+}
+</div>
+<div style="font-size:11.5px;color:#8e8e93">{{r.sub}
+}
+</div>
+</div>
+<div style="text-align:center;flex:none">
+<div style="font-size:22px;font-weight:700;color:#1769e8">{{r.match}
+}
+</div>
+<div style="font-size:9.5px;color:#8e8e93">匹配</div>
+</div>
+</div>
+<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px">
+<sc-for list="{{r.gains}
+}
+" as="g" hint-placeholder-count="2">
+<span style="font-size:11px;font-weight:600;color:#2e9b72;background:rgba(46,155,114,.1);padding:3px 8px;border-radius:6px">{{g.label}
+}
+</span>
+</sc-for>
+<sc-if value="{{r.tradeoff}
+}
+" hint-placeholder-val="{{false}
+}
+">
+<span style="font-size:11px;font-weight:600;color:#c04a35;background:rgba(192,74,53,.08);padding:3px 8px;border-radius:6px">{{r.tradeoff}
+}
+</span>
+</sc-if>
+<span style="font-size:11px;color:#6d6d72;background:#f2f2f7;padding:3px 8px;border-radius:6px">适应成本 {{r.adaptation}
+}
+</span>
+</div>
+<div onClick="{{r.toggle}
+}
+" style="font-size:12.5px;color:#1769e8;font-weight:500;margin-top:10px;cursor:pointer">{{r.whyLabel}
+}
+</div>
+<sc-if value="{{r.expanded}
+}
+" hint-placeholder-val="{{false}
+}
+">
+<div style="background:#f7f7fa;border-radius:12px;padding:10px 12px;margin-top:8px">
+<sc-for list="{{r.breakdown}
+}
+" as="b" hint-placeholder-count="4">
+<div style="display:flex;justify-content:space-between;align-items:baseline;padding:4px 0">
+<span style="font-size:12px;color:#3c3c43">{{b.label}
+}
+ <span style="color:#a0a0a6;font-size:10.5px">{{b.note}
+}
+</span>
+</span>
+<span style="font-size:12.5px;font-weight:700;color:{{b.color}
+}
+">{{b.value}
+}
+</span>
+</div>
+</sc-for>
+<div style="border-top:.5px solid rgba(60,60,67,.12);margin-top:5px;padding-top:7px;display:flex;justify-content:space-between">
+<span style="font-size:12px;font-weight:600">合计(封顶 99)</span>
+<span style="font-size:13px;font-weight:700;color:#1769e8">{{r.match}
+}
+</span>
+</div>
+<div style="font-size:10.5px;color:#8e8e93;margin-top:6px">{{r.deltaLine}
+}
+</div>
+</div>
+</sc-if>
+</div>
+</sc-for>
+<div style="font-size:10.5px;color:#b0b0b6;line-height:1.7;margin-top:14px">匹配指数为拍库相对评估,非实验室测量;未命中项如实显示 +0。</div>
+</sc-if>
+</div>
+</div>
+</sc-if>
+<!-- ============ 球拍库 ============ -->
+<sc-if value="{{isArmory}
+}
+" hint-placeholder-val="{{false}
+}
+">
+<div style="position:absolute;inset:0;bottom:82px;display:flex;flex-direction:column">
+<div style="padding:54px 20px 10px;background:rgba(242,242,247,.94);z-index:5;border-bottom:.5px solid rgba(60,60,67,.1)">
+<div style="display:flex;align-items:baseline;justify-content:space-between">
+<span style="font-size:28px;font-weight:700">球拍库</span>
+<span style="font-size:12px;color:#8e8e93">{{aCountLine}
+}
+</span>
+</div>
+<div style="margin-top:8px;height:36px;background:#e3e3e9;border-radius:11px;display:flex;align-items:center;gap:8px;padding:0 12px">
+<svg width="14" height="14" viewBox="0 0 16 16">
+<circle cx="7" cy="7" r="5.4" fill="none" stroke="#8e8e93" stroke-width="1.7">
+</circle>
+<rect x="11" y="10.4" width="4.6" height="1.7" rx=".85" transform="rotate(45 11 10.4)" fill="#8e8e93">
+</rect>
+</svg>
+<input value="{{aSearch}
+}
+" onChange="{{onASearch}
+}
+" placeholder="搜索 259 款型号 · 支持 16x19" style="flex:1;border:none;background:transparent;outline:none;font-size:15px;color:#0b0b0f;font-family:inherit">
+</input>
+<sc-if value="{{aSearchActive}
+}
+" hint-placeholder-val="{{false}
+}
+">
+<span onClick="{{clearASearch}
+}
+" style="font-size:12px;color:#8e8e93;background:#d5d5db;border-radius:50%;width:18px;height:18px;display:flex;align-items:center;justify-content:center;cursor:pointer">✕</span>
+</sc-if>
+</div>
+<div style="display:flex;gap:7px;margin-top:9px;overflow-x:auto">
+<span onClick="{{openFilterSheet}
+}
+" style="flex:none;display:flex;align-items:center;gap:5px;font-size:12.5px;font-weight:600;padding:6px 12px;border-radius:99px;cursor:pointer;background:{{aFilterChipBg}
+}
+;color:{{aFilterChipColor}
+}
+">
+<svg width="11" height="11" viewBox="0 0 12 12">
+<rect x="1" y="2" width="10" height="1.6" rx=".8" fill="currentColor">
+</rect>
+<rect x="3" y="5.2" width="6" height="1.6" rx=".8" fill="currentColor">
+</rect>
+<rect x="4.6" y="8.4" width="2.8" height="1.6" rx=".8" fill="currentColor">
+</rect>
+</svg>筛选{{aFilterCount}
+}
+</span>
+<sc-for list="{{aQuickChips}
+}
+" as="q" hint-placeholder-count="4">
+<span onClick="{{q.pick}
+}
+" style="flex:none;font-size:12.5px;font-weight:600;padding:6px 12px;border-radius:99px;cursor:pointer;background:{{q.bg}
+}
+;color:{{q.color}
+}
+">{{q.label}
+}
+</span>
+</sc-for>
+</div>
+</div>
+<div style="flex:1;overflow-y:auto">
+<sc-if value="{{aSearchActive}
+}
+" hint-placeholder-val="{{false}
+}
+">
+<div style="padding:10px 20px">
+<div style="font-size:12px;color:#8e8e93;margin-bottom:8px">{{aResultCount}
+}
+</div>
+<sc-for list="{{aSearchResults}
+}
+" as="it" hint-placeholder-count="0">
+<div onClick="{{it.open}
+}
+" style="display:flex;align-items:center;gap:12px;background:#fff;border-radius:14px;padding:10px 12px;margin-bottom:8px;cursor:pointer">
+<div style="width:42px;height:42px;flex:none;background-image:url({{it.img}
+}
+);background-size:contain;background-repeat:no-repeat;background-position:center;mix-blend-mode:multiply">
+</div>
+<div style="flex:1;min-width:0">
+<div style="font-size:14px;font-weight:600">{{it.name}
+}
+</div>
+<div style="font-size:11.5px;color:#8e8e93">{{it.sub}
+}
+</div>
+</div>
+<svg width="7" height="12" viewBox="0 0 8 14">
+<path d="M1 1l6 6-6 6" stroke="#c7c7cc" stroke-width="2" fill="none" stroke-linecap="round">
+</path>
+</svg>
+</div>
+</sc-for>
+</div>
+</sc-if>
+<sc-if value="{{aBrowse}
+}
+" hint-placeholder-val="{{true}
+}
+">
+<div style="padding:12px 20px 4px;font-size:15px;font-weight:600;color:#6d6d72">品牌</div>
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:4px 20px 8px">
+<sc-for list="{{brandGrid}
+}
+" as="b" hint-placeholder-count="0">
+<div onClick="{{b.pick}
+}
+" style="background:{{b.bg}
+}
+;border:1.5px solid {{b.border}
+}
+;border-radius:12px;padding:9px 4px 7px;text-align:center;cursor:pointer">
+<div style="height:22px;background-image:url({{b.logo}
+}
+);background-size:contain;background-repeat:no-repeat;background-position:center;margin:0 8px">
+</div>
+<div style="font-size:10px;color:#8e8e93;margin-top:3px">{{b.count}
+}
+ 款</div>
+</div>
+</sc-for>
+</div>
+<div style="padding:8px 20px 4px;font-size:15px;font-weight:600;color:#6d6d72">{{aFamiliesTitle}
+}
+</div>
+<div style="padding:0 20px 16px">
+<sc-for list="{{familyCards}
+}
+" as="f" hint-placeholder-count="0">
+<div onClick="{{f.open}
+}
+" style="background:#fff;border-radius:16px;padding:12px;margin-bottom:10px;display:flex;gap:12px;align-items:center;cursor:pointer">
+<div style="width:64px;height:64px;background:#f6f6f8;border-radius:12px;display:flex;align-items:center;justify-content:center;flex:none">
+<div style="width:54px;height:54px;background-image:url({{f.img}
+}
+);background-size:contain;background-repeat:no-repeat;background-position:center;mix-blend-mode:multiply">
+</div>
+</div>
+<div style="flex:1;min-width:0">
+<div style="display:flex;align-items:center;gap:6px">
+<span style="font-size:15px;font-weight:700">{{f.name}
+}
+</span>
+<span style="font-size:10px;font-weight:700;color:#fff;background:{{f.typeColor}
+}
+;padding:2px 6px;border-radius:5px">{{f.type}
+}
+</span>
+</div>
+<div style="font-size:11.5px;color:#8e8e93;margin-top:2px">{{f.sub}
+}
+</div>
+<div style="font-size:11.5px;color:#6d6d72;margin-top:3px;line-height:1.45;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">{{f.summary}
+}
+</div>
+</div>
+<svg width="7" height="12" viewBox="0 0 8 14" style="flex:none">
+<path d="M1 1l6 6-6 6" stroke="#c7c7cc" stroke-width="2" fill="none" stroke-linecap="round">
+</path>
+</svg>
+</div>
+</sc-for>
+</div>
+</sc-if>
+</div>
+</div>
+</sc-if>
+<!-- ============ 球星 ============ -->
+<sc-if value="{{isTour}
+}
+" hint-placeholder-val="{{false}
+}
+">
+<div style="position:absolute;inset:0;bottom:82px;display:flex;flex-direction:column">
+<div style="padding:54px 20px 10px;background:rgba(242,242,247,.94);z-index:5;border-bottom:.5px solid rgba(60,60,67,.1)">
+<div style="display:flex;align-items:baseline;justify-content:space-between">
+<span style="font-size:28px;font-weight:700">球星</span>
+<span style="font-size:12px;color:#8e8e93">排名截至 {{tourAsOf}
+}
+</span>
+</div>
+<div style="display:flex;background:#e3e3e9;border-radius:10px;padding:2px;margin-top:10px">
+<span onClick="{{pickATP}
+}
+" style="flex:1;text-align:center;font-size:13.5px;font-weight:600;padding:6px 0;border-radius:8px;cursor:pointer;background:{{atpBg}
+}
+;color:{{atpColor}
+}
+;box-shadow:{{atpShadow}
+}
+">ATP Top 8</span>
+<span onClick="{{pickWTA}
+}
+" style="flex:1;text-align:center;font-size:13.5px;font-weight:600;padding:6px 0;border-radius:8px;cursor:pointer;background:{{wtaBg}
+}
+;color:{{wtaColor}
+}
+;box-shadow:{{wtaShadow}
+}
+">WTA Top 8</span>
+</div>
+</div>
+<div style="flex:1;overflow-y:auto;padding:10px 20px 16px">
+<sc-for list="{{tourRows}
+}
+" as="p" hint-placeholder-count="0">
+<div onClick="{{p.open}
+}
+" style="background:#fff;border-radius:16px;padding:12px;margin-bottom:10px;display:flex;gap:12px;align-items:center;cursor:pointer">
+<div style="position:relative;flex:none">
+<sc-if value="{{p.hasImg}
+}
+" hint-placeholder-val="{{false}
+}
+">
+<div style="width:52px;height:52px;border-radius:50%;background-image:url({{p.photo}
+}
+);background-size:cover;background-position:{{p.photoPos}
+}
+">
+</div>
+</sc-if>
+<span style="position:absolute;bottom:-3px;right:-4px;min-width:19px;height:19px;border-radius:10px;background:#1769e8;border:2px solid #fff;color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;padding:0 3px">{{p.rank}
+}
+</span>
+</div>
+<div style="flex:1;min-width:0">
+<div style="display:flex;align-items:center;gap:6px">
+<span style="font-size:15px;font-weight:700">{{p.nameZh}
+}
+</span>
+<span style="font-size:9.5px;color:#8e8e93;letter-spacing:.5px">{{p.cc}
+}
+</span>
+</div>
+<div style="font-size:11px;color:#8e8e93">{{p.name}
+}
+ · {{p.playStyle}
+}
+</div>
+<div style="display:flex;align-items:center;gap:6px;margin-top:4px">
+<span style="font-size:11.5px;color:#3c3c43;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{p.gear}
+}
+</span>
+<span style="font-size:9.5px;font-weight:700;color:{{p.tierColor}
+}
+;background:{{p.tierBg}
+}
+;padding:2px 6px;border-radius:5px;flex:none">{{p.mapping}
+}
+</span>
+</div>
+</div>
+<sc-if value="{{p.hasGearImg}
+}
+" hint-placeholder-val="{{false}
+}
+">
+<div style="width:46px;height:46px;background:#f6f6f8;border-radius:10px;flex:none;display:flex;align-items:center;justify-content:center">
+<div style="width:38px;height:38px;background-image:url({{p.gearImg}
+}
+);background-size:contain;background-repeat:no-repeat;background-position:center;mix-blend-mode:multiply">
+</div>
+</div>
+</sc-if>
+<svg width="7" height="12" viewBox="0 0 8 14" style="flex:none">
+<path d="M1 1l6 6-6 6" stroke="#c7c7cc" stroke-width="2" fill="none" stroke-linecap="round">
+</path>
+</svg>
+</div>
+</sc-for>
+<div style="font-size:10.5px;color:#b0b0b6;line-height:1.7;margin-top:4px">每条映射标注四档可信度;比赛拍与零售拍的规格可能不同,以官网口径为准。</div>
+</div>
+</div>
+</sc-if>
+<!-- ============ 决策室 ============ -->
+<sc-if value="{{isCompare}
+}
+" hint-placeholder-val="{{false}
+}
+">
+<div style="position:absolute;inset:0;bottom:82px;display:flex;flex-direction:column">
+<div style="padding:54px 20px 10px;background:rgba(242,242,247,.94);z-index:5;border-bottom:.5px solid rgba(60,60,67,.1)">
+<div style="display:flex;align-items:baseline;justify-content:space-between">
+<span style="font-size:28px;font-weight:700">决策室</span>
+<span style="font-size:12px;color:#8e8e93">最多对比 3 把</span>
+</div>
+<div style="display:flex;gap:8px;margin-top:10px">
+<sc-for list="{{cmpSlots}
+}
+" as="s" hint-placeholder-count="0">
+<div onClick="{{s.tap}
+}
+" style="flex:1;height:76px;border-radius:14px;cursor:pointer;position:relative;background:{{s.bg}
+}
+;border:1.5px {{s.borderStyle}
+}
+ {{s.border}
+}
+;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px">
+<sc-if value="{{s.filled}
+}
+" hint-placeholder-val="{{false}
+}
+">
+<div style="width:36px;height:36px;background-image:url({{s.img}
+}
+);background-size:contain;background-repeat:no-repeat;background-position:center;mix-blend-mode:multiply">
+</div>
+<div style="font-size:10px;font-weight:600;max-width:92%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:{{s.color}
+}
+">{{s.name}
+}
+</div>
+<span onClick="{{s.remove}
+}
+" style="position:absolute;top:4px;right:5px;width:17px;height:17px;border-radius:50%;background:#e3e3e9;color:#6d6d72;font-size:10px;display:flex;align-items:center;justify-content:center">✕</span>
+</sc-if>
+<sc-if value="{{s.empty}
+}
+" hint-placeholder-val="{{true}
+}
+">
+<span style="font-size:20px;color:#1769e8;font-weight:400">＋</span>
+<div style="font-size:10px;color:#8e8e93">添加球拍</div>
+</sc-if>
+</div>
+</sc-for>
+</div>
+<sc-if value="{{cmpHasAny}
+}
+" hint-placeholder-val="{{false}
+}
+">
+<div style="display:flex;background:#e3e3e9;border-radius:10px;padding:2px;margin-top:10px">
+<sc-for list="{{cmpTabs}
+}
+" as="t" hint-placeholder-count="3">
+<span onClick="{{t.pick}
+}
+" style="flex:1;text-align:center;font-size:13px;font-weight:600;padding:6px 0;border-radius:8px;cursor:pointer;background:{{t.bg}
+}
+;color:{{t.color}
+}
+;box-shadow:{{t.shadow}
+}
+">{{t.label}
+}
+</span>
+</sc-for>
+</div>
+</sc-if>
+</div>
+<div style="flex:1;overflow-y:auto;padding:12px 20px 16px">
+<sc-if value="{{cmpEmpty}
+}
+" hint-placeholder-val="{{true}
+}
+">
+<div style="background:#fff;border-radius:16px;padding:20px;text-align:center;margin-top:8px">
+<div style="font-size:16px;font-weight:700">装入 2-3 把,开始收敛</div>
+<div style="font-size:12.5px;color:#8e8e93;line-height:1.7;margin-top:6px">叠加六维雷达 + 规格对照 + 差异翻译。<br>装入正好 2 把可开启「对决」战报。</div>
+<div onClick="{{cmpAddFirst}
+}
+" style="display:inline-block;margin-top:12px;background:#1769e8;color:#fff;border-radius:99px;padding:9px 20px;font-size:13.5px;font-weight:600;cursor:pointer">从球拍库添加</div>
+</div>
+</sc-if>
+<sc-if value="{{cmpOverview}
+}
+" hint-placeholder-val="{{false}
+}
+">
+<div style="background:#fff;border-radius:16px;padding:14px">
+<div style="display:flex;gap:6px;flex-wrap:wrap">
+<sc-for list="{{cmpLegend}
+}
+" as="l" hint-placeholder-count="2">
+<span onClick="{{l.toggle}
+}
+" style="display:flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:4px 9px;border-radius:99px;cursor:pointer;background:{{l.bg}
+}
+;color:{{l.color}
+}
+;opacity:{{l.opacity}
+}
+">
+<span style="width:8px;height:8px;border-radius:50%;background:{{l.dot}
+}
+">
+</span>{{l.name}
+}
+</span>
+</sc-for>
+</div>
+<div style="position:relative;margin-top:4px">
+<svg width="100%" viewBox="0 0 320 236" style="display:block;touch-action:none">
+<sc-for list="{{radarRings}
+}
+" as="ring" hint-placeholder-count="4">
+<polygon points="{{ring.pts}
+}
+" fill="none" stroke="#e8e8ec" stroke-width="1">
+</polygon>
+</sc-for>
+<sc-for list="{{radarAxes}
+}
+" as="ax" hint-placeholder-count="6">
+<line x1="160" y1="112" x2="{{ax.x}
+}
+" y2="{{ax.y}
+}
+" stroke="#efeff2" stroke-width="1">
+</line>
+</sc-for>
+<sc-for list="{{radarSeries}
+}
+" as="s" hint-placeholder-count="2">
+<polygon points="{{s.pts}
+}
+" fill="{{s.fill}
+}
+" stroke="{{s.stroke}
+}
+" stroke-width="2" stroke-linejoin="round">
+</polygon>
+</sc-for>
+</svg>
+<sc-for list="{{radarAxes}
+}
+" as="ax" hint-placeholder-count="6">
+<span onClick="{{ax.focus}
+}
+" style="position:absolute;left:{{ax.px}
+}
+;top:{{ax.py}
+}
+;transform:translate(-50%,-50%);font-size:10.5px;font-weight:{{ax.w}
+}
+;color:{{ax.fill}
+}
+;cursor:pointer;padding:6px;user-select:none">{{ax.label}
+}
+</span>
+</sc-for>
+</div>
+<sc-if value="{{radarFocusOn}
+}
+" hint-placeholder-val="{{false}
+}
+">
+<div style="background:#f7f7fa;border-radius:12px;padding:9px 12px;display:flex;align-items:center;gap:10px">
+<span style="font-size:12px;font-weight:700">{{radarFocusLabel}
+}
+</span>
+<div style="display:flex;gap:10px;flex:1">
+<sc-for list="{{radarFocusVals}
+}
+" as="v" hint-placeholder-count="2">
+<span style="font-size:12px;color:{{v.color}
+}
+;font-weight:700">{{v.val}
+}
+ <span style="font-weight:400;color:#8e8e93;font-size:10px">{{v.name}
+}
+</span>
+</span>
+</sc-for>
+</div>
+<span onClick="{{radarFocusClear}
+}
+" style="font-size:11px;color:#8e8e93;cursor:pointer">收起</span>
+</div>
+</sc-if>
+<div style="font-size:10px;color:#b0b0b6;margin-top:8px">六维为拍库相对评估,非实验室测量 · 点轴名可查看逐维数值</div>
+</div>
+<sc-if value="{{duelOn}
+}
+" hint-placeholder-val="{{false}
+}
+">
+<div style="background:#fff;border-radius:16px;padding:14px;margin-top:12px">
+<div style="display:flex;align-items:baseline;justify-content:space-between">
+<span style="font-size:15px;font-weight:700">六维战报</span>
+<span style="font-size:11px;color:#8e8e93">领先多者胜 · 平局不计</span>
+</div>
+<div style="display:flex;align-items:center;justify-content:center;gap:16px;margin:10px 0 4px">
+<div style="text-align:center;flex:1">
+<div style="font-size:12px;font-weight:600;color:#1769e8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{duelAName}
+}
+</div>
+<div style="font-size:30px;font-weight:700;color:#1769e8">{{duelAScore}
+}
+</div>
+</div>
+<span style="font-size:13px;color:#8e8e93;font-weight:600">VS</span>
+<div style="text-align:center;flex:1">
+<div style="font-size:12px;font-weight:600;color:#ef5b45;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{duelBName}
+}
+</div>
+<div style="font-size:30px;font-weight:700;color:#ef5b45">{{duelBScore}
+}
+</div>
+</div>
+</div>
+<sc-for list="{{duelRows}
+}
+" as="d" hint-placeholder-count="6">
+<div style="display:flex;align-items:center;gap:8px;padding:5px 0">
+<span style="font-size:12.5px;font-weight:700;color:{{d.aColor}
+}
+;width:30px;text-align:right">{{d.a}
+}
+</span>
+<div style="flex:1;display:flex;align-items:center;gap:4px">
+<div style="flex:1;height:5px;border-radius:3px;background:#f0f0f3;overflow:hidden;display:flex;justify-content:flex-end">
+<div style="width:{{d.aw}
+}
+;background:#1769e8;border-radius:3px">
+</div>
+</div>
+<span style="font-size:10.5px;color:#6d6d72;width:34px;text-align:center;flex:none">{{d.label}
+}
+</span>
+<div style="flex:1;height:5px;border-radius:3px;background:#f0f0f3;overflow:hidden">
+<div style="width:{{d.bw}
+}
+;background:#ef5b45;border-radius:3px">
+</div>
+</div>
+</div>
+<span style="font-size:12.5px;font-weight:700;color:{{d.bColor}
+}
+;width:30px">{{d.b}
+}
+</span>
+</div>
+</sc-for>
+</div>
+</sc-if>
+</sc-if>
+<sc-if value="{{cmpSpecs}
+}
+" hint-placeholder-val="{{false}
+}
+">
+<div style="background:#fff;border-radius:16px;padding:8px 14px 12px">
+<sc-for list="{{cmpSpecRows}
+}
+" as="row" hint-placeholder-count="6">
+<div style="padding:9px 0;border-bottom:.5px solid rgba(60,60,67,.1);background:{{row.hl}
+}
+;margin:0 -14px;padding-left:14px;padding-right:14px">
+<div style="display:flex;align-items:center;gap:5px">
+<span style="font-size:11px;color:#8e8e93;font-weight:600">{{row.label}
+}
+</span>
+<sc-if value="{{row.hlOn}
+}
+" hint-placeholder-val="{{false}
+}
+">
+<span style="font-size:9px;font-weight:700;color:#1769e8;background:rgba(23,105,232,.1);padding:1.5px 5px;border-radius:4px">差异最大</span>
+</sc-if>
+</div>
+<div style="display:flex;gap:8px;margin-top:4px">
+<sc-for list="{{row.vals}
+}
+" as="v" hint-placeholder-count="2">
+<div style="flex:1;font-size:13px;font-weight:600;color:{{v.color}
+}
+">{{v.text}
+}
+<div style="font-size:10px;font-weight:400;color:#a0a0a6;margin-top:1px">{{v.note}
+}
+</div>
+</div>
+</sc-for>
+</div>
+</div>
+</sc-for>
+<div style="font-size:10px;color:#b0b0b6;margin-top:10px">官网未公开的参数如实显示,不猜测、不臆造。</div>
+</div>
+</sc-if>
+<sc-if value="{{cmpInsights}
+}
+" hint-placeholder-val="{{false}
+}
+">
+<sc-if value="{{insightNeedTwo}
+}
+" hint-placeholder-val="{{false}
+}
+">
+<div style="background:#fff;border-radius:16px;padding:18px;text-align:center;font-size:13px;color:#8e8e93">再装入 1 把即可生成差异翻译</div>
+</sc-if>
+<sc-for list="{{insightCards}
+}
+" as="i" hint-placeholder-count="3">
+<div style="background:#fff;border-radius:16px;padding:14px;margin-bottom:10px">
+<div style="display:flex;align-items:center;gap:6px">
+<span style="font-size:11px;font-weight:700;color:#fff;background:#1769e8;padding:2.5px 8px;border-radius:6px">{{i.label}
+}
+</span>
+<span style="font-size:10.5px;color:#8e8e93">显著度 {{i.ratio}
+}
+</span>
+</div>
+<div style="font-size:13px;line-height:1.75;color:#3c3c43;margin-top:8px">{{i.sentence}
+}
+</div>
+</div>
+</sc-for>
+<sc-if value="{{insightExcluded}
+}
+" hint-placeholder-val="{{false}
+}
+">
+<div style="background:#fff7ed;border:1px solid #f0dcc0;border-radius:14px;padding:10px 14px;font-size:11.5px;color:#8a6a3c;line-height:1.6">以下维度因「官网未公开」未参与解读:{{insightExcludedText}
+}
+</div>
+</sc-if>
+<sc-if value="{{insightNoDiff}
+}
+" hint-placeholder-val="{{false}
+}
+">
+<div style="background:#fff;border-radius:16px;padding:18px;text-align:center;font-size:13px;color:#8e8e93">可比维度上没有超过阈值的显著差异</div>
+</sc-if>
+</sc-if>
+</div>
+</div>
+</sc-if>
+<!-- ============ Tab Bar ============ -->
+<div style="position:absolute;left:0;right:0;bottom:0;height:82px;background:rgba(250,250,252,.95);border-top:.5px solid rgba(60,60,67,.16);display:flex;padding:8px 6px 26px;backdrop-filter:blur(20px);z-index:40">
+<div onClick="{{goDiscover}
+}
+" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;color:{{tabC0}
+}
+">
+<svg width="23" height="23" viewBox="0 0 24 24">
+<circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.8">
+</circle>
+<circle cx="12" cy="12" r="3" fill="currentColor">
+</circle>
+</svg>
+<span style="font-size:10px;font-weight:600">发现</span>
+</div>
+<div onClick="{{goMatch}
+}
+" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;color:{{tabC1}
+}
+">
+<svg width="23" height="23" viewBox="0 0 24 24">
+<rect x="5" y="3.5" width="14" height="17" rx="3" fill="none" stroke="currentColor" stroke-width="1.8">
+</rect>
+<rect x="8.5" y="8" width="7" height="1.8" rx=".9" fill="currentColor">
+</rect>
+<rect x="8.5" y="12" width="7" height="1.8" rx=".9" fill="currentColor">
+</rect>
+</svg>
+<span style="font-size:10px;font-weight:600">处方</span>
+</div>
+<div onClick="{{goArmory}
+}
+" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;color:{{tabC2}
+}
+">
+<svg width="23" height="23" viewBox="0 0 24 24">
+<rect x="4" y="4" width="7" height="7" rx="2" fill="currentColor">
+</rect>
+<rect x="13" y="4" width="7" height="7" rx="2" fill="currentColor">
+</rect>
+<rect x="4" y="13" width="7" height="7" rx="2" fill="currentColor">
+</rect>
+<rect x="13" y="13" width="7" height="7" rx="2" fill="currentColor">
+</rect>
+</svg>
+<span style="font-size:10px;font-weight:600">球拍库</span>
+</div>
+<div onClick="{{goTour}
+}
+" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;color:{{tabC3}
+}
+">
+<svg width="23" height="23" viewBox="0 0 24 24">
+<polygon points="12,3.5 14.6,8.9 20.5,9.7 16.2,13.9 17.2,19.8 12,17 6.8,19.8 7.8,13.9 3.5,9.7 9.4,8.9" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round">
+</polygon>
+</svg>
+<span style="font-size:10px;font-weight:600">球星</span>
+</div>
+<div onClick="{{goCompare}
+}
+" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;position:relative;color:{{tabC4}
+}
+">
+<sc-if value="{{cmpBadgeOn}
+}
+" hint-placeholder-val="{{false}
+}
+">
+<span style="position:absolute;top:-3px;right:16px;min-width:15px;height:15px;border-radius:8px;background:#ff3b30;color:#fff;font-size:9.5px;font-weight:700;display:flex;align-items:center;justify-content:center;padding:0 4px">{{cmpCount}
+}
+</span>
+</sc-if>
+<svg width="23" height="23" viewBox="0 0 24 24">
+<circle cx="9" cy="12" r="5.5" fill="none" stroke="currentColor" stroke-width="1.8">
+</circle>
+<circle cx="15" cy="12" r="5.5" fill="none" stroke="currentColor" stroke-width="1.8">
+</circle>
+</svg>
+<span style="font-size:10px;font-weight:600">决策室</span>
+</div>
+</div>
+<!-- ============ 覆盖层:档案/拍系/球星 ============ -->
+<sc-for list="{{overlays}
+}
+" as="ov" hint-placeholder-count="0">
+<div onTouchStart="{{ov.ts}
+}
+" onTouchMove="{{ov.tm}
+}
+" onTouchEnd="{{ov.te}
+}
+" style="position:absolute;inset:0;background:#f2f2f7;z-index:50;display:flex;flex-direction:column;animation:ra-slide-in .28s cubic-bezier(.32,.72,.35,1);transform:translateX({{ov.dragX}
+}
+px);transition:{{ov.trans}
+}
+">
+<div style="padding:54px 16px 10px;background:rgba(242,242,247,.94);backdrop-filter:blur(20px);display:flex;align-items:center;gap:6px;border-bottom:.5px solid rgba(60,60,67,.1);z-index:5">
+<span onClick="{{ov.back}
+}
+" style="display:flex;align-items:center;gap:2px;color:#1769e8;font-size:15px;cursor:pointer;font-weight:500">
+<svg width="11" height="18" viewBox="0 0 12 20">
+<path d="M10 2L2 10l8 8" stroke="#1769e8" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round">
+</path>
+</svg>返回</span>
+<span style="flex:1;text-align:center;font-size:15.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-right:52px">{{ov.title}
+}
+</span>
+</div>
+<div style="flex:1;overflow-y:auto;padding-bottom:30px">
+<sc-if value="{{ov.isRacket}
+}
+" hint-placeholder-val="{{false}
+}
+">
+<div style="background:#fff;padding:16px 20px 14px">
+<div style="display:flex;gap:14px;align-items:center">
+<div style="width:110px;height:110px;background:#f6f6f8;border-radius:16px;flex:none;display:flex;align-items:center;justify-content:center">
+<div style="width:96px;height:96px;background-image:url({{ov.r.img}
+}
+);background-size:contain;background-repeat:no-repeat;background-position:center;mix-blend-mode:multiply">
+</div>
+</div>
+<div style="flex:1;min-width:0">
+<div style="height:14px;width:74px;background-image:url({{ov.r.brandLogo}
+}
+);background-size:contain;background-repeat:no-repeat;background-position:left center">
+</div>
+<div style="font-size:19px;font-weight:700;line-height:1.25;margin-top:5px">{{ov.r.model}
+}
+</div>
+<div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:6px">
+<span style="font-size:10.5px;font-weight:700;color:#fff;background:{{ov.r.typeColor}
+}
+;padding:2.5px 7px;border-radius:6px">{{ov.r.familyType}
+}
+型</span>
+<span style="font-size:10.5px;color:#6d6d72;background:#f2f2f7;padding:2.5px 7px;border-radius:6px">{{ov.r.generation}
+}
+</span>
+<span style="font-size:10.5px;color:#6d6d72;background:#f2f2f7;padding:2.5px 7px;border-radius:6px">{{ov.r.stages}
+}
+</span>
+</div>
+</div>
+</div>
+<div style="font-size:12.5px;color:#6d6d72;line-height:1.7;margin-top:10px">{{ov.r.summary}
+}
+</div>
+<div style="display:flex;gap:8px;margin-top:12px">
+<span onClick="{{ov.r.addCompare}
+}
+" style="flex:1;text-align:center;font-size:13.5px;font-weight:600;border-radius:11px;padding:10px 0;cursor:pointer;background:{{ov.r.cmpBg}
+}
+;color:{{ov.r.cmpColor}
+}
+">{{ov.r.cmpLabel}
+}
+</span>
+<a href="{{ov.r.buyUrl}
+}
+" target="_blank" style="flex:1;text-align:center;font-size:13.5px;font-weight:600;background:#1769e8;color:#fff;border-radius:11px;padding:10px 0">{{ov.r.buyLabel}
+}
+ ↗</a>
+</div>
+</div>
+<div style="background:#fff;border-radius:16px;margin:12px 20px 0;padding:14px">
+<div style="display:flex;align-items:baseline;justify-content:space-between">
+<span style="font-size:15px;font-weight:700">官网核验规格</span>
+<span style="font-size:10.5px;color:#8e8e93">{{ov.r.specCoverage}
+}
+</span>
+</div>
+<sc-for list="{{ov.r.specRows}
+}
+" as="sp" hint-placeholder-count="6">
+<div style="display:flex;align-items:center;padding:8px 0;border-bottom:.5px solid rgba(60,60,67,.1)">
+<span style="width:52px;font-size:11.5px;color:#8e8e93;flex:none">{{sp.name}
+}
+</span>
+<span style="width:76px;font-size:13.5px;font-weight:700;flex:none;color:{{sp.valColor}
+}
+">{{sp.label}
+}
+</span>
+<div style="flex:1;min-width:0">
+<div style="font-size:11px;color:#3c3c43">{{sp.characteristic}
+}
+</div>
+<div style="font-size:10px;color:#a0a0a6">{{sp.familyPosition}
+}
+</div>
+</div>
+<sc-if value="{{sp.ms}
+}
+" hint-placeholder-val="{{false}
+}
+">
+<span style="font-size:9px;font-weight:700;color:#2e9b72;background:rgba(46,155,114,.1);padding:2px 5px;border-radius:4px;flex:none">主流区间</span>
+</sc-if>
+</div>
+</sc-for>
+</div>
+<div style="background:#fff;border-radius:16px;margin:12px 20px 0;padding:14px">
+<div style="font-size:15px;font-weight:700">六维雷达 <span style="font-size:10px;font-weight:400;color:#b0b0b6">拍库相对评估 · 非实验室测量</span>
+</div>
+<div style="position:relative">
+<svg width="100%" viewBox="0 0 320 226" style="display:block;touch-action:none">
+<sc-for list="{{ov.r.rings}
+}
+" as="ring" hint-placeholder-count="4">
+<polygon points="{{ring.pts}
+}
+" fill="none" stroke="#e8e8ec" stroke-width="1">
+</polygon>
+</sc-for>
+<sc-for list="{{ov.r.axes}
+}
+" as="ax" hint-placeholder-count="6">
+<line x1="160" y1="108" x2="{{ax.x}
+}
+" y2="{{ax.y}
+}
+" stroke="#efeff2" stroke-width="1">
+</line>
+</sc-for>
+<polygon points="{{ov.r.poly}
+}
+" fill="rgba(23,105,232,.16)" stroke="#1769e8" stroke-width="2" stroke-linejoin="round">
+</polygon>
+</svg>
+<sc-for list="{{ov.r.axes}
+}
+" as="ax" hint-placeholder-count="6">
+<span onClick="{{ax.focus}
+}
+" style="position:absolute;left:{{ax.px}
+}
+;top:{{ax.py}
+}
+;transform:translate(-50%,-50%);font-size:10.5px;font-weight:{{ax.w}
+}
+;color:{{ax.fill}
+}
+;cursor:pointer;padding:6px;user-select:none;white-space:nowrap">{{ax.txt}
+}
+</span>
+</sc-for>
+</div>
+<div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:4px">
+<sc-for list="{{ov.r.traits}
+}
+" as="t" hint-placeholder-count="3">
+<span style="font-size:10.5px;color:#1769e8;background:rgba(23,105,232,.08);padding:3px 8px;border-radius:6px;font-weight:600">{{t.label}
+}
+</span>
+</sc-for>
+</div>
+<div style="font-size:12px;color:#6d6d72;line-height:1.7;margin-top:8px">{{ov.r.traitSummary}
+}
+</div>
+</div>
+<div style="background:#fff;border-radius:16px;margin:12px 20px 0;padding:14px">
+<div style="font-size:15px;font-weight:700">拍库结论</div>
+<div style="font-size:12.5px;color:#3c3c43;line-height:1.75;margin-top:6px">{{ov.r.verdict}
+}
+</div>
+<div style="font-size:10.5px;color:#a0a0a6;line-height:1.6;margin-top:8px;background:#f7f7fa;border-radius:10px;padding:8px 10px">{{ov.r.profileBasis}
+}
+</div>
+</div>
+<sc-if value="{{ov.r.hasSimilar}
+}
+" hint-placeholder-val="{{false}
+}
+">
+<div style="background:#fff;border-radius:16px;margin:12px 20px 0;padding:14px">
+<div style="display:flex;align-items:baseline;justify-content:space-between">
+<span style="font-size:15px;font-weight:700">相似平替 · 他牌</span>
+<span style="font-size:10px;color:#8e8e93">五维归一化规格距离</span>
+</div>
+<sc-for list="{{ov.r.similar}
+}
+" as="si" hint-placeholder-count="0">
+<div onClick="{{si.open}
+}
+" style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:.5px solid rgba(60,60,67,.1);cursor:pointer">
+<div style="width:38px;height:38px;flex:none;background-image:url({{si.img}
+}
+);background-size:contain;background-repeat:no-repeat;background-position:center;mix-blend-mode:multiply">
+</div>
+<div style="flex:1;min-width:0">
+<div style="font-size:13.5px;font-weight:600">{{si.name}
+}
+</div>
+<div style="font-size:11px;color:#8e8e93">{{si.sub}
+}
+</div>
+</div>
+<span style="font-size:11px;color:#6d6d72;background:#f2f2f7;padding:3px 8px;border-radius:6px;flex:none">距离 {{si.dist}
+}
+</span>
+</div>
+</sc-for>
+<div style="font-size:10.5px;color:#b0b0b6;margin-top:8px">规格相似不等于手感等价,不替代实际试打。</div>
+</div>
+</sc-if>
+</sc-if>
+<sc-if value="{{ov.isFamily}
+}
+" hint-placeholder-val="{{false}
+}
+">
+<div style="background:#fff;padding:16px 20px 14px">
+<div style="display:flex;gap:14px;align-items:center">
+<div style="width:86px;height:86px;background:#f6f6f8;border-radius:14px;flex:none;display:flex;align-items:center;justify-content:center">
+<div style="width:74px;height:74px;background-image:url({{ov.f.img}
+}
+);background-size:contain;background-repeat:no-repeat;background-position:center;mix-blend-mode:multiply">
+</div>
+</div>
+<div style="flex:1;min-width:0">
+<div style="display:flex;align-items:center;gap:6px">
+<span style="font-size:19px;font-weight:700">{{ov.f.family}
+}
+</span>
+<span style="font-size:10.5px;font-weight:700;color:#fff;background:{{ov.f.typeColor}
+}
+;padding:2.5px 7px;border-radius:6px">{{ov.f.type}
+}
+型</span>
+</div>
+<div style="font-size:11.5px;color:#8e8e93;margin-top:3px">{{ov.f.sub}
+}
+</div>
+</div>
+</div>
+<div style="font-size:12.5px;color:#6d6d72;line-height:1.7;margin-top:10px">{{ov.f.summary}
+}
+</div>
+<sc-if value="{{ov.f.hasNote}
+}
+" hint-placeholder-val="{{false}
+}
+">
+<div style="font-size:11px;color:#8a6a3c;background:#fff7ed;border-radius:10px;padding:8px 10px;margin-top:8px;line-height:1.6">{{ov.f.note}
+}
+</div>
+</sc-if>
+</div>
+<div style="padding:12px 20px 4px;font-size:14px;font-weight:600;color:#6d6d72">{{ov.f.modelsTitle}
+}
+</div>
+<div style="padding:0 20px">
+<sc-for list="{{ov.f.models}
+}
+" as="m" hint-placeholder-count="0">
+<div onClick="{{m.open}
+}
+" style="background:#fff;border-radius:14px;padding:11px 12px;margin-bottom:8px;display:flex;align-items:center;gap:10px;cursor:pointer">
+<div style="flex:1;min-width:0">
+<div style="font-size:14px;font-weight:600">{{m.name}
+}
+</div>
+<div style="font-size:11px;color:#8e8e93;margin-top:2px">{{m.sub}
+}
+</div>
+</div>
+<div style="display:flex;gap:4px;flex:none">
+<sc-for list="{{m.chips}
+}
+" as="ch" hint-placeholder-count="2">
+<span style="font-size:10px;color:#6d6d72;background:#f2f2f7;padding:2.5px 6px;border-radius:5px">{{ch.t}
+}
+</span>
+</sc-for>
+</div>
+<svg width="7" height="12" viewBox="0 0 8 14" style="flex:none">
+<path d="M1 1l6 6-6 6" stroke="#c7c7cc" stroke-width="2" fill="none" stroke-linecap="round">
+</path>
+</svg>
+</div>
+</sc-for>
+</div>
+</sc-if>
+<sc-if value="{{ov.isPlayer}
+}
+" hint-placeholder-val="{{false}
+}
+">
+<div style="background:#fff;padding:18px 20px">
+<div style="display:flex;align-items:center;gap:14px">
+<sc-if value="{{ov.p.hasPhoto}
+}
+" hint-placeholder-val="{{false}
+}
+">
+<div style="width:64px;height:64px;border-radius:50%;flex:none;background-image:url({{ov.p.photo}
+}
+);background-size:cover;background-position:{{ov.p.photoPos}
+}
+">
+</div>
+</sc-if>
+<div style="flex:1;min-width:0">
+<div style="display:flex;align-items:center;gap:7px">
+<span style="font-size:19px;font-weight:700">{{ov.p.nameZh}
+}
+</span>
+<span style="font-size:10px;font-weight:700;color:#1769e8;background:rgba(23,105,232,.1);padding:2.5px 7px;border-radius:6px;flex:none">{{ov.p.playStyle}
+}
+</span>
+</div>
+<div style="font-size:11.5px;color:#8e8e93;margin-top:2px">{{ov.p.name}
+}
+ · {{ov.p.country}
+}
+</div>
+</div>
+<div style="text-align:center;flex:none">
+<div style="font-size:22px;font-weight:700;color:#1769e8">#{{ov.p.rank}
+}
+</div>
+<div style="font-size:9.5px;color:#8e8e93">{{ov.p.tour}
+}
+ 排名</div>
+</div>
+</div>
+<div style="font-size:12.5px;color:#3c3c43;line-height:1.7;margin-top:10px">{{ov.p.signature}
+}
+</div>
+<div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:8px">
+<sc-for list="{{ov.p.traits}
+}
+" as="t" hint-placeholder-count="3">
+<span style="font-size:10.5px;font-weight:600;color:#6d6d72;background:#f2f2f7;padding:3px 9px;border-radius:99px">{{t.label}
+}
+</span>
+</sc-for>
+</div>
+<div style="font-size:9.5px;color:#c0c0c6;margin-top:8px">{{ov.p.photoCredit}
+}
+</div>
+</div>
+<div style="background:#fff;border-radius:16px;margin:12px 20px 0;padding:14px">
+<div style="display:flex;align-items:center;justify-content:space-between">
+<span style="font-size:15px;font-weight:700">公开用拍映射</span>
+<span style="font-size:9.5px;font-weight:700;color:{{ov.p.tierColor}
+}
+;background:{{ov.p.tierBg}
+}
+;padding:2.5px 7px;border-radius:5px">{{ov.p.mapping}
+}
+</span>
+</div>
+<div style="display:flex;gap:12px;align-items:center;margin-top:10px">
+<sc-if value="{{ov.p.hasImg}
+}
+" hint-placeholder-val="{{false}
+}
+">
+<div style="width:74px;height:74px;background:#f6f6f8;border-radius:12px;flex:none;display:flex;align-items:center;justify-content:center">
+<div style="width:62px;height:62px;background-image:url({{ov.p.img}
+}
+);background-size:contain;background-repeat:no-repeat;background-position:center;mix-blend-mode:multiply">
+</div>
+</div>
+</sc-if>
+<div style="flex:1">
+<div style="font-size:15px;font-weight:700">{{ov.p.gear}
+}
+</div>
+<div style="font-size:11.5px;color:#8e8e93;margin-top:2px">{{ov.p.brand}
+}
+ 官网口径</div>
+<sc-if value="{{ov.p.hasRetail}
+}
+" hint-placeholder-val="{{false}
+}
+">
+<span onClick="{{ov.p.openRetail}
+}
+" style="display:inline-block;margin-top:7px;font-size:12px;color:#1769e8;font-weight:600;cursor:pointer">{{ov.p.retailLabel}
+}
+</span>
+</sc-if>
+</div>
+</div>
+<div style="font-size:11.5px;color:#8a6a3c;background:#fff7ed;border-radius:10px;padding:9px 11px;margin-top:10px;line-height:1.65">{{ov.p.note}
+}
+</div>
+</div>
+<div style="background:#fff;border-radius:16px;margin:12px 20px 0;padding:14px">
+<div style="font-size:13px;font-weight:700;margin-bottom:8px">可信度四档说明</div>
+<sc-for list="{{tierLegend}
+}
+" as="tl" hint-placeholder-count="4">
+<div style="display:flex;align-items:center;gap:8px;padding:4px 0">
+<span style="width:8px;height:8px;border-radius:50%;background:{{tl.color}
+}
+;flex:none">
+</span>
+<span style="font-size:12px;font-weight:600;width:88px;flex:none">{{tl.name}
+}
+</span>
+<span style="font-size:11px;color:#8e8e93;flex:1">{{tl.desc}
+}
+</span>
+</div>
+</sc-for>
+</div>
+</sc-if>
+</div>
+</div>
+</sc-for>
+<!-- ============ 底部 Sheet:筛选 / 添加对比 / 基准拍 ============ -->
+<sc-if value="{{sheetOn}
+}
+" hint-placeholder-val="{{false}
+}
+">
+<div onClick="{{closeSheet}
+}
+" style="position:absolute;inset:0;background:rgba(0,0,0,.35);z-index:60;animation:ra-fade .2s">
+</div>
+<div style="position:absolute;left:0;right:0;bottom:0;background:#f7f7fa;border-radius:18px 18px 0 0;z-index:61;animation:ra-sheet-up .3s cubic-bezier(.32,.72,.35,1);max-height:620px;display:flex;flex-direction:column">
+<div style="display:flex;justify-content:center;padding:8px 0 2px">
+<span style="width:38px;height:5px;border-radius:3px;background:#d5d5db">
+</span>
+</div>
+<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 20px 10px">
+<span style="font-size:17px;font-weight:700">{{sheetTitle}
+}
+</span>
+<span onClick="{{closeSheet}
+}
+" style="font-size:14px;color:#1769e8;font-weight:600;cursor:pointer">完成</span>
+</div>
+<div style="flex:1;overflow-y:auto;padding:0 20px 34px">
+<sc-if value="{{sheetIsFilter}
+}
+" hint-placeholder-val="{{false}
+}
+">
+<div style="font-size:13px;font-weight:600;color:#6d6d72;margin:6px 0 8px">品牌</div>
+<div style="display:flex;gap:7px;flex-wrap:wrap">
+<sc-for list="{{sheetBrands}
+}
+" as="b" hint-placeholder-count="12">
+<span onClick="{{b.pick}
+}
+" style="font-size:12.5px;font-weight:600;padding:7px 13px;border-radius:99px;cursor:pointer;background:{{b.bg}
+}
+;color:{{b.color}
+}
+">{{b.label}
+}
+</span>
+</sc-for>
+</div>
+<div style="font-size:13px;font-weight:600;color:#6d6d72;margin:16px 0 8px">拍系类型</div>
+<div style="display:flex;gap:7px;flex-wrap:wrap">
+<sc-for list="{{sheetTypes}
+}
+" as="t" hint-placeholder-count="6">
+<span onClick="{{t.pick}
+}
+" style="font-size:12.5px;font-weight:600;padding:7px 13px;border-radius:99px;cursor:pointer;background:{{t.bg}
+}
+;color:{{t.color}
+}
+">{{t.label}
+}
+</span>
+</sc-for>
+</div>
+<div style="font-size:13px;font-weight:600;color:#6d6d72;margin:16px 0 8px">发布年份 <span style="font-weight:400;color:#b0b0b6">· 按拍系当代</span>
+</div>
+<div style="display:flex;gap:7px;flex-wrap:wrap">
+<sc-for list="{{sheetYears}
+}
+" as="y" hint-placeholder-count="6">
+<span onClick="{{y.pick}
+}
+" style="font-size:12.5px;font-weight:600;padding:7px 13px;border-radius:99px;cursor:pointer;background:{{y.bg}
+}
+;color:{{y.color}
+}
+">{{y.label}
+}
+</span>
+</sc-for>
+</div>
+<div style="font-size:13px;font-weight:600;color:#6d6d72;margin:16px 0 8px">排序</div>
+<div style="display:flex;gap:7px;flex-wrap:wrap">
+<sc-for list="{{sheetSorts}
+}
+" as="s" hint-placeholder-count="5">
+<span onClick="{{s.pick}
+}
+" style="font-size:12.5px;font-weight:600;padding:7px 13px;border-radius:99px;cursor:pointer;background:{{s.bg}
+}
+;color:{{s.color}
+}
+">{{s.label}
+}
+</span>
+</sc-for>
+</div>
+<div onClick="{{resetFilters}
+}
+" style="margin-top:20px;text-align:center;font-size:13.5px;color:#c04a35;font-weight:600;background:#fff;border-radius:12px;padding:11px 0;cursor:pointer">重置全部筛选</div>
+</sc-if>
+<sc-if value="{{sheetIsPicker}
+}
+" hint-placeholder-val="{{false}
+}
+">
+<div style="height:36px;background:#e9e9ee;border-radius:11px;display:flex;align-items:center;gap:8px;padding:0 12px;margin:2px 0 10px">
+<svg width="14" height="14" viewBox="0 0 16 16">
+<circle cx="7" cy="7" r="5.4" fill="none" stroke="#8e8e93" stroke-width="1.7">
+</circle>
+<rect x="11" y="10.4" width="4.6" height="1.7" rx=".85" transform="rotate(45 11 10.4)" fill="#8e8e93">
+</rect>
+</svg>
+<input value="{{pickerSearch}
+}
+" onChange="{{onPickerSearch}
+}
+" placeholder="{{pickerPlaceholder}
+}
+" style="flex:1;border:none;background:transparent;outline:none;font-size:14px;color:#0b0b0f;font-family:inherit">
+</input>
+</div>
+<sc-if value="{{pickerCanClear}
+}
+" hint-placeholder-val="{{false}
+}
+">
+<div onClick="{{pickerClear}
+}
+" style="font-size:13px;color:#c04a35;font-weight:600;background:#fff;border-radius:12px;padding:10px 0;text-align:center;margin-bottom:10px;cursor:pointer">{{pickerClearLabel}
+}
+</div>
+</sc-if>
+<sc-for list="{{pickerResults}
+}
+" as="it" hint-placeholder-count="0">
+<div onClick="{{it.pick}
+}
+" style="display:flex;align-items:center;gap:11px;background:#fff;border-radius:13px;padding:9px 11px;margin-bottom:7px;cursor:pointer">
+<img src="{{it.img}
+}
+" style="width:38px;height:38px;object-fit:contain;mix-blend-mode:multiply" alt="{{it.name}
+}
+">
+</img>
+<div style="flex:1;min-width:0">
+<div style="font-size:13.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{it.name}
+}
+</div>
+<div style="font-size:11px;color:#8e8e93">{{it.sub}
+}
+</div>
+</div>
+<span style="font-size:18px;color:#1769e8;flex:none">＋</span>
+</div>
+</sc-for>
+</sc-if>
+</div>
+</div>
+</sc-if>
+</div>
+</x-import>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;: {&quot;width&quot;: 470, &quot;height&quot;: 940}
+}
+">
+class Component extends DCLogic {
+  state = {
+    tab: "discover", dCollapsed: false,
+    dSearch: "", aSearch: "",
+    armory: { brand: "全部品牌", type: "全部类型", sort: "默认排序", year: "全部年份" }
+,
+    match: { committed: null, draft: null, baselineId: null, quickPriority: null, expanded: null }
+,
+    cmp: { ids: [], ws: "overview", legendOff: {}
+, focus: null }
+,
+    profFocus: null,
+    stack: [], drag: { x: 0, on: false }
+,
+    recent: [], refreshing: false,
+    sheet: null, pickerSearch: "",
+    pull: 0,
+  }
+;
+  LS = "ra-proto-ios";
+  componentDidMount() {
+    try {
+      const raw = localStorage.getItem(this.LS);
+      if (raw) {
+        const s = JSON.parse(raw);
+        this.setState({
+          recent: Array.isArray(s.recent) ? s.recent.slice(0, 8) : [],
+          match: { ...this.state.match, committed: s.committed ?? null, baselineId: s.baselineId ?? null }
+,
+          cmp: { ...this.state.cmp, ids: Array.isArray(s.cmpIds) ? s.cmpIds.slice(0, 3) : [] }
+,
+        }
+);
+      }
+
+    }
+ catch (e) {}
+
+  }
+
+  persist() {
+    try {
+      localStorage.setItem(this.LS, JSON.stringify({
+        recent: this.state.recent, committed: this.state.match.committed,
+        baselineId: this.state.match.baselineId, cmpIds: this.state.cmp.ids,
+      }
+));
+    }
+ catch (e) {}
+
+  }
+
+  D() { return window.RA_DATA; }
+
+  L() { return window.RA_LOGIC; }
+
+  norm(s) { return String(s || "").toLowerCase().replace(/[^a-z0-9\u4e00-\u9fff]/g, ""); }
+
+  resolveGear(p) {
+    const D = this.D();
+    if (!D) return { racket: null, family: null }
+;
+    let racket = null;
+    if (p.marketedModel) {
+      const nm = this.norm(p.marketedModel);
+      const cands = D.rackets.filter(r => r.brand === p.brand && (this.norm(r.model) === nm || nm.includes(this.norm(r.model)) || this.norm(r.model).includes(nm)));
+      cands.sort((a, b) => this.norm(b.model).length - this.norm(a.model).length);
+      racket = cands[0] || null;
+    }
+
+    let family = null;
+    if (!racket && p.marketedFamily) {
+      const nf = this.norm(p.marketedFamily.replace(/\s*\d{4}
+$/, ""));
+      family = D.families.filter(f => f.brand === p.brand && (nf.includes(this.norm(f.family)) || this.norm(f.family).includes(nf)))
+        .sort((a, b) => this.norm(b.family).length - this.norm(a.family).length)[0] || null;
+    }
+
+    return { racket, family }
+;
+  }
+
+  yearMatch(releaseYear, filter) {
+    if (filter === "全部年份") return true;
+    if (filter === "官网未注明") return releaseYear === null;
+    if (filter === "2023及更早") return releaseYear !== null && releaseYear <= 2023;
+    return releaseYear === Number(filter);
+  }
+
+  img(r) { return (r && r.image) || "public/rackets/gallery/wilson-blade-v10-02.png"; }
+
+  short(m) { return m.length > 26 ? m.slice(0, 25) + "…" : m; }
+
+  // ---------- nav ----------
+  go(tab) { this.setState({ tab, stack: [] }
+); }
+
+  push(item) {
+    const stack = [...this.state.stack, item];
+    let recent = this.state.recent;
+    if (item.kind === "racket") {
+      recent = [item.id, ...this.state.recent.filter(i => i !== item.id)].slice(0, 8);
+    }
+
+    this.setState({ stack, recent, drag: { x: 0, on: false }
+, profFocus: null }
+, () => this.persist());
+  }
+
+  pop() { this.setState({ stack: this.state.stack.slice(0, -1), drag: { x: 0, on: false }
+, profFocus: null }
+); }
+
+  openRacket(id) { this.push({ kind: "racket", id }
+); }
+
+  // ---------- match reducer (match-flow.ts port, 简化) ----------
+  mSet(patch, cb) { this.setState({ match: { ...this.state.match, ...patch }
+ }
+, cb); }
+
+  mAnswer(step, value) {
+    const d = this.state.match.draft;
+    if (!d || d.step !== step) return;
+    const answers = { ...d.answers }
+;
+    if (step === 0) { answers.stage = value; this.mSet({ draft: { step: 1, answers }
+ }
+); return; }
+
+    if (step === 1) { answers.style = value; this.mSet({ draft: { step: 2, answers }
+ }
+); return; }
+
+    answers.priority = value;
+    this.mSet({ committed: { ...answers }
+, draft: null, quickPriority: null, expanded: null }
+, () => this.persist());
+  }
+
+  // ---------- compare ----------
+  cSet(patch, cb) { this.setState({ cmp: { ...this.state.cmp, ...patch }
+ }
+, cb); }
+
+  addCompare(id) {
+    const ids = this.state.cmp.ids;
+    if (ids.includes(id) || ids.length >= 3) return;
+    this.cSet({ ids: [...ids, id] }
+, () => this.persist());
+  }
+
+  // ---------- swipe back ----------
+  makeTouch() {
+    let startX = 0, startY = 0, edge = false;
+    return {
+      ts: (e) => { const t = e.touches[0]; startX = t.clientX; startY = t.clientY; edge = t.clientX - e.currentTarget.getBoundingClientRect().left < 30; }
+,
+      tm: (e) => {
+        if (!edge) return;
+        const t = e.touches[0]; const dx = t.clientX - startX;
+        if (dx > 8 && Math.abs(dx) > Math.abs(t.clientY - startY)) this.setState({ drag: { x: Math.max(0, dx), on: true }
+ }
+);
+      }
+,
+      te: () => {
+        if (!this.state.drag.on) return;
+        if (this.state.drag.x > 110) this.pop();
+        else this.setState({ drag: { x: 0, on: false }
+ }
+);
+      }
+,
+    }
+;
+  }
+
+  // ---------- renderVals ----------
+  renderVals() {
+    const D = this.D(), L = this.L();
+    if (!D || !L) return { w: 393, h: 852, isDiscover: true, dSearchIdle: true, noRec: true, dTitleSize: 34, dExpanded: true }
+;
+    const S = this.state;
+    const gray = "#98989e", blue = "#1769e8";
+    const tierColors = { "型号级映射": ["#2e9b72", "rgba(46,155,114,.1)"], "系列级映射": ["#1769e8", "rgba(23,105,232,.1)"], "基础型号等效": ["#a96a31", "rgba(169,106,49,.12)"], "当前拍系参考": ["#6d6d72", "#f2f2f7"] }
+;
+    const subOf = r => {
+      const o = r.official;
+      const bits = [r.brand];
+      if (o.head !== null) bits.push(o.head + " in²");
+      if (o.weight !== null) bits.push(o.weight + " g");
+      if (o.pattern !== null) bits.push(o.pattern);
+      return bits.join(" · ");
+    }
+;
+    const itemOf = r => ({ id: r.id, name: r.model, sub: subOf(r), img: this.img(r), score: Math.round(Object.values(r.scores).reduce((a, b) => a + b, 0) / 6), open: () => this.openRacket(r.id) }
+);
+
+    // ---- discover ----
+    const dActive = S.dSearch.trim().length > 0;
+    const dResults = dActive ? D.rackets.filter(r => L.matchesSearch([r.brand, r.familyName, r.series, r.generation, r.familyType, r.model], S.dSearch)).slice(0, 8).map(itemOf) : [];
+    const curatedCards = D.curated.map(c => ({
+      title: c.title, tagline: c.tagline, count: c.racketIds.length + " 款入选",
+      criteria: c.criteria.slice(0, 3).map(x => ({ label: x.replace("官网空拍重量", "重量").replace("官网拍面", "拍面").replace("适用阶段含", "阶段") }
+)),
+      rackets: c.racketIds.slice(0, 3).map(id => { const r = L.byId(id); return { ...itemOf(r), name: this.short(r.model) }
+; }
+),
+    }
+));
+    const committed = S.match.committed;
+    const baseline = S.match.baselineId ? L.byId(S.match.baselineId) : null;
+    let recCards = [];
+    if (committed) {
+      const rx = L.buildSwapPrescription(D.rackets, baseline, committed.stage, committed.style, committed.priority, 3);
+      recCards = rx.map(x => { const r = L.byId(x.racketId); return { role: x.role, match: x.match, name: this.short(r.model), sub: r.brand + " · " + r.familyType + "型", img: this.img(r), open: () => this.openRacket(r.id) }
+; }
+);
+    }
+
+    const recentRow = S.recent.map(id => L.byId(id)).filter(Boolean).map(r => ({ name: r.model.split(" ").slice(0, 2).join(" "), img: this.img(r), open: () => this.openRacket(r.id) }
+));
+
+    // ---- match ----
+    const M = S.match;
+    const phase = M.draft ? "question" : (M.committed ? "result" : "idle");
+    const stageDescs = { "入门": "正在建立动作与击球稳定性", "进阶": "动作成型,想要更清晰的取向", "高阶": "完整挥拍,追求上限与细节" }
+;
+    const styleDescs = { "底线相持": "多拍相持,靠稳定与深度赢分", "上旋进攻": "上旋压制,追求弹跳与角度", "全场控制": "落点调度,手感与精度优先", "抢点快攻": "上升期抢点,节奏快、来回短", "舒适护臂": "手臂敏感,减震与容错第一" }
+;
+    const prDescs = { "均衡": "六维不偏科", "力量": "免费力量与深度", "旋转": "咬球与弹跳", "控制": "落点与弹道", "手感": "反馈与触感", "灵活": "挥速与到位", "护臂": "减震与容错" }
+;
+    let mQuestionTitle = "", mQuestionSub = "", mOptions = [], mProgress = "0%", mStepLabel = "";
+    if (phase === "question") {
+      const step = M.draft.step;
+      mProgress = ((step + 1) / 3 * 100) + "%";
+      mStepLabel = (step + 1) + " / 3";
+      const defs = [
+        { title: "你处在哪个阶段?", sub: "决定容错与重量的推荐区间", opts: ["入门", "进阶", "高阶"], descs: stageDescs, key: "stage" }
+,
+        { title: "主要赢分方式?", sub: "决定六维侧重的方向", opts: ["底线相持", "上旋进攻", "全场控制", "抢点快攻", "舒适护臂"], descs: styleDescs, key: "style" }
+,
+        { title: "最想优先的一项?", sub: "结果页可随时秒切侧重", opts: ["均衡", "力量", "旋转", "控制", "手感", "灵活", "护臂"], descs: prDescs, key: "priority" }
+,
+      ][step];
+      mQuestionTitle = defs.title; mQuestionSub = defs.sub;
+      mOptions = defs.opts.map(o => {
+        const picked = M.draft.answers[defs.key] === o;
+        return { label: o, desc: defs.descs[o], picked, bg: picked ? "rgba(23,105,232,.06)" : "#fff", border: picked ? blue : "rgba(60,60,67,.08)", pick: () => this.mAnswer(step, o) }
+;
+      }
+);
+    }
+
+    let mResults = [], mQuickChips = [], mProfileLine = "", mBaselineNote = "";
+    if (phase === "result") {
+      const activePr = M.quickPriority || committed.priority;
+      mProfileLine = "处方:" + committed.stage + " · " + committed.style + " · 优先" + committed.priority;
+      mBaselineNote = baseline ? "基准:" + baseline.model + "(差值相对当前拍)" : "无基准拍,差值相对拍库中位";
+      const results = L.buildSwapPrescription(D.rackets, baseline, committed.stage, committed.style, activePr, 3);
+      const baseOrder = M.quickPriority && M.quickPriority !== committed.priority
+        ? L.buildSwapPrescription(D.rackets, baseline, committed.stage, committed.style, committed.priority, 3).map(x => x.racketId) : null;
+      mQuickChips = ["均衡", "力量", "旋转", "控制", "手感", "灵活", "护臂"].map(p => {
+        const on = activePr === p;
+        return { label: (p === committed.priority ? "★ " : "") + p, bg: on ? blue : "#fff", color: on ? "#fff" : "#3c3c43", border: on ? blue : "rgba(60,60,67,.12)", pick: () => this.mSet({ quickPriority: p === committed.priority ? null : p, expanded: null }
+) }
+;
+      }
+);
+      mResults = results.map((x, i) => {
+        const r = L.byId(x.racketId);
+        let rankBadge = null, rankColor = "#8e8e93";
+        if (baseOrder) {
+          const prev = baseOrder.indexOf(x.racketId);
+          if (prev === -1) { rankBadge = "新上榜"; rankColor = "#2e9b72"; }
+
+          else if (prev > i) { rankBadge = "↑" + (prev - i); rankColor = "#2e9b72"; }
+
+          else if (prev < i) { rankBadge = "↓" + (i - prev); rankColor = "#c04a35"; }
+
+        }
+
+        const expanded = M.expanded === x.racketId;
+        return {
+          role: x.role, match: x.match, name: r.model, sub: subOf(r), img: this.img(r),
+          gains: x.gains.map(g => ({ label: g }
+)), tradeoff: x.tradeoff, adaptation: x.adaptation,
+          rankBadge, rankColor, expanded,
+          whyLabel: expanded ? "收起评分拆解 ▴" : "为什么是它 · 评分拆解 ▾",
+          breakdown: x.breakdown.parts.map(p => ({ label: p.label, note: p.note, value: (p.value > 0 ? "+" : "") + p.value, color: p.value > 0 ? "#2e9b72" : "#a0a0a6" }
+)),
+          deltaLine: (x.deltaBasis === "baseline" ? "六维差值相对当前拍" : "六维差值相对拍库中位") + " · 适应成本" + x.adaptation,
+          open: () => this.openRacket(r.id),
+          toggle: () => this.mSet({ expanded: expanded ? null : x.racketId }
+),
+        }
+;
+      }
+);
+    }
+
+
+    // ---- armory ----
+    const A = S.armory;
+    const aActive = S.aSearch.trim().length > 0;
+    const brands = ["全部品牌", ...Object.keys(D.brandProfiles)];
+    const types = ["全部类型", "控制", "旋转", "力量", "全能", "舒适"];
+    const sorts = ["默认排序", "重量 ↑", "重量 ↓", "拍面 ↑", "拍面 ↓"];
+    const yearOpts = ["全部年份", ...[...new Set(D.families.map(f => f.releaseYear).filter(y => y !== null && y >= 2024))].sort((a, b) => b - a).map(String), "2023及更早", "官网未注明"];
+    const aYear = A.year || "全部年份";
+    const filterCount = (A.brand !== "全部品牌" ? 1 : 0) + (A.type !== "全部类型" ? 1 : 0) + (A.sort !== "默认排序" ? 1 : 0) + (aYear !== "全部年份" ? 1 : 0);
+    let fams = D.families.filter(f => (A.brand === "全部品牌" || f.brand === A.brand) && (A.type === "全部类型" || f.type === A.type) && this.yearMatch(f.releaseYear, aYear));
+    const familyCards = fams.map(f => ({
+      name: f.brand + " " + f.family, type: f.type, typeColor: D.typeAccent[f.type],
+      sub: f.generation + " · " + f.modelCount + " 款型号" + (f.releaseYear ? " · " + f.releaseYear : ""),
+      summary: f.summary || "", img: f.image || "public/rackets/gallery/wilson-blade-v10-02.png",
+      open: () => this.push({ kind: "family", id: f.id }
+),
+    }
+));
+    let aResults = [];
+    if (aActive) {
+      let list = D.rackets.filter(r => L.matchesSearch([r.brand, r.familyName, r.series, r.generation, r.familyType, r.model], S.aSearch));
+      if (A.brand !== "全部品牌") list = list.filter(r => r.brand === A.brand);
+      if (A.type !== "全部类型") list = list.filter(r => r.familyType === A.type);
+      if (aYear !== "全部年份") list = list.filter(r => { const f = L.familyById(r.familyId); return f && this.yearMatch(f.releaseYear, aYear); }
+);
+      if (A.sort === "重量 ↑") list = [...list].sort((a, b) => (a.official.weight ?? 999) - (b.official.weight ?? 999));
+      if (A.sort === "重量 ↓") list = [...list].sort((a, b) => (b.official.weight ?? 0) - (a.official.weight ?? 0));
+      if (A.sort === "拍面 ↑") list = [...list].sort((a, b) => (a.official.head ?? 999) - (b.official.head ?? 999));
+      if (A.sort === "拍面 ↓") list = [...list].sort((a, b) => (b.official.head ?? 0) - (a.official.head ?? 0));
+      aResults = list.slice(0, 40).map(itemOf);
+    }
+
+    const brandGrid = Object.entries(D.brandProfiles).map(([name, p]) => {
+      const on = A.brand === name;
+      return { name, logo: p.logo, count: D.families.filter(f => f.brand === name).reduce((s, f) => s + f.modelCount, 0), bg: on ? "rgba(23,105,232,.07)" : "#fff", border: on ? blue : "rgba(0,0,0,0)", pick: () => this.setState({ armory: { ...A, brand: on ? "全部品牌" : name }
+ }
+) }
+;
+    }
+);
+    const aQuickChips = types.slice(1).map(t => {
+      const on = A.type === t;
+      return { label: t + "型", bg: on ? blue : "#fff", color: on ? "#fff" : "#3c3c43", pick: () => this.setState({ armory: { ...A, type: on ? "全部类型" : t }
+ }
+) }
+;
+    }
+);
+
+    // ---- tour ----
+    const tourSeg = S.tourSeg || "ATP";
+    const tourRows = D.players.filter(p => p.tour === tourSeg).sort((a, b) => a.rank - b.rank).map(p => {
+      const gearRes = this.resolveGear(p);
+      const gearImg = gearRes.racket ? gearRes.racket.image : (gearRes.family ? gearRes.family.image : null);
+      return {
+        rank: p.rank, cc: p.countryCode, nameZh: p.nameZh, name: p.name,
+        gear: p.marketedModel || p.marketedFamily, mapping: p.mapping,
+        tierColor: tierColors[p.mapping][0], tierBg: tierColors[p.mapping][1],
+        playStyle: p.playStyle,
+        photo: p.portrait ? p.portrait.src : null, photoPos: p.portrait ? p.portrait.objectPosition : "50% 30%",
+        hasImg: !!p.portrait, hasGearImg: !!gearImg, gearImg,
+        open: () => this.push({ kind: "player", id: p.id }
+),
+      }
+;
+    }
+);
+
+    // ---- compare ----
+    const C = S.cmp;
+    const cmpRackets = C.ids.map(id => L.byId(id)).filter(Boolean);
+    const seriesColors = [blue, "#ef5b45", "#2e9b72"];
+    const cmpSlots = [0, 1, 2].map(i => {
+      const r = cmpRackets[i];
+      if (r) return {
+        filled: true, empty: false, name: this.short(r.model), img: this.img(r), color: seriesColors[i],
+        bg: "#fff", border: seriesColors[i], borderStyle: "solid",
+        tap: () => this.openRacket(r.id),
+        remove: (e) => { e.stopPropagation(); this.cSet({ ids: C.ids.filter(x => x !== r.id) }
+, () => this.persist()); }
+,
+      }
+;
+      return { filled: false, empty: true, bg: "rgba(23,105,232,.04)", border: "#b9cdf2", borderStyle: "dashed", tap: () => this.setState({ sheet: "cmp", pickerSearch: "" }
+) }
+;
+    }
+);
+    const cmpTabs = [["overview", "概览"], ["specs", "规格"], ["insights", "解读"]].map(([k, label]) => ({
+      label, bg: C.ws === k ? "#fff" : "transparent", color: C.ws === k ? "#0b0b0f" : "#6d6d72",
+      shadow: C.ws === k ? "0 1px 3px rgba(0,0,0,.12)" : "none", pick: () => this.cSet({ ws: k }
+),
+    }
+));
+    const cx = 160, cy = 112, RR = 82;
+    const radarRings = L.radarGrid(cx, cy, RR).map(pts => ({ pts }
+));
+    const radarAxes = L.radarAxisPoints(cx, cy, RR).map(a => ({
+      x: a.x.toFixed(1), y: a.y.toFixed(1),
+      px: (a.lx / 320 * 100).toFixed(1) + "%", py: (a.ly / 236 * 100).toFixed(1) + "%",
+      label: a.label, w: C.focus === a.key ? "700" : "500", fill: C.focus === a.key ? blue : "#8e8e93",
+      focus: () => this.cSet({ focus: C.focus === a.key ? null : a.key }
+),
+    }
+));
+    const visible = cmpRackets.filter((r, i) => !C.legendOff[r.id]);
+    const radarSeries = cmpRackets.map((r, i) => C.legendOff[r.id] ? null : ({
+      pts: L.radarPoints(r.scores, cx, cy, RR), fill: seriesColors[i] + "26", stroke: seriesColors[i],
+    }
+)).filter(Boolean);
+    const cmpLegend = cmpRackets.map((r, i) => ({
+      name: this.short(r.model), dot: seriesColors[i], bg: "#f2f2f7", color: "#3c3c43",
+      opacity: C.legendOff[r.id] ? "0.4" : "1",
+      toggle: () => this.cSet({ legendOff: { ...C.legendOff, [r.id]: !C.legendOff[r.id] }
+ }
+),
+    }
+));
+    const radarFocusVals = C.focus ? cmpRackets.map((r, i) => ({ val: r.scores[C.focus], name: r.model.split(" ")[0], color: seriesColors[i] }
+)) : [];
+    // duel
+    const duelOn = cmpRackets.length === 2;
+    let duelRows = [], duelA = 0, duelB = 0;
+    if (duelOn) {
+      duelRows = L.scoreKeys.map(k => {
+        const a = cmpRackets[0].scores[k], b = cmpRackets[1].scores[k];
+        if (a > b) duelA++; else if (b > a) duelB++;
+        return { label: L.scoreLabels[k], a, b, aw: a * 0.9 + "%", bw: b * 0.9 + "%", aColor: a >= b ? blue : "#b0b0b6", bColor: b >= a ? "#ef5b45" : "#b0b0b6" }
+;
+      }
+);
+    }
+
+    // specs table
+    const specDefs = [["head", "拍面"], ["weight", "裸拍重量"], ["pattern", "线床"], ["balance", "平衡点"], ["beam", "框厚"], ["length", "长度"]];
+    const insight = cmpRackets.length >= 2 ? L.buildCompareDiffInsights(cmpRackets) : null;
+    const units = { head: " in²", weight: " g", balance: " mm", length: " in" }
+;
+    const cmpSpecRows = cmpRackets.length ? specDefs.map(([key, label]) => ({
+      label, hlOn: insight && insight.highlightKey === key, hl: insight && insight.highlightKey === key ? "rgba(23,105,232,.05)" : "transparent",
+      vals: cmpRackets.map((r, i) => {
+        const v = r.official[key];
+        const tag = (r.specTags || []).find(t => t.key === key);
+        return { text: v === null ? "官网未公开" : v + (units[key] || (key === "beam" ? " mm" : "")), color: v === null ? "#b0b0b6" : seriesColors[i], note: tag ? tag.characteristic : "" }
+;
+      }
+),
+    }
+)) : [];
+    const insightCards = insight && insight.status === "ok" ? insight.insights.map(i => ({ label: L.diffLabels[i.key], ratio: "×" + (Math.round(i.ratio * 10) / 10), sentence: i.sentence }
+)) : [];
+
+    // ---- overlays ----
+    const touch = this.makeTouch();
+    const tierLegend = [
+      { name: "型号级映射", color: "#2e9b72", desc: "官网明确到具体零售型号" }
+,
+      { name: "系列级映射", color: "#1769e8", desc: "官网归入某拍系,未指认子型号" }
+,
+      { name: "基础型号等效", color: "#a96a31", desc: "以基础版型号作为最接近等效" }
+,
+      { name: "当前拍系参考", color: "#6d6d72", desc: "仅当前代拍系可作参考" }
+,
+    ];
+    const overlays = this.state.stack.map((item, idx) => {
+      const isTop = idx === this.state.stack.length - 1;
+      const common = {
+        isRacket: false, isFamily: false, isPlayer: false,
+        back: () => this.pop(), ts: touch.ts, tm: touch.tm, te: touch.te,
+        dragX: isTop ? S.drag.x : 0, trans: S.drag.on ? "none" : "transform .25s ease",
+      }
+;
+      if (item.kind === "racket") {
+        const r = L.byId(item.id);
+        if (!r) return null;
+        const rings = L.radarGrid(160, 108, 78).map(pts => ({ pts }
+));
+        const axes = L.radarAxisPoints(160, 108, 78).map(a => ({
+          x: a.x.toFixed(1), y: a.y.toFixed(1),
+          px: (a.lx / 320 * 100).toFixed(1) + "%", py: (a.ly / 226 * 100).toFixed(1) + "%",
+          txt: S.profFocus === a.key ? a.label + " " + r.scores[a.key] : a.label,
+          w: S.profFocus === a.key ? "700" : "500", fill: S.profFocus === a.key ? blue : "#8e8e93",
+          focus: () => this.setState({ profFocus: S.profFocus === a.key ? null : a.key }
+),
+        }
+));
+        const sim = L.similarRackets(r, D.rackets, 3).map(s => {
+          const sr = L.byId(s.racketId);
+          return { name: sr.model, sub: subOf(sr), img: this.img(sr), dist: s.distance.toFixed(2), open: () => this.push({ kind: "racket", id: sr.id }
+) }
+;
+        }
+);
+        const inCmp = C.ids.includes(r.id);
+        const specNames = { head: "拍面", weight: "重量", pattern: "线床", balance: "平衡", beam: "框厚", length: "长度" }
+;
+        return {
+          ...common, isRacket: true, title: r.brand + " · " + r.familyName,
+          r: {
+            model: r.model, brand: r.brand, brandLogo: D.brandProfiles[r.brand]?.logo, img: this.img(r),
+            familyType: r.familyType, typeColor: D.typeAccent[r.familyType], generation: r.generation,
+            stages: r.stages.join(" / "), summary: r.summary, verdict: r.verdict, profileBasis: r.profileBasis,
+            specCoverage: "官网公开 " + r.specCoverage, traitSummary: r.traitSummary,
+            buyUrl: r.buyUrl, buyLabel: r.buyLabel,
+            cmpLabel: inCmp ? "✓ 已在决策室" : "＋ 加入对比", cmpBg: inCmp ? "rgba(46,155,114,.1)" : "#f2f2f7", cmpColor: inCmp ? "#2e9b72" : "#0b0b0f",
+            addCompare: () => { if (!inCmp) this.addCompare(r.id); else this.go("compare"); }
+,
+            specRows: r.specTags.map(t => ({ name: specNames[t.key], label: t.label, valColor: t.known ? "#0b0b0f" : "#b0b0b6", characteristic: t.characteristic, familyPosition: t.familyPosition, ms: t.mainstream }
+)),
+            rings, axes, poly: L.radarPoints(r.scores, 160, 108, 78),
+            traits: r.primaryTraitTags.map(t => ({ label: t }
+)),
+            hasSimilar: sim.length > 0, similar: sim,
+          }
+,
+        }
+;
+      }
+
+      if (item.kind === "family") {
+        const f = L.familyById(item.id);
+        if (!f) return null;
+        const models = L.racketsOfFamily(f.id).map(r => ({
+          name: r.model, sub: r.stages.join("/") + " · " + r.styles[0],
+          chips: [r.official.head !== null ? { t: r.official.head + "in²" }
+ : { t: "—" }
+, r.official.weight !== null ? { t: r.official.weight + "g" }
+ : { t: "—" }
+],
+          open: () => this.push({ kind: "racket", id: r.id }
+),
+        }
+));
+        return {
+          ...common, isFamily: true, title: f.brand + " " + f.family,
+          f: {
+            family: f.family, type: f.type, typeColor: D.typeAccent[f.type],
+            sub: f.brand + " · " + f.generation + (f.releaseYear ? " · " + f.releaseYear : ""),
+            summary: f.summary || "", img: f.image || "public/rackets/gallery/wilson-blade-v10-02.png",
+            hasNote: !!f.note, note: f.note || "", modelsTitle: "全部型号 · " + models.length + " 款", models,
+          }
+,
+        }
+;
+      }
+
+      if (item.kind === "player") {
+        const p = D.players.find(x => x.id === item.id);
+        if (!p) return null;
+        const gearRes = this.resolveGear(p);
+        const retail = gearRes.racket;
+        const gearFamily = gearRes.family;
+        return {
+          ...common, isPlayer: true, title: p.tour + " #" + p.rank,
+          p: {
+            nameZh: p.nameZh, name: p.name, country: p.country, rank: p.rank, tour: p.tour,
+            photo: p.portrait ? p.portrait.src : null, photoPos: p.portrait ? p.portrait.objectPosition : "50% 30%",
+            hasPhoto: !!p.portrait,
+            photoCredit: p.portrait ? "照片:" + p.portrait.credit + " · " + p.portrait.license : "",
+            playStyle: p.playStyle || "", signature: p.signature || "",
+            traits: (p.traits || []).map(t => ({ label: t }
+)),
+            mapping: p.mapping, tierColor: tierColors[p.mapping][0], tierBg: tierColors[p.mapping][1],
+            gear: p.marketedModel || p.marketedFamily, brand: p.brand,
+            hasImg: !!(retail ? retail.image : (gearFamily && gearFamily.image)),
+            img: retail ? retail.image : (gearFamily ? gearFamily.image : null), note: p.note,
+            hasRetail: !!(retail || gearFamily),
+            retailLabel: retail ? "查看零售拍档案 ›" : "查看对应拍系 ›",
+            openRetail: retail ? () => this.push({ kind: "racket", id: retail.id }
+) : (gearFamily ? () => this.push({ kind: "family", id: gearFamily.id }
+) : () => {}
+),
+          }
+,
+        }
+;
+      }
+
+      return null;
+    }
+).filter(Boolean);
+
+    // ---- sheets ----
+    const sheet = S.sheet;
+    const pickList = (sheet === "cmp" || sheet === "baseline")
+      ? (S.pickerSearch.trim() ? D.rackets.filter(r => L.matchesSearch([r.brand, r.familyName, r.model], S.pickerSearch)) : D.rackets.filter(r => S.recent.includes(r.id)).concat(D.curated.flatMap(c => c.racketIds.map(id => L.byId(id)))).filter((r, i, arr) => arr.findIndex(x => x.id === r.id) === i)).slice(0, 10)
+      : [];
+    const pickerResults = pickList.map(r => ({
+      name: r.model, sub: subOf(r), img: this.img(r),
+      pick: () => {
+        if (sheet === "cmp") { this.addCompare(r.id); this.setState({ sheet: null }
+); }
+
+        else { this.mSet({ baselineId: r.id }
+, () => this.persist()); this.setState({ sheet: null }
+); }
+
+      }
+,
+    }
+));
+    const chipStyle = on => ({ bg: on ? blue : "#fff", color: on ? "#fff" : "#3c3c43" }
+);
+    return {
+      w: 393, h: 852,
+      metaLine: D.meta.brandCount + " 品牌 · " + D.meta.modelCount + " 款官网核验 · " + D.meta.verifiedAt,
+      verifiedAt: D.meta.verifiedAt,
+      // tabs
+      isDiscover: S.tab === "discover", isMatch: S.tab === "match", isArmory: S.tab === "armory", isTour: S.tab === "tour", isCompare: S.tab === "compare",
+      goDiscover: () => this.go("discover"), goMatch: () => this.go("match"), goArmory: () => this.go("armory"), goTour: () => this.go("tour"), goCompare: () => this.go("compare"),
+      tabC0: S.tab === "discover" ? blue : gray, tabC1: S.tab === "match" ? blue : gray, tabC2: S.tab === "armory" ? blue : gray, tabC3: S.tab === "tour" ? blue : gray, tabC4: S.tab === "compare" ? blue : gray,
+      cmpBadgeOn: C.ids.length > 0, cmpCount: C.ids.length,
+      // discover
+      dTitleSize: S.dCollapsed ? 20 : 34, dExpanded: !S.dCollapsed,
+      onDScroll: (e) => { const c = e.currentTarget.scrollTop > 26; if (c !== S.dCollapsed) this.setState({ dCollapsed: c }
+); }
+,
+      dSearch: S.dSearch, onDSearch: (e) => this.setState({ dSearch: e.target.value }
+),
+      clearDSearch: () => this.setState({ dSearch: "" }
+),
+      dSearchActive: dActive, dSearchIdle: !dActive, dSearchResults: dResults, dSearchCount: dResults.length ? "匹配 " + dResults.length + " 款(前 8)" : "没有匹配的型号",
+      refreshing: S.refreshing,
+      curatedCards,
+      hasRec: recCards.length > 0, noRec: recCards.length === 0, recCards,
+      recSub: committed ? "基于你的处方:" + committed.stage + " · " + committed.style : "还没有处方答案",
+      hasRecent: recentRow.length > 0, recentRow,
+      // match
+      mIdle: phase === "idle", mQuestion: phase === "question", mResult: phase === "result",
+      mStart: () => this.mSet({ draft: { step: 0, answers: { ...(committed || {}
+) }
+ }
+ }
+),
+      mBack: () => { const d = M.draft; if (!d || d.step === 0) { this.mSet({ draft: null }
+); }
+ else this.mSet({ draft: { ...d, step: d.step - 1 }
+ }
+); }
+,
+      mRedo: () => this.mSet({ draft: { step: 0, answers: { ...committed }
+ }
+, expanded: null }
+),
+      mProgress, mStepLabel, mQuestionTitle, mQuestionSub, mOptions,
+      mProfileLine, mBaselineNote, mQuickChips, mResults,
+      baselineLine: baseline ? baseline.model : "选择后,推荐差值将相对你的当前拍计算",
+      baselineAction: baseline ? "更换" : "选择",
+      openBaselineSheet: () => this.setState({ sheet: "baseline", pickerSearch: "" }
+),
+      // armory
+      aCountLine: D.meta.familyCount + " 拍系 · " + D.meta.modelCount + " 款",
+      aSearch: S.aSearch, onASearch: (e) => this.setState({ aSearch: e.target.value }
+), clearASearch: () => this.setState({ aSearch: "" }
+),
+      aSearchActive: aActive, aBrowse: !aActive,
+      aResultCount: aResults.length >= 40 ? "匹配较多,显示前 40 款" : "匹配 " + aResults.length + " 款",
+      aSearchResults: aResults, brandGrid, aQuickChips,
+      aFilterCount: filterCount ? " · " + filterCount : "", aFilterChipBg: filterCount ? blue : "#fff", aFilterChipColor: filterCount ? "#fff" : "#3c3c43",
+      aFamiliesTitle: (A.brand === "全部品牌" ? "全部拍系" : A.brand + " 拍系") + " · " + familyCards.length,
+      familyCards,
+      openFilterSheet: () => this.setState({ sheet: "filter" }
+),
+      // tour
+      tourAsOf: D.meta.tourRankAsOf, tourRows,
+      pickATP: () => this.setState({ tourSeg: "ATP" }
+), pickWTA: () => this.setState({ tourSeg: "WTA" }
+),
+      atpBg: tourSeg === "ATP" ? "#fff" : "transparent", atpColor: tourSeg === "ATP" ? "#0b0b0f" : "#6d6d72", atpShadow: tourSeg === "ATP" ? "0 1px 3px rgba(0,0,0,.12)" : "none",
+      wtaBg: tourSeg === "WTA" ? "#fff" : "transparent", wtaColor: tourSeg === "WTA" ? "#0b0b0f" : "#6d6d72", wtaShadow: tourSeg === "WTA" ? "0 1px 3px rgba(0,0,0,.12)" : "none",
+      tierLegend,
+      // compare
+      cmpSlots, cmpTabs, cmpHasAny: cmpRackets.length > 0, cmpEmpty: cmpRackets.length === 0,
+      cmpOverview: cmpRackets.length > 0 && C.ws === "overview",
+      cmpSpecs: cmpRackets.length > 0 && C.ws === "specs",
+      cmpInsights: cmpRackets.length > 0 && C.ws === "insights",
+      cmpAddFirst: () => this.setState({ sheet: "cmp", pickerSearch: "" }
+),
+      cmpLegend, radarRings, radarAxes, radarSeries,
+      radarFocusOn: !!C.focus, radarFocusLabel: C.focus ? L.scoreLabels[C.focus] : "", radarFocusVals, radarFocusClear: () => this.cSet({ focus: null }
+),
+      duelOn, duelRows, duelAScore: duelA, duelBScore: duelB,
+      duelAName: duelOn ? cmpRackets[0].model : "", duelBName: duelOn ? cmpRackets[1].model : "",
+      cmpSpecRows, insightCards,
+      insightNeedTwo: cmpRackets.length === 1 && C.ws === "insights",
+      insightExcluded: insight ? insight.excluded.length > 0 : false,
+      insightExcludedText: insight ? insight.excludedLabels.join("、") : "",
+      insightNoDiff: insight ? insight.status === "no-significant-diff" : false,
+      // overlays + sheets
+      overlays,
+      sheetOn: !!sheet, closeSheet: () => this.setState({ sheet: null }
+),
+      sheetTitle: sheet === "filter" ? "筛选与排序" : sheet === "cmp" ? "添加到决策室" : "选择当前用拍",
+      sheetIsFilter: sheet === "filter", sheetIsPicker: sheet === "cmp" || sheet === "baseline",
+      sheetBrands: brands.map(b => ({ label: b, ...chipStyle(A.brand === b), pick: () => this.setState({ armory: { ...A, brand: b }
+ }
+) }
+)),
+      sheetTypes: types.map(t => ({ label: t, ...chipStyle(A.type === t), pick: () => this.setState({ armory: { ...A, type: t }
+ }
+) }
+)),
+      sheetSorts: sorts.map(s => ({ label: s, ...chipStyle(A.sort === s), pick: () => this.setState({ armory: { ...A, sort: s }
+ }
+) }
+)),
+      sheetYears: yearOpts.map(y => ({ label: y, ...chipStyle(aYear === y), pick: () => this.setState({ armory: { ...A, year: y }
+ }
+) }
+)),
+      resetFilters: () => this.setState({ armory: { brand: "全部品牌", type: "全部类型", sort: "默认排序", year: "全部年份" }
+ }
+),
+      pickerSearch: S.pickerSearch, onPickerSearch: (e) => this.setState({ pickerSearch: e.target.value }
+),
+      pickerPlaceholder: sheet === "cmp" ? "搜索要对比的型号" : "搜索你的当前用拍",
+      pickerResults,
+      pickerCanClear: sheet === "baseline" && !!M.baselineId,
+      pickerClearLabel: "清除基准拍(改用拍库中位)",
+      pickerClear: () => { this.mSet({ baselineId: null }
+, () => this.persist()); this.setState({ sheet: null }
+); }
+,
+    }
+;
+  }
+
+}
+
+</script>
+</body>
+</html>
