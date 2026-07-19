@@ -542,6 +542,47 @@ const appTabs: { id: AppView; label: string; icon: string }[] = [
   { id: "compare", label: "决策", icon: "⇄" },
 ];
 
+const tabIconShapes: Record<AppView, React.ReactNode> = {
+  discover: (
+    <>
+      <circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" strokeWidth="1.8" />
+      <circle cx="12" cy="12" r="3" fill="currentColor" />
+    </>
+  ),
+  match: (
+    <>
+      <rect x="5" y="3.5" width="14" height="17" rx="3" fill="none" stroke="currentColor" strokeWidth="1.8" />
+      <rect x="8.5" y="8" width="7" height="1.8" rx="0.9" fill="currentColor" />
+      <rect x="8.5" y="12" width="7" height="1.8" rx="0.9" fill="currentColor" />
+    </>
+  ),
+  armory: (
+    <>
+      <rect x="4" y="4" width="7" height="7" rx="2" fill="currentColor" />
+      <rect x="13" y="4" width="7" height="7" rx="2" fill="currentColor" />
+      <rect x="4" y="13" width="7" height="7" rx="2" fill="currentColor" />
+      <rect x="13" y="13" width="7" height="7" rx="2" fill="currentColor" />
+    </>
+  ),
+  tour: (
+    <polygon points="12,3.5 14.6,8.9 20.5,9.7 16.2,13.9 17.2,19.8 12,17 6.8,19.8 7.8,13.9 3.5,9.7 9.4,8.9" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
+  ),
+  compare: (
+    <>
+      <circle cx="9" cy="12" r="5.5" fill="none" stroke="currentColor" strokeWidth="1.8" />
+      <circle cx="15" cy="12" r="5.5" fill="none" stroke="currentColor" strokeWidth="1.8" />
+    </>
+  ),
+};
+
+function TabIcon({ view }: { view: AppView }) {
+  return (
+    <svg width="23" height="23" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      {tabIconShapes[view]}
+    </svg>
+  );
+}
+
 const decisionStatusLabels: Record<DecisionCandidateStatus, string> = {
   candidate: "候选",
   trial: "试打中",
@@ -4392,7 +4433,7 @@ export default function RacketApp() {
       <nav className="mobile-tabbar" aria-label="应用导航">
         {appTabs.map((tab) => (
           <button key={tab.id} aria-current={activeView === tab.id ? "page" : undefined} aria-label={tabAriaLabel(tab)} onClick={() => goToView(tab.id, "restore")}>
-            <span aria-hidden="true">{tab.icon}</span><b>{tab.label}</b>{tabBadge(tab.id) && <i aria-hidden="true">{tabBadge(tab.id)}</i>}
+            <span aria-hidden="true"><TabIcon view={tab.id} /></span><b>{tab.label}</b>{tabBadge(tab.id) && <i aria-hidden="true">{tabBadge(tab.id)}</i>}
           </button>
         ))}
       </nav>
