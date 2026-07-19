@@ -10409,3 +10409,326 @@ a:active {
     background: rgba(0, 0, 0, 0.55);
   }
 }
+
+/* === proto-a 球星 === */
+@media (max-width: 760px) {
+  .tour-view .view-title > div {
+    align-items: baseline;
+    display: flex;
+    gap: 12px;
+    justify-content: space-between;
+    width: 100%;
+  }
+
+  .tour-view .view-title h1 {
+    order: -1;
+  }
+
+  .tour-view .view-title p {
+    color: var(--m-text-3);
+    font-size: 12px;
+    margin: 0;
+    text-align: right;
+    white-space: nowrap;
+  }
+
+  .tour-view .tour-intro {
+    display: none;
+  }
+
+  .tour-view .tour-commandbar {
+    backdrop-filter: none;
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    gap: 10px;
+    margin-bottom: 10px;
+    padding: 0;
+    position: static;
+    -webkit-backdrop-filter: none;
+  }
+
+  .tour-view .tour-switch button {
+    border-radius: 8px;
+    flex-direction: row;
+    gap: 5px;
+    min-height: 34px;
+  }
+
+  .tour-view .tour-switch b {
+    font-size: 13.5px;
+    font-weight: 600;
+  }
+
+  .tour-view .tour-switch span {
+    font-size: 11px;
+  }
+
+  .tour-view .tour-switch button[aria-selected="true"] {
+    background: #ffffff;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+    color: var(--text);
+  }
+
+  .tour-view .tour-commandbar__summary {
+    padding: 0 2px;
+  }
+
+  .tour-view .tour-commandbar__summary button,
+  .tour-view .tour-commandbar__summary a {
+    min-height: 40px;
+    padding: 0 10px;
+  }
+
+  .tour-view .tour-player-card {
+    border: 0;
+    border-radius: 16px;
+  }
+
+  .tour-view .tour-player-card--leader {
+    background: var(--surface);
+    color: inherit;
+    display: flex;
+    min-height: 0;
+  }
+
+  .tour-view .tour-player-card__visual,
+  .tour-view .tour-player-card--leader .tour-player-card__visual {
+    align-items: start;
+    background: transparent;
+    display: grid;
+    gap: 2px 12px;
+    grid-template-columns: 52px minmax(0, 1fr) 46px;
+    height: auto;
+    overflow: visible;
+    padding: 12px 12px 0;
+  }
+
+  .tour-view .tour-player-card__visual .tour-player-portrait,
+  .tour-view .tour-player-card__visual .tour-player-portrait__fallback {
+    border-radius: 50%;
+    height: 52px;
+    object-fit: cover;
+    width: 52px;
+  }
+
+  .tour-view .tour-player-card__visual .tour-player-portrait__fallback b {
+    font-size: 15px;
+  }
+
+  .tour-view .tour-player-card__visual .tour-player-portrait__fallback small {
+    font-size: 7px;
+  }
+
+  .tour-view .tour-player-card__shade {
+    display: none;
+  }
+
+  .tour-view .tour-player-card__rank {
+    backdrop-filter: none;
+    background: var(--m-accent);
+    border: 2px solid var(--surface);
+    border-radius: 10px;
+    gap: 0;
+    height: 21px;
+    justify-content: center;
+    left: 44px;
+    min-width: 21px;
+    padding: 0 4px;
+    top: 46px;
+    -webkit-backdrop-filter: none;
+  }
+
+  .tour-view .tour-player-card__rank span {
+    display: none;
+  }
+
+  .tour-view .tour-player-card__rank b {
+    color: #ffffff;
+    font-size: 10px;
+    font-weight: 700;
+  }
+
+  .tour-view .tour-player-card__identity,
+  .tour-view .tour-player-card--leader .tour-player-card__identity {
+    bottom: auto;
+    color: var(--text);
+    left: auto;
+    max-width: none;
+    position: static;
+  }
+
+  .tour-view .tour-player-card__identity > p {
+    color: var(--m-text-3);
+    font-size: 10px;
+    margin: 0 0 2px;
+  }
+
+  .tour-view .tour-player-card__identity h3,
+  .tour-view .tour-player-card--leader .tour-player-card__identity h3 {
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 0;
+    line-height: 1.3;
+  }
+
+  .tour-view .tour-player-card__identity > small {
+    color: var(--m-text-3);
+    display: inline;
+    font-size: 11px;
+    margin-top: 2px;
+  }
+
+  .tour-view .tour-player-card__identity > em {
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    color: var(--m-text-3);
+    display: inline;
+    font-size: 11px;
+    font-weight: 500;
+    margin: 0;
+    padding: 0;
+  }
+
+  .tour-view .tour-player-card__identity > em::before {
+    content: "· ";
+  }
+
+  .tour-view .tour-player-card__racket-peek,
+  .tour-view .tour-player-card--leader .tour-player-card__racket-peek {
+    align-items: center;
+    backdrop-filter: none;
+    background: var(--surface-soft);
+    border: 0;
+    border-radius: 10px;
+    bottom: auto;
+    box-shadow: none;
+    display: flex;
+    height: 46px;
+    justify-content: center;
+    min-height: 0;
+    padding: 2px;
+    position: static;
+    right: auto;
+    width: 46px;
+    -webkit-backdrop-filter: none;
+  }
+
+  .tour-view .tour-player-card__racket-peek > img,
+  .tour-view .tour-player-card__racket-peek > span[role="img"] {
+    height: 40px;
+    width: 40px;
+  }
+
+  .tour-view .tour-player-card__racket-peek > span:last-child {
+    display: none;
+  }
+
+  .tour-view .tour-player-card__body,
+  .tour-view .tour-player-card--leader .tour-player-card__body {
+    justify-content: flex-start;
+    padding: 10px 12px 12px;
+  }
+
+  .tour-view .tour-player-card__story > p {
+    font-size: 12px;
+    margin-top: 4px;
+  }
+
+  .tour-view .tour-player-card__traits {
+    margin-top: 8px;
+  }
+
+  .tour-view .tour-player-card__sync {
+    margin-top: 10px;
+    padding: 10px 12px;
+  }
+
+  .tour-view .tour-player-card__mapping {
+    border-radius: 12px;
+  }
+
+  .tour-view .tour-player-card--leader .tour-player-card__traits span,
+  .tour-view .tour-player-card--leader .tour-player-card__mapping > div > small,
+  .tour-view .tour-player-card--leader .tour-player-card__mapping dt,
+  .tour-view .tour-player-card--leader .tour-player-card__evidence summary,
+  .tour-view .tour-player-card--leader .tour-player-card__evidence > p,
+  .tour-view .tour-player-card--leader .tour-player-card__sync > span b {
+    color: var(--text-soft);
+  }
+
+  .tour-view .tour-player-card--leader .tour-player-card__traits span,
+  .tour-view .tour-player-card--leader .tour-player-card__mapping > div {
+    background: var(--surface-soft);
+  }
+
+  .tour-view .tour-player-card--leader .tour-player-card__traits span,
+  .tour-view .tour-player-card--leader .tour-player-card__mapping,
+  .tour-view .tour-player-card--leader .tour-player-card__evidence,
+  .tour-view .tour-player-card--leader .tour-player-card__mapping dl > div {
+    border-color: var(--separator);
+  }
+
+  .tour-view .tour-player-card--leader .tour-player-card__sync {
+    background: linear-gradient(110deg, var(--accent-soft), color-mix(in srgb, var(--accent-soft) 35%, var(--surface)));
+  }
+
+  .tour-view .tour-player-card--leader .tour-player-card__sync > span small,
+  .tour-view .tour-player-card--leader .tour-player-card__sync > strong,
+  .tour-view .tour-player-card--leader .tour-player-card__sources a,
+  .tour-view .tour-player-card--leader .tour-player-card__share {
+    color: var(--accent);
+  }
+
+  .tour-view .tour-player-card--leader .tour-mapping-badge--exact {
+    color: #12844a;
+  }
+
+  .tour-view .tour-player-card--leader .tour-mapping-badge--family {
+    color: var(--accent);
+  }
+
+  .tour-view .tour-player-card--leader .tour-mapping-badge--equivalent {
+    color: #9a5b00;
+  }
+
+  .tour-view .tour-player-card--leader .tour-mapping-badge--reference {
+    color: var(--text-soft);
+  }
+
+  .tour-view .tour-player-card--leader .tour-player-card__journey button {
+    background: var(--accent-soft);
+    color: var(--accent);
+  }
+
+  .tour-view .tour-player-card--leader .tour-player-card__journey button[aria-pressed="true"] {
+    background: var(--accent);
+    color: var(--accent-ink);
+  }
+
+  .tour-view .tour-ranking__heading h2 {
+    font-size: 17px;
+    letter-spacing: 0;
+  }
+
+  .tour-view .tour-ranking__heading > div > p {
+    font-size: 10px;
+  }
+
+  .tour-mfooter {
+    color: var(--m-text-4);
+    font-size: 10.5px;
+    line-height: 1.7;
+    margin: 12px 2px 0;
+  }
+}
+
+@media (max-width: 760px) and (prefers-color-scheme: dark) {
+  /* === proto-a 球星 (dark) === */
+  .tour-view .tour-switch button[aria-selected="true"] {
+    background: #3f4046;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+    color: var(--text);
+  }
+}

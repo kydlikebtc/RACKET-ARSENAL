@@ -4606,7 +4606,7 @@ export default function RacketApp() {
 
             <div className="tour-commandbar">
               <div
-                className="tour-switch"
+                className="tour-switch m-seg"
                 role="tablist"
                 aria-label="选择巡回赛"
                 onKeyDown={(event) => moveHorizontalTab(event, ["ATP", "WTA"] as const, tourFilter, commitTourFilter)}
@@ -4672,6 +4672,7 @@ export default function RacketApp() {
                     </ul>
                   </div>
                 </details>
+                <p className="tour-mfooter m-only">每条映射标注四档可信度；比赛拍与零售拍的规格可能不同，以官网口径为准。</p>
               </section>
             ) : (
               <div className="app-empty" role="status"><span aria-hidden="true">★</span><h2>{tourFilter} 榜单正在更新</h2><p>本组数据暂不可用，请稍后再试或切换另一巡回赛。</p></div>
