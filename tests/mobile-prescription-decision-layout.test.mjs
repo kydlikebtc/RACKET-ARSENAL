@@ -1,0 +1,92 @@
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import test from "node:test";
+
+const [page, css] = await Promise.all([
+  readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
+  readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+]);
+
+const refinementStart = css.indexOf("/* === prescription + decision layout refinement === */");
+const refinementEnd = css.indexOf("/* === prescription + decision layout refinement end === */");
+const refinement = css.slice(refinementStart, refinementEnd);
+
+test("hands prescription results directly into the decision room without a duplicate mobile CTA", () => {
+  const resultList = page.indexOf('className="match-result-list"');
+  const nextAction = page.indexOf('className="m-only m-match-next"');
+  const tourSync = page.indexOf('className="match-sync"');
+  const matchNextRules = refinement.slice(
+    refinement.indexOf(".match-view .m-match-next {"),
+    refinement.indexOf(".m-match-next > span {")
+  );
+
+  assert.ok(resultList < nextAction && nextAction < tourSync, "the next action belongs immediately after recommendations");
+  assert.match(page, /compareIds\.length > 0 \? \(\) => goToView\("compare"\) : compareTopMatches/);
+  assert.match(refinement, /\.match-view \.match-results-actions\s*{\s*display:\s*none;/);
+  assert.doesNotMatch(matchNextRules, /position:\s*sticky/);
+  assert.match(refinement, /\.m-match-next > button[\s\S]*?min-height:\s*44px/);
+});
+
+test("keeps a compact three-slot decision header ahead of every mobile workspace", () => {
+  const visibleTitle = page.indexOf('id="compare-title"');
+  const slotbar = page.indexOf('className="m-only m-decision-slotbar"');
+  const workspace = page.indexOf('className="compare-app-loaded"');
+  const panelTabs = page.indexOf('className="compare-panel-tabs"', workspace);
+  const pendingGuidance = page.indexOf("{pendingCompareRacket && (", workspace);
+  const mobileWorkflow = page.indexOf('className="m-only decision-workflow decision-workflow--mobile"');
+  const viewTitleRules = refinement.slice(
+    refinement.indexOf(".compare-view > .view-title {"),
+    refinement.indexOf(".compare-view > .view-title > div:first-child {")
+  );
+
+  assert.ok(visibleTitle < slotbar && slotbar < workspace && workspace < mobileWorkflow, "visible title and slots must precede the workspace, with long-form progress last");
+  assert.ok(workspace < panelTabs && panelTabs < pendingGuidance, "tab focus order must match its visual position before guidance and suggestions");
+  assert.match(page, /compareSlotRackets\.map\(\(\{ slot, racket \}\) => racket/);
+  assert.match(page, /pendingCompareRacket \? replacePendingCompare\(racket\.id\) : toggleCompare\(racket\.id\)/);
+  assert.match(page, /className="m-decision-slot__remove"[\s\S]*?data-compare-remove-id=\{racket\.id\}/);
+  assert.match(page, /slot === firstEmptyCompareSlot/);
+  assert.match(refinement, /\.compare-view > \.m-decision-slotbar[\s\S]*?grid-template-columns:\s*repeat\(3, minmax\(0, 1fr\)\)/);
+  assert.match(refinement, /\.compare-view > \.view-title[\s\S]*?position:\s*sticky/);
+  assert.doesNotMatch(viewTitleRules, /display:\s*none/);
+  assert.match(refinement, /\.compare-view > \.view-title > div:first-child[\s\S]*?flex-direction:\s*column-reverse/);
+  assert.match(refinement, /\.compare-view \.compare-title-actions[\s\S]*?flex-direction:\s*row/);
+  assert.match(refinement, /\.m-decision-slot[\s\S]*?height:\s*76px/);
+  assert.match(refinement, /\.m-decision-slot__remove[\s\S]*?height:\s*44px[\s\S]*?width:\s*44px/);
+  assert.match(refinement, /\.compare-view > \.decision-workflow:not\(\.decision-workflow--mobile\)[\s\S]*?display:\s*none/);
+  assert.match(refinement, /\.compare-view > \.decision-workflow--mobile[\s\S]*?display:\s*grid/);
+  assert.doesNotMatch(refinement, /^\s*order\s*:/m);
+  assert.match(refinement, /\.compare-view \.compare-panel-tabs\s*{[\s\S]*?position:\s*static;[\s\S]*?top:\s*auto;[\s\S]*?z-index:\s*auto;/);
+  assert.match(page, /className="m-decision-slot__main"[\s\S]*?disabled=\{Boolean\(pendingCompareRacket\)\}/);
+  assert.match(page, /item\.dataset\.compareRemoveId === target && !item\.disabled && item\.getClientRects\(\)\.length > 0/);
+  assert.match(page, /className="text-action compare-title-actions__clear"/);
+});
+
+test("uses the radar first and limits mobile specifications to six official rows", () => {
+  const radar = page.indexOf('<section className="compare-radar-card">');
+  const duel = page.indexOf('<section className="compare-duel-arena"');
+
+  assert.ok(radar !== -1 && duel !== -1 && radar < duel, "the radar should establish the comparison before the duel report");
+  assert.match(page, /className=\{`compare-spec-row--\$\{row\.rowKind\}/);
+  assert.match(refinement, /\.compare-spec-table tbody \.compare-spec-row--meta,[\s\S]*?\.compare-spec-row--score\s*{\s*display:\s*none;/);
+  assert.match(refinement, /font-variant-numeric:\s*tabular-nums/);
+  assert.match(refinement, /\.compare-view \.compare-spec-table th,[\s\S]*?\.compare-view \.compare-spec-table td[\s\S]*?min-width:\s*0/);
+  assert.match(refinement, /\.compare-panel-surface > \.compare-product-grid--overview,[\s\S]*?display:\s*none/);
+});
+
+test("keeps the 320px prescription result readable", () => {
+  assert.match(refinement, /@media \(max-width:\s*360px\)[\s\S]*?\.match-view \.match-result-card[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\) 48px 44px/);
+  assert.match(refinement, /@media \(max-width:\s*360px\)[\s\S]*?\.match-result-card__rank[\s\S]*?display:\s*none/);
+  assert.match(refinement, /@media \(max-width:\s*360px\)[\s\S]*?\.match-result-card__main[\s\S]*?grid-row:\s*1/);
+  assert.match(refinement, /@media \(max-width:\s*360px\)[\s\S]*?\.match-result-card__add[\s\S]*?grid-row:\s*2/);
+  assert.match(refinement, /@media \(max-width:\s*360px\)[\s\S]*?\.match-result-breakdown[\s\S]*?grid-row:\s*3/);
+});
+
+test("avoids competing floating and inline decision calls to action on the result screen", () => {
+  assert.match(page, /const showCompareTray = compareIds\.length > 0 && activeView !== "compare" && !\(activeView === "match" && matchStep === 3\)/);
+  assert.match(page, /!selected && !selectedFamily && showCompareTray/);
+});
+
+test("only announces horizontal table controls when the desktop table actually scrolls", () => {
+  assert.match(page, /aria-describedby=\{compareTableScrollable \? "compare-scroll-hint" : undefined\}/);
+  assert.match(page, /tabIndex=\{compareTableScrollable \? 0 : -1\}/);
+});

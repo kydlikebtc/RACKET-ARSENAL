@@ -243,7 +243,7 @@ const racketImages: Record<string, string> = {
 };
 
 const radarKeys: ScoreKey[] = ["control", "power", "spin", "agility", "forgiveness", "feel"];
-const radarSeries = ["var(--acid)", "var(--copper)", "var(--sky)"];
+const radarSeries = ["var(--compare-series-1)", "var(--compare-series-2)", "var(--compare-series-3)"];
 const radarDash = ["none", "10 5", "2 5"];
 const compareBaselineIds = ["catalog-wilson-blade-v10-blade-100-v10", "catalog-yonex-ezone-8-ezone-100", "catalog-babolat-pure-aero-gen9-pure-aero-gen9"];
 const deepRacketById = new Map(deepRackets.map((racket) => [racket.id, racket]));
@@ -2839,7 +2839,7 @@ export default function RacketApp() {
         return;
       }
       const button = Array.from(document.querySelectorAll<HTMLButtonElement>("[data-compare-remove-id]"))
-        .find((item) => item.dataset.compareRemoveId === target);
+        .find((item) => item.dataset.compareRemoveId === target && !item.disabled && item.getClientRects().length > 0);
       button?.focus({ preventScroll: true });
     });
     return () => window.cancelAnimationFrame(frame);
@@ -4097,9 +4097,10 @@ export default function RacketApp() {
     : tab.id === "match" && matchFlow.draft
       ? `换拍处方，有未完成草稿，第 ${matchFlow.draft.step + 1}/3 步`
       : tab.label;
+  const showCompareTray = compareIds.length > 0 && activeView !== "compare" && !(activeView === "match" && matchStep === 3);
 
   return (
-    <div className={`racket-app${compareIds.length > 0 && activeView !== "compare" ? " racket-app--with-compare-tray" : ""}`} aria-busy={!sessionReady}>
+    <div className={`racket-app${showCompareTray ? " racket-app--with-compare-tray" : ""}`} aria-busy={!sessionReady}>
       {!sessionReady && <div className="app-boot" role="status"><span aria-hidden="true">拍</span><p>正在装载球拍库与个人档案…</p></div>}
       <div className="app-shell" inert={!sessionReady} aria-hidden={!sessionReady}>
       <a className="skip-link" href="#main-content" onClick={(event) => { event.preventDefault(); document.getElementById("main-content")?.focus(); }}>跳到主要内容</a>
@@ -4594,6 +4595,16 @@ export default function RacketApp() {
                     </article>
                   ))}
                 </div>
+                <div className="m-only m-match-next" aria-label="处方下一步">
+                  <span>
+                    <small>下一步 · 决策室</small>
+                    <b>{compareIds.length > 0 ? `已加入 ${compareIds.length}/3 把候选` : "带着前两名继续比较"}</b>
+                  </span>
+                  <button type="button" onClick={compareIds.length > 0 ? () => goToView("compare") : compareTopMatches}>
+                    {compareIds.length > 0 ? "进入决策室" : "加入前两名"}
+                    <i aria-hidden="true">›</i>
+                  </button>
+                </div>
                 <section className="match-sync" aria-labelledby="match-sync-title">
                   <div className="match-sync__head">
                     <div><p>Tour Sync</p><h3 id="match-sync-title">球星关联拍适配</h3></div>
@@ -4866,12 +4877,47 @@ export default function RacketApp() {
               title="选拍决策室"
               action={(
                 <div className="compare-title-actions">
-                  <button className="text-action" onClick={saveDecisionRoom}>{decisionStorageStatus === "loading" ? "正在读取…" : "保存到本机"}</button>
+                  <button className="text-action" onClick={saveDecisionRoom}>{decisionStorageStatus === "loading" ? "读取中…" : "保存"}</button>
                   {compared.length > 0 && <button className="text-action" onClick={copyCompareLink} aria-label={`复制当前 ${compared.length} 把候选球拍的决策链接`}>分享</button>}
-                  {compared.length > 0 && <button className="text-action" onClick={clearComparison} aria-label={`清空当前 ${compared.length} 把决策候选`}>清空</button>}
+                  {compared.length > 0 && <button className="text-action compare-title-actions__clear" onClick={clearComparison} aria-label={`清空当前 ${compared.length} 把决策候选`}>清空</button>}
                 </div>
               )}
             />
+            <div className="m-only m-decision-slotbar" role="group" aria-label={`决策候选，已加入 ${compared.length}/3 把`}>
+              {compareSlotRackets.map(({ slot, racket }) => racket ? (
+                <article key={racket.id} className="m-decision-slot" data-slot={slot}>
+                  {duelActive && slot === 0 && racket.id === duelOpponentId && <span className="m-decision-slot__duel">对方</span>}
+                  <button
+                    type="button"
+                    className="m-decision-slot__main"
+                    disabled={Boolean(pendingCompareRacket)}
+                    onClick={() => openRacket(racket.id)}
+                    aria-label={pendingCompareRacket ? `请先选择是否用 ${pendingCompareRacket.model} 替换 ${racket.model}` : `查看 ${racket.model} 深度档案`}
+                    title={pendingCompareRacket ? "请先完成或取消本次替换" : undefined}
+                  >
+                    <RacketPhoto racket={racket} variant="thumb" />
+                    <span>{racket.model}</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="m-decision-slot__remove"
+                    data-compare-remove-id={racket.id}
+                    onClick={() => pendingCompareRacket ? replacePendingCompare(racket.id) : toggleCompare(racket.id)}
+                    aria-label={pendingCompareRacket ? `用 ${pendingCompareRacket.model} 替换 ${racket.model}` : `从决策室移除 ${racket.model}`}
+                  >{pendingCompareRacket ? "⇄" : "×"}</button>
+                </article>
+              ) : slot === firstEmptyCompareSlot ? (
+                <button key={slot} type="button" className="m-decision-slot m-decision-slot--empty" data-slot={slot} onClick={browseForCompare} aria-label={`添加候选 ${slot + 1}`}>
+                  <span aria-hidden="true">＋</span>
+                  <b>添加球拍</b>
+                </button>
+              ) : (
+                <div key={slot} className="m-decision-slot m-decision-slot--queued" data-slot={slot} role="note" aria-label={`候选位 ${slot + 1}，将在前一空位加入后开放`}>
+                  <span aria-hidden="true">·</span>
+                  <b>待填</b>
+                </div>
+              ))}
+            </div>
             <section className="decision-workflow" aria-labelledby="decision-workflow-title">
               <div className="decision-workflow__heading"><div><span>Decision loop</span><h2 id="decision-workflow-title">把参数变成可执行的换拍决定</h2></div><small>{decisionStorageStatus === "loading" ? "正在读取本机记录" : decisionStorageStatus === "available" ? "当前浏览器自动保存" : "仅在本页临时保留"}</small></div>
               <ol>
@@ -4896,6 +4942,18 @@ export default function RacketApp() {
               </div>
             ) : (
               <div className="compare-app-loaded">
+                <div
+                  className="compare-panel-tabs"
+                  role="tablist"
+                  aria-label="切换决策室内容"
+                  onKeyDown={(event) => moveHorizontalTab(event, comparePanelOrder, comparePanel, setComparePanel)}
+                >
+                  {([
+                    ["overview", "概览", compared.length >= 2 ? "雷达与结论" : "候选轮廓"],
+                    ["specs", "规格", "完整参数"],
+                    ["trial", "试打", currentDecisionFeedback.length > 0 ? `${currentDecisionFeedback.length} 条记录` : "状态与备注"],
+                  ] as const).map(([panel, label, hint]) => <button id={`compare-tab-${panel}`} key={panel} role="tab" tabIndex={comparePanel === panel ? 0 : -1} aria-selected={comparePanel === panel} aria-controls="compare-panel-active" onClick={() => setComparePanel(panel)}><b>{label}</b><small>{hint}</small></button>)}
+                </div>
                 {pendingCompareRacket && (
                   <div className="compare-guidance compare-guidance--replace">
                     <span>待换入</span>
@@ -4914,18 +4972,6 @@ export default function RacketApp() {
                     </div>
                   </section>
                 )}
-                <div
-                  className="compare-panel-tabs"
-                  role="tablist"
-                  aria-label="切换决策室内容"
-                  onKeyDown={(event) => moveHorizontalTab(event, comparePanelOrder, comparePanel, setComparePanel)}
-                >
-                  {([
-                    ["overview", "概览", compared.length >= 2 ? "雷达与结论" : "候选轮廓"],
-                    ["specs", "规格", "完整参数"],
-                    ["trial", "试打", currentDecisionFeedback.length > 0 ? `${currentDecisionFeedback.length} 条记录` : "状态与备注"],
-                  ] as const).map(([panel, label, hint]) => <button id={`compare-tab-${panel}`} key={panel} role="tab" tabIndex={comparePanel === panel ? 0 : -1} aria-selected={comparePanel === panel} aria-controls="compare-panel-active" onClick={() => setComparePanel(panel)}><b>{label}</b><small>{hint}</small></button>)}
-                </div>
                 <div id="compare-panel-active" role="tabpanel" aria-labelledby={`compare-tab-${comparePanel}`} className="compare-panel-surface">
                 <div className={`compare-product-grid compare-product-grid--${comparePanel}`}>
                   {compareSlotRackets.map(({ slot, racket }) => {
@@ -4983,6 +5029,11 @@ export default function RacketApp() {
 
                 {comparePanel === "overview" && (
                   <>
+                    <section className="compare-radar-card">
+                      <div><p>六维轮廓</p><h2>{compared.length > 1 ? "重叠雷达图" : "单拍雷达图"}</h2><span>先看轮廓取舍，再到“规格”核对硬参数。</span></div>
+                      <RadarChart chartRackets={compared} seriesSlots={compareSlots.map(({ slot }) => slot)} />
+                    </section>
+
                     {duelVerdicts && duelOpponent && duelChallenger && (
                       <section className="compare-duel-arena" aria-labelledby="compare-duel-arena-title">
                         <div className="compare-duel-arena__title"><span>好友对决</span><h2 id="compare-duel-arena-title">六维战报</h2><small>微小分差按接近处理，不代表实际胜负</small></div>
@@ -5005,10 +5056,6 @@ export default function RacketApp() {
                         </div>
                       </section>
                     )}
-                    <section className="compare-radar-card">
-                      <div><p>六维轮廓</p><h2>{compared.length > 1 ? "重叠雷达图" : "单拍雷达图"}</h2><span>先看轮廓取舍，再到“规格”核对硬参数。</span></div>
-                      <RadarChart chartRackets={compared} seriesSlots={compareSlots.map(({ slot }) => slot)} />
-                    </section>
 
                     {compared.length >= 2 && (
                       <section className="compare-insights" aria-labelledby="compare-insights-title">
@@ -5029,14 +5076,14 @@ export default function RacketApp() {
 
                 {comparePanel === "specs" && (
                   <>
-                    <p className="compare-scroll-hint" id="compare-scroll-hint">横向滑动或使用方向键，查看全部球拍参数</p>
-                    <div ref={compareTableScrollRef} className="compare-spec-table-scroll" role="region" aria-label="球拍规格对比表" aria-describedby="compare-scroll-hint" tabIndex={compareTableScrollable ? 0 : -1}>
+                    <p className="compare-scroll-hint" id="compare-scroll-hint">表格可横向滚动；触控滑动或聚焦后使用方向键查看全部参数</p>
+                    <div ref={compareTableScrollRef} className="compare-spec-table-scroll" role="region" aria-label="球拍规格对比表" aria-describedby={compareTableScrollable ? "compare-scroll-hint" : undefined} tabIndex={compareTableScrollable ? 0 : -1}>
                       <table className="compare-spec-table">
                         <thead><tr><th scope="col">属性</th>{compareSlotRackets.map(({ slot, racket }) => <th scope="col" className={racket ? undefined : "is-empty"} key={slot}>{racket?.model ?? `空槽 ${slot + 1}`}</th>)}</tr></thead>
                         <tbody>{comparisonRows.map((row) => {
                           const isMaxDiffRow = row.rowKind === "spec" && compareInsights.highlightKey === row.key;
                           const rowVerdict = row.rowKind === "score" && row.scoreKey && duelVerdicts ? duelVerdicts.verdicts[row.scoreKey] : null;
-                          return <tr key={row.key} className={isMaxDiffRow ? "is-max-diff" : undefined}><th scope="row">{row.label}{isMaxDiffRow && <i className="compare-max-diff-badge">差异最大</i>}</th>{compareSlotRackets.map(({ slot, racket }) => {
+                          return <tr key={row.key} className={`compare-spec-row--${row.rowKind}${isMaxDiffRow ? " is-max-diff" : ""}`}><th scope="row">{row.label}{isMaxDiffRow && <i className="compare-max-diff-badge">差异最大</i>}</th>{compareSlotRackets.map(({ slot, racket }) => {
                             const duelSide = rowVerdict && racket ? racket.id === duelOpponent?.id ? "a" : racket.id === duelChallenger?.id ? "b" : null : null;
                             const duelBadge = duelSide && rowVerdict === "tie"
                               ? <i className="compare-duel-badge compare-duel-badge--tie">接近</i>
@@ -5069,11 +5116,22 @@ export default function RacketApp() {
                 </div>
               </div>
             )}
+            <section className="m-only decision-workflow decision-workflow--mobile" aria-labelledby="decision-workflow-title-mobile">
+              <div className="decision-workflow__heading"><div><span>Decision loop</span><h2 id="decision-workflow-title-mobile">决策进度与当前球拍</h2></div><small>{decisionStorageStatus === "loading" ? "正在读取本机记录" : decisionStorageStatus === "available" ? "当前浏览器自动保存" : "仅在本页临时保留"}</small></div>
+              <ol>
+                <li className={prescriptionBaseline ? "is-complete" : ""}><i>{prescriptionBaseline ? "✓" : "1"}</i><span><b>当前球拍</b><small>{prescriptionBaseline?.model ?? "可跳过"}</small></span></li>
+                <li className={compared.length >= 2 ? "is-complete" : ""}><i>{compared.length >= 2 ? "✓" : "2"}</i><span><b>收敛候选</b><small>{compared.length}/3 把</small></span></li>
+                <li className={currentDecisionFeedback.length > 0 ? "is-complete" : ""}><i>{currentDecisionFeedback.length > 0 ? "✓" : "3"}</i><span><b>完成试打</b><small>{currentDecisionFeedback.length} 条反馈</small></span></li>
+                <li className={finalDecisionRacket ? "is-complete" : ""}><i>{finalDecisionRacket ? "✓" : "4"}</i><span><b>作出选择</b><small>{finalDecisionRacket?.model ?? "等待结论"}</small></span></li>
+              </ol>
+              <PrescriptionBaselinePicker value={prescriptionBaselineId} onChange={changePrescriptionBaseline} compact />
+              {savedDecisionRoom && savedDecisionSlotIds.length > 0 && compareIds.length === 0 && <button className="decision-workflow__restore" onClick={loadSavedDecision}>载入上次保存的 {savedDecisionSlotIds.length} 把候选 <span aria-hidden="true">›</span></button>}
+            </section>
           </section>
         )}
       </main>
 
-      {!selected && !selectedFamily && activeView !== "compare" && compareIds.length > 0 && (
+      {!selected && !selectedFamily && showCompareTray && (
         <button className="compare-tray" onClick={() => goToView("compare")} aria-label={`打开选拍决策室，当前 ${compared.length}/3 把候选`}>
           <span className="compare-tray__photos">{compareSlotRackets.map(({ slot, racket }) => racket ? <RacketPhoto key={slot} racket={racket} variant="thumb" /> : <i key={slot}>+</i>)}</span>
           <span><b>决策 {compared.length}/3</b><small>比较差异并记录试打</small></span>
