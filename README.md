@@ -2,8 +2,8 @@
 
 中文网球拍选购指南：11 个品牌、259 款官网核验型号，从「处方问卷」到「决策室对比」，帮你在不试打之前把功课做透。
 
-![version](https://img.shields.io/badge/version-0.6.0-blue)
-![tests](https://img.shields.io/badge/tests-174%20passed-brightgreen)
+![version](https://img.shields.io/badge/version-0.7.0-blue)
+![tests](https://img.shields.io/badge/tests-179%20passed-brightgreen)
 ![Next.js](https://img.shields.io/badge/Next.js-16-black)
 ![Cloudflare Workers](https://img.shields.io/badge/Cloudflare-Workers-f38020)
 
@@ -13,7 +13,7 @@
 
 单页应用，五大页签，全部功能无需登录。
 
-v0.6.0 将新增能力重新编排成一条更清晰的决策路径：发现页按场景选拍，处方页解释推荐依据，档案页可在概览 / 规格 / 六维 / 相似拍之间直达，决策室则以概览 / 规格 / 试打三个工作区逐步收敛。
+v0.7.0 将球星页升级为人物主导的编辑型拍房：16 位 ATP / WTA 球星均有真实照片、打法侧写、映射等级、个性化零售拍适配分和可继续进入拍库的决策路径。
 
 ### 发现
 
@@ -38,6 +38,9 @@ v0.6.0 将新增能力重新编排成一条更清晰的决策路径：发现页�
 ### 球星（Tour Locker）
 
 - ATP + WTA 各 Top 8，共 16 名球星的用拍映射
+- **真实球星照片**：16 张本地化人物照，逐卡展示 Wikimedia Commons 作者与许可（v0.7.0）
+- **打法与选拍路径**：球员侧写、三项打法标签、个性化关联拍适配分、排名头像快速定位（v0.7.0）
+- **诚实映射**：明确区分品牌公开关联、拍库可比较落点和型号级 / 系列级 / 等效 / 参考等级（v0.7.0）
 - 每条映射标注四档可信度（型号级映射 / 系列级映射 / 基础型号等效 / 当前拍系参考）
 
 ### 决策室
@@ -98,7 +101,7 @@ npm run dev
 | `npm run dev` | 本地开发 |
 | `npm run build` | vinext 构建产物 |
 | `npm run start` | 本地预览构建产物 |
-| `npm test` | 先 `vinext build`，再跑全部 174 个用例 |
+| `npm test` | 先 `vinext build`，再跑全部 179 个用例 |
 | `npm run lint` | ESLint 检查 |
 | `npm run links:check` | 巡检 259 条购买链接，更新 `app/purchase-link-health.json` |
 | `npm run images:sync` | 同步官网商品图到 `public/rackets/` 并生成图片清单 |
@@ -106,7 +109,7 @@ npm run dev
 
 ## 🧪 测试体系
 
-31 个零框架测试文件、174 个用例（`node:test` + `tsx`），四层策略：
+32 个零框架测试文件、179 个用例（`node:test` + `tsx`），四层策略：
 
 1. **SSR 冒烟**：构建产物渲染 HTML 断言（`rendered-html.test.mjs` 等）
 2. **纯函数单测**：推荐引擎、对比解读、相似度、状态机等模块直接导入断言
@@ -130,7 +133,7 @@ app/
 scripts/
   check-purchase-links.mjs   # 购买链接体检
   sync-catalog-images.mjs    # 官网商品图同步
-tests/                   # 31 个零框架测试文件（174 用例）
+tests/                   # 32 个零框架测试文件（179 用例）
 public/rackets/models/   # 759 张官网商品图（按品牌归档）
 worker/index.ts          # Cloudflare Workers 入口
 ```
