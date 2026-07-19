@@ -4630,7 +4630,24 @@ export default function RacketApp() {
               id="armory-title"
               eyebrow="Racket Library · 2026"
               title="球拍库"
+              action={<span className="m-only armory-title-count">{catalogFamilies.length} 拍系 · {catalogModelCount} 型号</span>}
             />
+            <div className="armory-mheader m-only">
+              <label className="armory-mheader__search" htmlFor="catalog-search-m">
+                <span className="sr-only">搜索品牌、拍系、代际或具体型号</span>
+                <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="5.4" fill="none" stroke="currentColor" strokeWidth="1.7" /><rect x="11" y="10.4" width="4.6" height="1.7" rx="0.85" transform="rotate(45 11 10.4)" fill="currentColor" /></svg>
+                <input id="catalog-search-m" type="search" inputMode="search" enterKeyHint="search" autoComplete="off" spellCheck={false} aria-describedby="catalog-result-summary" value={catalogSearch} onChange={(event) => updateCatalogSearch(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.nativeEvent.isComposing) { event.preventDefault(); submitCatalogSearch(); } else if (event.key === "Escape" && catalogSearch) { event.preventDefault(); clearCatalogSearch(); } }} placeholder={`搜索 ${catalogModelCount} 款型号 · 支持 16x19`} />
+                {catalogSearch ? <button type="button" onClick={clearCatalogSearch} aria-label="清除搜索">✕</button> : null}
+              </label>
+              <div className="armory-mheader__chips m-hscroll">
+                <button type="button" className={`m-chip armory-mheader__filter${catalogActiveFilterCount > 0 ? " m-chip--active" : ""}`} aria-expanded={catalogFiltersOpen} aria-controls="catalog-filter-panel" onClick={() => setCatalogFiltersOpen(true)}>
+                  <svg viewBox="0 0 12 12" aria-hidden="true"><rect x="1" y="2" width="10" height="1.6" rx="0.8" fill="currentColor" /><rect x="3" y="5.2" width="6" height="1.6" rx="0.8" fill="currentColor" /><rect x="4.6" y="8.4" width="2.8" height="1.6" rx="0.8" fill="currentColor" /></svg>
+                  筛选{catalogActiveFilterCount > 0 && ` · ${catalogActiveFilterCount}`}
+                </button>
+                <button type="button" className={`m-chip${catalogScope === "families" ? " m-chip--active" : ""}`} aria-pressed={catalogScope === "families"} onClick={() => commitArmoryFilters({ scope: "families" })}>按拍系 {filteredFamilies.length}</button>
+                <button type="button" className={`m-chip${catalogScope === "models" ? " m-chip--active" : ""}`} aria-pressed={catalogScope === "models"} onClick={() => commitArmoryFilters({ scope: "models" })}>全部型号 {matchingCatalogRackets.length}</button>
+              </div>
+            </div>
             <section className="armory-overview" aria-label="拍库覆盖与数据说明">
               <div className="armory-overview__copy"><span>年鉴 × 六维深档</span><p>从拍系看产品定位，或直接浏览全部型号。每款都有六维雷达、官方规格、参数特点和同系差异。</p></div>
               <dl>
@@ -4641,7 +4658,7 @@ export default function RacketApp() {
               <small>核验于 {catalogVerifiedAt} · 排除儿童拍、握把尺寸与纯配色重复 SKU</small>
             </section>
 
-            <section className="brand-index" aria-labelledby="brand-index-title">
+            <section className={`brand-index${catalogSearch.trim() ? " brand-index--m-searching" : ""}`} aria-labelledby="brand-index-title">
               <div className="section-bar"><div><p>Brand Index</p><h2 id="brand-index-title">选择品牌</h2></div><span className="brand-index__current">{catalogBrand === "全部" ? "正在浏览全部品牌" : `当前 · ${catalogBrand}`}</span></div>
               <div className="brand-index__grid" role="group" aria-label="选择球拍品牌">
                 <button className="brand-index__all" aria-pressed={catalogBrand === "全部"} onClick={() => selectCatalogBrand("全部", true)}>
@@ -4666,15 +4683,35 @@ export default function RacketApp() {
                 <label className="catalog-sort" htmlFor="catalog-sort"><span className="sr-only">拍库排序</span><select id="catalog-sort" value={catalogSort} onChange={(event) => commitArmoryFilters({ sort: event.target.value as CatalogSort })}>{catalogSortOptions.map((option) => <option key={option}>{option}</option>)}</select></label>
               </div>
               {catalogFiltersOpen && (
-                <div className="catalog-filter-panel" id="catalog-filter-panel" role="region" aria-label="筛选球拍库">
-                  <div className="catalog-filter-panel__header"><div><span>精确筛选</span><b>{catalogBrand === "全部" ? "全部品牌" : catalogBrand}</b></div><button onClick={() => setCatalogFiltersOpen(false)} aria-label="收起筛选面板">完成</button></div>
-                  <div className="catalog-filter-panel__grid">
-                    <fieldset><legend>球拍类型</legend><div className="catalog-type-options">{catalogTypes.map((item) => <button key={item} type="button" aria-pressed={catalogType === item} onClick={() => commitArmoryFilters({ type: item })}>{item === "全部" ? "全部" : `${item}型`}</button>)}</div></fieldset>
-                    <label><span>产品代际</span><select value={catalogGeneration} onChange={(event) => commitArmoryFilters({ generation: event.target.value as CatalogGeneration })}>{catalogGenerationsForBrand.map((item) => <option key={item}>{item}</option>)}</select><small>{catalogBrand === "全部" ? "选择品牌后仅显示该品牌代际" : `${catalogBrand} 的现行拍系代际`}</small></label>
-                    <label><span>发行时间</span><select value={catalogReleaseYear} onChange={(event) => commitArmoryFilters({ releaseYear: event.target.value as CatalogReleaseYear })}>{catalogReleaseYearOptions.map((item) => <option key={item}>{item}</option>)}</select><small>{catalogScope === "families" ? "按拍系公开发行时间" : "按具体型号发行时间"}</small></label>
+                <>
+                  <button type="button" className="catalog-filter-overlay m-only" aria-label="关闭筛选面板" onClick={() => setCatalogFiltersOpen(false)} />
+                  <div className="catalog-filter-panel" id="catalog-filter-panel" role="region" aria-label="筛选球拍库">
+                    <span className="catalog-filter-panel__handle m-only" aria-hidden="true" />
+                    <div className="catalog-filter-panel__header"><div><span>精确筛选</span><b>{catalogBrand === "全部" ? "全部品牌" : catalogBrand}</b></div><button onClick={() => setCatalogFiltersOpen(false)} aria-label="收起筛选面板">完成</button></div>
+                    <div className="catalog-filter-panel__grid">
+                      <fieldset><legend>球拍类型</legend><div className="catalog-type-options">{catalogTypes.map((item) => <button key={item} type="button" aria-pressed={catalogType === item} onClick={() => commitArmoryFilters({ type: item })}>{item === "全部" ? "全部" : `${item}型`}</button>)}</div></fieldset>
+                      <label><span>产品代际</span><select value={catalogGeneration} onChange={(event) => commitArmoryFilters({ generation: event.target.value as CatalogGeneration })}>{catalogGenerationsForBrand.map((item) => <option key={item}>{item}</option>)}</select><small>{catalogBrand === "全部" ? "选择品牌后仅显示该品牌代际" : `${catalogBrand} 的现行拍系代际`}</small></label>
+                      <label><span>发行时间</span><select value={catalogReleaseYear} onChange={(event) => commitArmoryFilters({ releaseYear: event.target.value as CatalogReleaseYear })}>{catalogReleaseYearOptions.map((item) => <option key={item}>{item}</option>)}</select><small>{catalogScope === "families" ? "按拍系公开发行时间" : "按具体型号发行时间"}</small></label>
+                    </div>
+                    <div className="catalog-filter-panel__mgroups m-only">
+                      <p>品牌</p>
+                      <div>{armoryFilterConfig.brands.map((brand) => <button type="button" key={brand} className={`m-chip${catalogBrand === brand ? " m-chip--active" : ""}`} aria-pressed={catalogBrand === brand} onClick={() => selectCatalogBrand(brand)}>{brand === "全部" ? "全部品牌" : brand}</button>)}</div>
+                      <p>拍系类型</p>
+                      <div>{catalogTypes.map((item) => <button type="button" key={item} className={`m-chip${catalogType === item ? " m-chip--active" : ""}`} aria-pressed={catalogType === item} onClick={() => commitArmoryFilters({ type: item })}>{item === "全部" ? "全部" : `${item}型`}</button>)}</div>
+                      {catalogBrand !== "全部" && (
+                        <>
+                          <p>产品代际 <small>· {catalogBrand} 现行拍系</small></p>
+                          <div>{catalogGenerationsForBrand.map((item) => <button type="button" key={item} className={`m-chip${catalogGeneration === item ? " m-chip--active" : ""}`} aria-pressed={catalogGeneration === item} onClick={() => commitArmoryFilters({ generation: item })}>{item}</button>)}</div>
+                        </>
+                      )}
+                      <p>发布年份 <small>· 按拍系当代</small></p>
+                      <div>{catalogReleaseYearOptions.map((item) => <button type="button" key={item} className={`m-chip${catalogReleaseYear === item ? " m-chip--active" : ""}`} aria-pressed={catalogReleaseYear === item} onClick={() => commitArmoryFilters({ releaseYear: item })}>{item}</button>)}</div>
+                      <p>排序</p>
+                      <div>{catalogSortOptions.map((item) => <button type="button" key={item} className={`m-chip${catalogSort === item ? " m-chip--active" : ""}`} aria-pressed={catalogSort === item} onClick={() => commitArmoryFilters({ sort: item })}>{item}</button>)}</div>
+                    </div>
+                    {catalogActiveFilterCount > 0 && <button className="catalog-filter-panel__clear" onClick={clearCatalogFacets}>清除全部筛选</button>}
                   </div>
-                  {catalogActiveFilterCount > 0 && <button className="catalog-filter-panel__clear" onClick={clearCatalogFacets}>清除全部筛选</button>}
-                </div>
+                </>
               )}
               {catalogActiveFilterCount > 0 && (
                 <div className="catalog-active-filters" aria-label="当前已启用筛选">
@@ -4747,7 +4784,7 @@ export default function RacketApp() {
 
             <div className="tour-commandbar">
               <div
-                className="tour-switch"
+                className="tour-switch m-seg"
                 role="tablist"
                 aria-label="选择巡回赛"
                 onKeyDown={(event) => moveHorizontalTab(event, ["ATP", "WTA"] as const, tourFilter, commitTourFilter)}
@@ -4813,6 +4850,7 @@ export default function RacketApp() {
                     </ul>
                   </div>
                 </details>
+                <p className="tour-mfooter m-only">每条映射标注四档可信度；比赛拍与零售拍的规格可能不同，以官网口径为准。</p>
               </section>
             ) : (
               <div className="app-empty" role="status"><span aria-hidden="true">★</span><h2>{tourFilter} 榜单正在更新</h2><p>本组数据暂不可用，请稍后再试或切换另一巡回赛。</p></div>
