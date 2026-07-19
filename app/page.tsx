@@ -4987,6 +4987,7 @@ export default function RacketApp() {
                                 <small>{formatNumberSpec(officialWeight(entry.racket), "g")} · {formatNumberSpec(officialHead(entry.racket), "in²")} · {officialPattern(entry.racket) ?? "—"}</small>
                                 <em className="similar-rackets__diff">{entry.nearIdentical ? entry.maxDiffLabel : `最大差异 ${entry.maxDiffLabel}`}</em>
                               </div>
+                              <span className="similar-rackets__distance" aria-label={`五维归一化规格距离 ${entry.distance.toFixed(2)}`}>距离 {entry.distance.toFixed(2)}</span>
                               <div className="similar-rackets__actions">
                                 <button data-focus-key={`similar-open-${entry.id}`} onClick={() => openRacket(entry.id)} aria-label={`打开 ${entry.racket.model} 深度档案`}>查看档案</button>
                                 <button className="is-primary" data-focus-key={`similar-compare-${entry.id}`} onClick={() => startPairCompare(selected.id, entry.id)} aria-label={`将 ${selected.model} 与 ${entry.racket.model} 放入决策室对比`}>与当前拍对比</button>

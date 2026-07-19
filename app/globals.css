@@ -10442,3 +10442,602 @@ a:active {
   }
 }
 /* === proto-a 决策室 end === */
+
+/* === proto-a 覆盖层 === */
+@media (max-width: 760px) {
+  @keyframes m-overlay-in {
+    from {
+      transform: translateX(100%);
+    }
+
+    to {
+      transform: translateX(0);
+    }
+  }
+
+  .racket-inspector,
+  .family-inspector {
+    animation: m-overlay-in 280ms cubic-bezier(0.32, 0.72, 0.35, 1);
+    background: var(--app-bg);
+    border-radius: 0;
+    height: 100dvh;
+    max-height: none;
+  }
+
+  .racket-inspector__header,
+  .family-inspector__header {
+    align-items: center;
+    backdrop-filter: blur(20px);
+    background: color-mix(in srgb, var(--app-bg) 94%, transparent);
+    border-bottom: 0.5px solid var(--m-hairline);
+    display: flex;
+    gap: 6px;
+    min-height: 0;
+    padding: calc(env(safe-area-inset-top) + 8px) calc(16px + env(safe-area-inset-right)) 8px calc(16px + env(safe-area-inset-left));
+    -webkit-backdrop-filter: blur(20px);
+  }
+
+  .racket-inspector__header [data-dialog-close],
+  .family-inspector__header [data-dialog-close] {
+    align-items: center;
+    background: transparent;
+    border: 0;
+    border-radius: 10px;
+    box-shadow: none;
+    color: var(--m-accent);
+    display: inline-flex;
+    flex: none;
+    font-size: 21px;
+    font-weight: 500;
+    gap: 2px;
+    height: 44px;
+    justify-content: flex-start;
+    line-height: 1;
+    min-width: 44px;
+    padding: 0;
+    width: auto;
+  }
+
+  .racket-inspector__header [data-dialog-close]::after,
+  .family-inspector__header [data-dialog-close]::after {
+    content: "返回";
+    font-size: 15px;
+    font-weight: 500;
+  }
+
+  .racket-inspector__header > span,
+  .family-inspector__header > span {
+    color: var(--text);
+    flex: 1;
+    font-size: 15.5px;
+    font-weight: 600;
+    letter-spacing: 0;
+    min-width: 0;
+    overflow: hidden;
+    text-align: center;
+    text-overflow: ellipsis;
+    text-transform: none;
+    white-space: nowrap;
+  }
+
+  .inspector-header-actions {
+    flex: none;
+  }
+
+  .racket-inspector__scroll {
+    padding: 0 0 max(30px, env(safe-area-inset-bottom));
+  }
+
+  .racket-inspector__scroll {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .racket-inspector__scroll > * {
+    flex: none;
+  }
+
+  .inspector-specs {
+    order: 1;
+  }
+
+  .inspector-radar {
+    order: 2;
+  }
+
+  .racket-inspector__scroll > .racket-inspector__verdict {
+    order: 3;
+  }
+
+  .racket-inspector__scroll > .similar-rackets {
+    order: 4;
+  }
+
+  .racket-inspector__scroll > .inspector-note {
+    order: 5;
+  }
+
+  .dossier-nav {
+    backdrop-filter: blur(20px);
+    background: color-mix(in srgb, var(--app-bg) 92%, transparent);
+    margin: 0;
+    padding: 8px calc(20px + env(safe-area-inset-right)) 8px calc(20px + env(safe-area-inset-left));
+    top: 0;
+    -webkit-backdrop-filter: blur(20px);
+  }
+
+  .racket-inspector__scroll > .product-gallery,
+  .racket-inspector__scroll > .racket-photo--detail,
+  .racket-inspector__scroll > .inspector-image-note,
+  .racket-inspector__scroll > .racket-inspector__title,
+  .racket-inspector__scroll > .racket-spec-tags,
+  .racket-inspector__scroll > .racket-inspector__summary,
+  .racket-inspector__scroll > .racket-inspector__family-path {
+    background: var(--surface);
+    border-radius: 0;
+    margin: 0;
+    padding-left: calc(20px + env(safe-area-inset-left));
+    padding-right: calc(20px + env(safe-area-inset-right));
+  }
+
+  .racket-inspector__scroll > .product-gallery {
+    padding-top: 10px;
+  }
+
+  .racket-inspector .product-gallery__stage,
+  .family-inspector .product-gallery__stage {
+    border-radius: 14px;
+    height: 240px;
+  }
+
+  .racket-inspector__scroll > .racket-photo--detail {
+    height: 250px;
+  }
+
+  .racket-inspector__scroll > .inspector-image-note {
+    padding-bottom: 4px;
+    padding-top: 8px;
+  }
+
+  .racket-inspector__title {
+    padding-top: 8px;
+  }
+
+  .racket-inspector__title h2 {
+    font-size: 22px;
+    line-height: 1.25;
+  }
+
+  .racket-inspector__scroll > .racket-spec-tags {
+    padding-top: 10px;
+  }
+
+  .racket-inspector__scroll > .racket-inspector__summary {
+    color: var(--m-text-2);
+    font-size: 12.5px;
+    line-height: 1.7;
+    padding-bottom: 12px;
+    padding-top: 10px;
+  }
+
+  .racket-inspector__scroll > .racket-inspector__family-path {
+    border-radius: 0;
+    border-top: 0.5px solid var(--m-hairline);
+    min-height: 48px;
+  }
+
+  .racket-inspector__scroll > .dossier-decision-strip,
+  .racket-inspector__scroll > .inspector-specs,
+  .racket-inspector__scroll > .inspector-radar,
+  .racket-inspector__scroll > .similar-rackets,
+  .racket-inspector__scroll > .racket-inspector__verdict,
+  .racket-inspector__scroll > .inspector-note {
+    background: var(--surface);
+    border: 0;
+    border-radius: 16px;
+    box-shadow: none;
+    margin: 12px calc(20px + env(safe-area-inset-right)) 0 calc(20px + env(safe-area-inset-left));
+    padding: 14px;
+  }
+
+  .inspector-specs {
+    display: block;
+  }
+
+  .inspector-specs::before {
+    content: "官网核验规格";
+    display: block;
+    font-size: 15px;
+    font-weight: 700;
+    padding-bottom: 2px;
+  }
+
+  .inspector-specs > div,
+  .inspector-specs > div:nth-child(n) {
+    align-items: center;
+    border: 0;
+    border-bottom: 0.5px solid var(--m-hairline);
+    display: flex;
+    gap: 10px;
+    justify-content: space-between;
+    padding: 9px 0;
+  }
+
+  .inspector-specs > div:last-child {
+    border-bottom: 0;
+  }
+
+  .inspector-specs dt {
+    color: var(--m-text-3);
+    font-size: 11.5px;
+  }
+
+  .inspector-specs dd {
+    font-size: 13.5px;
+    font-weight: 700;
+    margin: 0;
+    text-align: right;
+  }
+
+  .inspector-radar > div:first-child p {
+    font-size: 15px;
+    font-weight: 700;
+  }
+
+  .racket-inspector__scroll > .racket-inspector__verdict::before {
+    content: "拍库结论";
+    display: block;
+    font-size: 15px;
+    font-weight: 700;
+    margin-bottom: 6px;
+  }
+
+  .racket-inspector__scroll > .racket-inspector__verdict {
+    border-left: 0;
+    color: var(--text);
+    font-size: 12.5px;
+    line-height: 1.75;
+  }
+
+  .racket-inspector__scroll > .inspector-note {
+    background: transparent;
+    color: var(--m-text-4);
+    font-size: 10.5px;
+    line-height: 1.6;
+    padding: 0 6px;
+  }
+
+  .similar-rackets__head h3 {
+    font-size: 15px;
+  }
+
+  .similar-rackets__list {
+    gap: 0;
+  }
+
+  .similar-rackets__list li {
+    align-items: center;
+    background: transparent;
+    border: 0;
+    border-bottom: 0.5px solid var(--m-hairline);
+    border-radius: 0;
+    display: grid;
+    gap: 4px 10px;
+    grid-template-columns: 38px minmax(0, 1fr) auto;
+    padding: 10px 0;
+  }
+
+  .similar-rackets__list li:last-child {
+    border-bottom: 0;
+  }
+
+  .similar-rackets__list .racket-photo {
+    border-radius: 8px;
+    height: 38px;
+    width: 38px;
+  }
+
+  .similar-rackets__list .racket-photo img {
+    padding: 2px;
+  }
+
+  .similar-rackets__info b {
+    font-size: 13.5px;
+  }
+
+  .similar-rackets__info span,
+  .similar-rackets__info small {
+    font-size: 11px;
+  }
+
+  .similar-rackets__distance {
+    align-self: center;
+    background: var(--surface-soft);
+    border-radius: 6px;
+    color: var(--m-text-2);
+    display: inline-block;
+    font-size: 11px;
+    padding: 3px 8px;
+    white-space: nowrap;
+  }
+
+  .similar-rackets__actions {
+    display: grid;
+    gap: 8px;
+    grid-column: 1 / -1;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .family-inspector__scroll {
+    padding: 0 0 max(30px, env(safe-area-inset-bottom));
+  }
+
+  .family-inspector__scroll > .product-gallery,
+  .family-inspector__scroll > .family-inspector__title {
+    background: var(--surface);
+    margin: 0;
+    padding-left: calc(20px + env(safe-area-inset-left));
+    padding-right: calc(20px + env(safe-area-inset-right));
+  }
+
+  .family-inspector__scroll > .product-gallery {
+    padding-top: 10px;
+  }
+
+  .family-inspector__title {
+    padding-bottom: 14px;
+    padding-top: 8px;
+  }
+
+  .family-inspector__title h2 {
+    font-size: 26px;
+  }
+
+  .family-inspector__overview {
+    background: var(--surface);
+    border: 0;
+    border-radius: 16px;
+    margin: 12px calc(20px + env(safe-area-inset-right)) 0 calc(20px + env(safe-area-inset-left));
+    overflow: hidden;
+  }
+
+  .family-inspector .model-matrix {
+    padding: 0 calc(20px + env(safe-area-inset-right)) 0 calc(20px + env(safe-area-inset-left));
+  }
+
+  .model-matrix tbody tr {
+    border: 0;
+    border-radius: 14px;
+  }
+
+  .family-inspector__note {
+    background: var(--m-warn-bg);
+    border: 1px solid var(--m-warn-border);
+    border-radius: 14px;
+    color: var(--m-warn-text);
+    font-size: 11px;
+    line-height: 1.6;
+    margin: 12px calc(20px + env(safe-area-inset-right)) 0 calc(20px + env(safe-area-inset-left));
+    padding: 10px 14px;
+  }
+
+  .family-inspector__note b {
+    color: inherit;
+  }
+
+  .family-inspector__source {
+    margin: 10px calc(20px + env(safe-area-inset-right)) 0 calc(20px + env(safe-area-inset-left));
+  }
+
+  /* 球星卡：对齐原型 64px 圆头像 + #排名 */
+  .tour-player-card {
+    border: 0;
+    border-radius: 16px;
+  }
+
+  .tour-player-card__visual,
+  .tour-player-card--leader .tour-player-card__visual {
+    align-items: center;
+    background: var(--surface);
+    display: grid;
+    gap: 4px 12px;
+    grid-template-columns: 64px minmax(0, 1fr) auto;
+    height: auto;
+    overflow: visible;
+    padding: 16px 16px 6px;
+  }
+
+  .tour-player-card__shade {
+    display: none;
+  }
+
+  .tour-player-portrait,
+  .tour-player-card .tour-player-portrait__fallback {
+    border-radius: 50%;
+    grid-column: 1;
+    grid-row: 1;
+    height: 64px;
+    width: 64px;
+  }
+
+  .tour-player-card .tour-player-portrait__fallback b {
+    font-size: 18px;
+  }
+
+  .tour-player-card .tour-player-portrait__fallback small {
+    font-size: 8px;
+  }
+
+  .tour-player-card__identity {
+    color: var(--text);
+    grid-column: 2;
+    grid-row: 1;
+    max-width: none;
+    position: static;
+  }
+
+  .tour-player-card__identity > p {
+    color: var(--m-text-3);
+    margin-bottom: 3px;
+  }
+
+  .tour-player-card__identity h3 {
+    font-size: 19px;
+    letter-spacing: -0.02em;
+  }
+
+  .tour-player-card__identity > small {
+    color: var(--m-text-3);
+    font-size: 11px;
+  }
+
+  .tour-player-card__identity > em {
+    background: var(--m-accent-soft);
+    border: 0;
+    color: var(--m-accent);
+    margin-top: 6px;
+  }
+
+  .tour-player-card__rank {
+    backdrop-filter: none;
+    background: transparent;
+    border: 0;
+    display: flex;
+    flex-direction: column-reverse;
+    gap: 1px;
+    grid-column: 3;
+    grid-row: 1;
+    padding: 0;
+    position: static;
+    text-align: center;
+    -webkit-backdrop-filter: none;
+  }
+
+  .tour-player-card__rank b {
+    color: var(--m-accent);
+    font-size: 22px;
+  }
+
+  .tour-player-card__rank span {
+    color: var(--m-text-3);
+    font-size: 9.5px;
+  }
+
+  .tour-player-card__rank span::after {
+    content: " 排名";
+  }
+
+  .tour-player-card__racket-peek {
+    backdrop-filter: none;
+    background: var(--surface-soft);
+    border: 0;
+    border-radius: 12px;
+    box-shadow: none;
+    color: var(--text);
+    grid-column: 1 / -1;
+    grid-row: 2;
+    margin-top: 8px;
+    min-height: 0;
+    padding: 8px 10px;
+    position: static;
+    width: auto;
+    -webkit-backdrop-filter: none;
+  }
+
+  .tour-player-card__racket-peek > span:last-child small {
+    color: var(--m-text-3);
+  }
+
+  .tour-player-card__body,
+  .tour-player-card--leader .tour-player-card__body {
+    justify-content: flex-start;
+    padding: 14px 16px 16px;
+  }
+
+  /* 移动端首位球员卡与其余卡片统一为原型浅色样式 */
+  .tour-player-card--leader {
+    background: var(--surface);
+    color: var(--text);
+    min-height: 0;
+  }
+
+  .tour-player-card--leader .tour-player-card__identity h3 {
+    font-size: 19px;
+    letter-spacing: -0.02em;
+  }
+
+  .tour-player-card--leader .tour-player-card__racket-peek {
+    width: auto;
+  }
+
+  .tour-player-card--leader .tour-player-card__traits span,
+  .tour-player-card--leader .tour-player-card__mapping,
+  .tour-player-card--leader .tour-player-card__evidence,
+  .tour-player-card--leader .tour-player-card__mapping dl > div {
+    border-color: var(--separator);
+  }
+
+  .tour-player-card--leader .tour-player-card__traits span,
+  .tour-player-card--leader .tour-player-card__mapping > div {
+    background: var(--surface-soft);
+  }
+
+  .tour-player-card--leader .tour-player-card__traits span,
+  .tour-player-card--leader .tour-player-card__mapping > div > small,
+  .tour-player-card--leader .tour-player-card__mapping dt,
+  .tour-player-card--leader .tour-player-card__evidence summary,
+  .tour-player-card--leader .tour-player-card__evidence > p,
+  .tour-player-card--leader .tour-player-card__sync > span b {
+    color: var(--text-soft);
+  }
+
+  .tour-player-card--leader .tour-player-card__sync {
+    background: var(--accent-soft);
+  }
+
+  .tour-player-card--leader .tour-player-card__sync > span small,
+  .tour-player-card--leader .tour-player-card__sync > strong,
+  .tour-player-card--leader .tour-player-card__sources a,
+  .tour-player-card--leader .tour-player-card__share {
+    color: var(--accent);
+  }
+
+  .tour-player-card--leader .tour-mapping-badge--exact {
+    background: rgba(56, 194, 122, 0.14);
+    color: #12844a;
+  }
+
+  .tour-player-card--leader .tour-mapping-badge--family {
+    background: var(--accent-soft);
+    color: var(--accent);
+  }
+
+  .tour-player-card--leader .tour-mapping-badge--equivalent {
+    background: rgba(233, 164, 62, 0.16);
+    color: #9a5b00;
+  }
+
+  .tour-player-card--leader .tour-mapping-badge--reference {
+    background: rgba(142, 142, 147, 0.16);
+    color: var(--text-soft);
+  }
+
+  .tour-player-card--leader .tour-player-card__journey button {
+    background: var(--accent-soft);
+    color: var(--accent);
+  }
+
+  .tour-player-card--leader .tour-player-card__journey button[aria-pressed="true"] {
+    background: var(--accent);
+    color: var(--accent-ink);
+  }
+}
+
+@media (max-width: 760px) and (prefers-color-scheme: dark) {
+  .racket-inspector__header,
+  .family-inspector__header,
+  .dossier-nav {
+    background: color-mix(in srgb, var(--app-bg) 94%, transparent);
+  }
+}
+/* === proto-a 覆盖层 end === */
