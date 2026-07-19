@@ -4776,6 +4776,17 @@ export default function RacketApp() {
                           <div><RacketPhoto racket={duelChallenger} variant="thumb" /><span>应战</span><b>{duelChallenger.model}</b><strong>{duelVerdicts.bWins}</strong></div>
                         </div>
                         <p className="compare-duel-scoreline">{duelScoreSummary(duelVerdicts, duelOpponent.model, duelChallenger.model)}</p>
+                        <div className="compare-duel-rows" aria-label="逐维比分条形对照">
+                          {radarKeys.map((key) => (
+                            <div key={key}>
+                              <b className={duelVerdicts.verdicts[key] === "a" ? "is-lead" : undefined}>{duelOpponent.scores[key]}</b>
+                              <i aria-hidden="true"><span style={{ width: `${duelOpponent.scores[key]}%` }} /></i>
+                              <small>{scoreLabels[key]}</small>
+                              <i aria-hidden="true"><span style={{ width: `${duelChallenger.scores[key]}%` }} /></i>
+                              <b className={duelVerdicts.verdicts[key] === "b" ? "is-lead" : undefined}>{duelChallenger.scores[key]}</b>
+                            </div>
+                          ))}
+                        </div>
                       </section>
                     )}
                     <section className="compare-radar-card">
@@ -4790,7 +4801,7 @@ export default function RacketApp() {
                           ? <p className="compare-insights__empty">当前候选没有足够的共同公开规格，无法生成可靠解读。</p>
                           : compareInsights.status === "no-significant-diff"
                             ? <p className="compare-insights__empty">已公开且可比较的 {6 - compareInsights.excludedLabels.length} 项规格未达到显著差异阈值。</p>
-                            : <ul className="compare-insights__list">{compareInsights.insights.map((insight, index) => <li key={insight.key}><span><b>0{index + 1}</b><strong>{compareDiffLabels[insight.key]}</strong></span><p>{insight.sentence.replace("基于规格推断。", "")}</p></li>)}</ul>}
+                            : <ul className="compare-insights__list">{compareInsights.insights.map((insight, index) => <li key={insight.key}><span><b>0{index + 1}</b><strong>{compareDiffLabels[insight.key]}</strong><small className="compare-insight-ratio">显著度 {insight.ratio.toFixed(1)}</small></span><p>{insight.sentence.replace("基于规格推断。", "")}</p></li>)}</ul>}
                         {compared.length === 3 && <p className="compare-insights__scope">三拍对比按每个维度中差距最大的两把生成解读。</p>}
                         {compareInsights.excludedLabels.length > 0 && <p className="compare-insights__excluded">未参与解读：{compareInsights.excludedLabels.join("、")}（官网未公开或无法归一）。</p>}
                         <p className="compare-insights__basis">{HONESTY_NOTES.specInference} · 进入“规格”可查看原始数值</p>
