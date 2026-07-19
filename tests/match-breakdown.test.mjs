@@ -11,9 +11,11 @@ const [page, css, honesty] = await Promise.all([
 
 test("renders the breakdown as an accessible disclosure per result card", () => {
   assert.match(page, /className="match-result-breakdown__trigger" aria-expanded=\{expanded\} aria-controls=\{`match-breakdown-\$\{racket\.id\}`\}/u);
-  assert.match(page, /aria-label=\{`查看 \$\{racket\.model\} 的匹配指数拆解`\}/u);
+  assert.match(page, /aria-label=\{`查看 \$\{racket\.model\} 的\$\{prescriptionBaseline \? "换拍理由" : "匹配指数拆解"\}`\}/u);
   assert.match(page, /id=\{`match-breakdown-\$\{racket\.id\}`\} role="region"/u);
   assert.match(page, /为什么是它/u);
+  assert.match(page, /为什么值得换/u);
+  assert.match(page, /这是相对当前拍的升级路线，不代表绝对排名/u);
   assert.match(css, /\.match-result-breakdown__trigger \{[^}]*min-height: 44px/u);
 });
 

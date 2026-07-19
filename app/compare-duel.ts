@@ -8,6 +8,9 @@ export type DuelSide = "a" | "b" | "tie";
 
 export const duelScoreKeys: readonly ScoreKey[] = ["control", "power", "spin", "agility", "forgiveness", "feel"];
 
+/** 六维为相对评估；绝对分差不超过 2 分时按接近处理，避免把模型噪声包装成胜负。 */
+export const duelTieTolerance = 2;
+
 export type DuelVerdicts = {
   verdicts: Record<ScoreKey, DuelSide>;
   aWins: number;
@@ -15,7 +18,7 @@ export type DuelVerdicts = {
   ties: number;
 };
 
-/** 逐维比较两把球拍的六维评分：得分更高一方领先，同分战平。 */
+/** 逐维比较两把球拍的六维评分：超过容差才算略高，否则按接近处理。 */
 export function buildDuelVerdicts(scoresA: Record<ScoreKey, number>, scoresB: Record<ScoreKey, number>): DuelVerdicts {
   const verdicts = {} as Record<ScoreKey, DuelSide>;
   let aWins = 0;
@@ -24,10 +27,10 @@ export function buildDuelVerdicts(scoresA: Record<ScoreKey, number>, scoresB: Re
   for (const key of duelScoreKeys) {
     const a = scoresA[key];
     const b = scoresB[key];
-    if (a > b) {
+    if (a - b > duelTieTolerance) {
       verdicts[key] = "a";
       aWins += 1;
-    } else if (b > a) {
+    } else if (b - a > duelTieTolerance) {
       verdicts[key] = "b";
       bWins += 1;
     } else {
@@ -40,8 +43,8 @@ export function buildDuelVerdicts(scoresA: Record<ScoreKey, number>, scoresB: Re
 
 /** 比分摘要一行文本：领先维计数，平分维不计入任一方，全平如实说全平。 */
 export function duelScoreSummary(result: DuelVerdicts, aName: string, bName: string) {
-  if (result.aWins === 0 && result.bWins === 0) return `六维战报：${aName} 与 ${bName} 六维全部战平`;
+  if (result.aWins === 0 && result.bWins === 0) return `六维战报：${aName} 与 ${bName} 六维全部接近`;
   const base = `六维战报 ${aName} ${result.aWins} : ${result.bWins} ${bName}`;
-  if (result.aWins === result.bWins) return `${base}，战平`;
-  return result.ties > 0 ? `${base}（另有 ${result.ties} 维战平）` : base;
+  if (result.aWins === result.bWins) return `${base}，领先维数持平`;
+  return result.ties > 0 ? `${base}（另有 ${result.ties} 维接近）` : base;
 }

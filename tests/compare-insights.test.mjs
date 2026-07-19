@@ -134,11 +134,12 @@ test("survives every catalog pairing without dishonest or broken sentences", () 
 });
 
 test("compare view renders the insight block, honest wording, and spec-only highlight", () => {
-  assert.match(page, /差异翻译/);
-  assert.match(page, /按官网公开规格的确定性规则生成/);
+  assert.match(page, /最值得注意的差异/);
+  assert.match(page, /6 - compareInsights\.excludedLabels\.length/);
   assert.match(page, /compare-insights__list/);
-  assert.match(page, /两把球拍的公开规格不足以生成差异解读/);
-  assert.match(page, /六项公开规格均处于相近区间，无显著差异可解读/);
+  assert.match(page, /当前候选没有足够的共同公开规格，无法生成可靠解读/);
+  assert.match(page, /已公开且可比较的 \{6 - compareInsights\.excludedLabels\.length\} 项规格未达到显著差异阈值/);
+  assert.match(page, /三拍对比按每个维度中差距最大的两把生成解读/);
   assert.match(page, /未参与解读/);
   assert.match(page, /compare-max-diff-badge">差异最大/);
   assert.match(page, /HONESTY_NOTES\.compare\}/);

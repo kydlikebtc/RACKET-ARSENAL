@@ -18,13 +18,13 @@ export async function generateMetadata(): Promise<Metadata> {
       description: `${catalogModelCount} 款球拍深度档案、六维雷达对比与 ATP/WTA 球星公开用拍，一站找到更合拍的下一把武器。`,
       type: "website",
       locale: "zh_CN",
-      images: [{ url: `${origin}/og-app.png`, width: 1652, height: 952, alt: "拍库球拍发现与对比 App" }],
+      images: [{ url: `${origin}/og-v06.png`, width: 1733, height: 908, alt: "拍库球拍深度档案、六维雷达与对比决策" }],
     },
     twitter: {
       card: "summary_large_image",
       title: "拍库｜RACKET ARSENAL",
       description: `${catalogModelCount} 款球拍深度档案、六维雷达对比与 ATP/WTA 球星公开用拍。`,
-      images: [`${origin}/og-app.png`],
+      images: [`${origin}/og-v06.png`],
     },
   };
 }

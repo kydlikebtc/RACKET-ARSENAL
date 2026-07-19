@@ -29,10 +29,11 @@ test("server-renders the app experience", async () => {
   assert.match(html, />球星</);
   assert.match(html, />决策</);
   assert.match(html, /ATP \+ WTA 前 8/);
-  assert.match(html, /拍库严选/);
+  assert.match(html, /按场景选拍/);
+  assert.match(html, /规则筛选 · 不代表销量排名/);
   assert.match(html, /新手第一支拍/);
   assert.match(html, /控制型进阶拍/);
-  assert.match(html, /入选标准/);
+  assert.match(html, /为什么它们入选/);
   assert.match(html, /拍库相对评估/);
   assert.match(html, /259(?:<!-- -->)? 款现行型号/);
   assert.match(html, /259(?:<!-- -->)? 份六维深度档案/);
@@ -112,7 +113,7 @@ test("keeps racket imagery and app interactions wired", async () => {
   assert.doesNotMatch(page, /className="sheet-handle"/);
   assert.match(sessionState, /paiku-session-v1/);
   assert.match(page, /className="model-matrix__scroll"/);
-  assert.match(page, /className="tour-player-grid"/);
+  assert.match(page, /className="tour-ranking-list"/);
   assert.match(page, /role="dialog"/);
   assert.match(page, /data-dialog-close/);
   assert.match(page, /setAttribute\("inert", ""\)/);
@@ -172,7 +173,7 @@ test("keeps racket imagery and app interactions wired", async () => {
   assert.match(page, /const commitTourFilter/);
   assert.match(page, /copyTourLink/);
   assert.match(page, /查看深度档案/);
-  assert.match(page, /role="group" aria-label="选择巡回赛"/);
+  assert.match(page, /role="tablist"[\s\S]*?aria-label="选择巡回赛"/);
   assert.match(page, /aria-live="polite"/);
   assert.match(page, /className="match-draft-banner"/);
   assert.match(page, /进度仅保留在本页/);
@@ -180,9 +181,9 @@ test("keeps racket imagery and app interactions wired", async () => {
   assert.match(page, /discover-match-profile/);
   assert.match(page, /className="curated-lists"/);
   assert.match(page, /curatedListEntries\.map/);
-  assert.match(page, /data-focus-key=\{`curated-open-\$\{list\.id\}-\$\{racket\.id\}`\} onClick=\{\(\) => openRacket\(racket\.id\)\}/);
-  assert.match(page, /data-focus-key=\{`curated-compare-\$\{list\.id\}-\$\{racket\.id\}`\} onClick=\{\(\) => requestCompare\(racket\.id\)\} aria-pressed=\{compareIds\.includes\(racket\.id\)\}/);
-  assert.match(page, /aria-controls=\{`curated-criteria-\$\{list\.id\}`\}/);
+  assert.match(page, /data-focus-key=\{`curated-open-\$\{activeCuratedScene\.id\}-\$\{racket\.id\}`\} onClick=\{\(\) => openRacket\(racket\.id\)\}/);
+  assert.match(page, /data-focus-key=\{`curated-compare-\$\{activeCuratedScene\.id\}-\$\{racket\.id\}`\} onClick=\{\(\) => requestCompare\(racket\.id\)\} aria-pressed=\{compareIds\.includes\(racket\.id\)\}/);
+  assert.match(page, /aria-controls=\{`curated-criteria-\$\{activeCuratedScene\.id\}`\}/);
   assert.match(page, /planColdMissingResultRestart/);
   assert.match(page, /shouldImportCompareRoute/);
   assert.match(page, /rejectedCount/);
@@ -266,5 +267,5 @@ test("keeps racket imagery and app interactions wired", async () => {
   assert.match(css, /prefers-reduced-motion:\s*reduce/);
   assert.match(css, /prefers-color-scheme:\s*dark/);
   assert.match(layout, /viewportFit:\s*"cover"/);
-  assert.match(layout, /og-app\.png/);
+  assert.match(layout, /og-v06\.png/);
 });
