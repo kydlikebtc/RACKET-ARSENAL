@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { headers } from "next/headers";
-import { catalogBrands, catalogModelCount } from "./catalog-data";
+import { catalogBrands, catalogEditionCount, catalogModelCount } from "./catalog-data";
 import "./globals.css";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -11,7 +11,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
   return {
     title: "拍库｜找到和你打法同频的下一把球拍",
-    description: `浏览 ${catalogBrands.length} 个主流品牌、${catalogModelCount} 款现行成人网球拍深度档案，按拍系、类型与代际查参数；用六维雷达图匹配对比，并查看 ATP/WTA 球星公开用拍。`,
+    description: `浏览 ${catalogBrands.length} 个主流品牌、${catalogModelCount} 款成人网球拍深度档案与 ${catalogEditionCount} 个限定版本，按拍系、类型与代际查参数；用六维雷达图匹配对比，并查看 ATP/WTA 球星公开用拍。`,
     applicationName: "拍库 RACKET ARSENAL",
     openGraph: {
       title: "拍库｜RACKET ARSENAL",

@@ -5,9 +5,12 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import {
   catalogBrands,
+  catalogEditionCount,
   catalogFamilies,
+  catalogHistoricalFamilyCount,
   catalogModelCount,
   catalogTypes,
+  catalogVisualVersionCount,
   catalogVerifiedAt,
   type CatalogFamily,
 } from "./catalog-data";
@@ -953,19 +956,60 @@ function ProductGallery({ images, alt, accent }: { images: string[]; alt: string
   );
 }
 
+function RacketEditionArchive({ racket }: { racket: DeepRacket }) {
+  if (!racket.editions?.length) return null;
+
+  return (
+    <section className="racket-editions" aria-labelledby={`racket-editions-title-${racket.id}`}>
+      <div className="racket-editions__head">
+        <div><p>Colorway archive</p><h3 id={`racket-editions-title-${racket.id}`}>配色与纪念版本</h3></div>
+        <span>{racket.editions.length + 1} 个外观版本</span>
+      </div>
+      <p className="racket-editions__intro">以下版本共享这份规格与六维档案；涂装、发行时间和购买 / 资料入口分别记录。</p>
+      <div className="racket-editions__rail" role="list" aria-label={`${racket.model} 配色与纪念版本`}>
+        <article className="racket-edition-card is-standard" role="listitem">
+          <div className="racket-edition-card__visual">
+            {racket.image ? <img src={racket.image} alt="" loading="lazy" decoding="async" /> : <span>{racket.brand.slice(0, 2).toUpperCase()}</span>}
+          </div>
+          <div><span>基础型号</span><b>标准发行版</b><small>{racket.releaseDate ?? racket.year}</small></div>
+          <em>当前档案</em>
+        </article>
+        {racket.editions.map((item) => (
+          <article className="racket-edition-card" role="listitem" key={item.id}>
+            <div
+              className={`racket-edition-card__visual${item.image ? " has-image" : ""}`}
+              style={{ "--edition-gradient": `linear-gradient(135deg, ${item.swatches.join(", ")})` } as CSSProperties}
+            >
+              {item.image
+                ? <img src={item.image} alt={`${racket.model} ${item.name} 官方产品图`} loading="lazy" decoding="async" />
+                : <span aria-label={`${item.color} 配色示意`} role="img"><i /><i /><i /></span>}
+            </div>
+            <div><span>{item.kind}</span><b>{item.name}</b><small>{item.releaseDate ?? item.releaseYear} · {item.color}</small></div>
+            <p>{item.note ?? `与 ${racket.model} 标准版共享公开硬规格。`}</p>
+            <a href={item.url} target="_blank" rel="noreferrer" aria-label={`查看 ${racket.model} ${item.name} 官方或外部资料，新标签页打开`}>查看版本资料 <span aria-hidden="true">↗</span></a>
+          </article>
+        ))}
+      </div>
+      <small className="racket-editions__note">配色版本不重复计入性能型号总数，避免用同一组规格制造重复推荐结果。</small>
+    </section>
+  );
+}
+
 function CatalogFamilyCard({ family, onOpen }: { family: CatalogFamily; onOpen: () => void }) {
   const [imageFailed, setImageFailed] = useState(false);
   const heads = family.models.map((model) => model.head).filter((value): value is number => value !== null);
   const weights = family.models.map((model) => model.weight).filter((value): value is number => value !== null);
   const accent = familyTypeAccent[family.type];
   const gallery = familyGalleries[family.id] ?? (family.image ? [family.image] : []);
+  const editionCount = family.models.reduce((total, model) => total + (model.editions?.length ?? 0), 0);
+  const releasePrefix = family.status === "历史" ? "历代" : family.status === "预告" ? "即将上市" : "发行";
 
   return (
     <article className="catalog-family-card" style={{ "--family-accent": accent } as CSSProperties}>
       <button className="catalog-family-card__main" data-focus-key={`family-open-${family.id}`} onClick={onOpen} aria-label={`查看 ${family.brand} ${family.family} ${family.generation} 的 ${family.models.length} 款深度档案`}>
         <div className="catalog-family-card__visual">
           {gallery.length > 0 && !imageFailed ? <img src={gallery[0]} alt={`${family.brand} ${family.family} ${family.generation} 官方产品图`} loading="lazy" decoding="async" onError={() => setImageFailed(true)} /> : <span className="catalog-family-card__monogram"><b>{family.brand}</b><small>{family.family}</small></span>}
-          <span className="catalog-family-card__release"><i />{family.status === "预告" ? "即将上市" : "发行"} {familyReleaseLabel(family)}</span>
+          <span className={`catalog-family-card__release${family.status === "历史" ? " is-archive" : ""}`}><i />{releasePrefix} {familyReleaseLabel(family)}</span>
           {gallery.length > 1 && <span className="catalog-family-card__gallery">多角度 · {gallery.length}</span>}
         </div>
         <div className="catalog-family-card__body">
@@ -977,6 +1021,7 @@ function CatalogFamilyCard({ family, onOpen }: { family: CatalogFamily; onOpen: 
             <div><dt>拍面</dt><dd>{heads.length ? `${Math.min(...heads)}–${Math.max(...heads)}` : "—"} in²</dd></div>
             <div><dt>重量</dt><dd>{weights.length ? `${Math.min(...weights)}–${Math.max(...weights)}` : "—"} g</dd></div>
           </dl>
+          {editionCount > 0 && <span className="catalog-family-card__editions">另收录 {editionCount} 个限定 / 纪念配色</span>}
           <span className="catalog-family-card__open">查看全系与深度档案 <span aria-hidden="true">›</span></span>
         </div>
       </button>
@@ -4196,7 +4241,7 @@ export default function RacketApp() {
         </nav>
         <div className="sidebar-status">
           <span>当前拍库 · {catalogVerifiedAt}</span>
-          <strong>{catalogModelCount} 款现行型号</strong>
+          <strong>{catalogModelCount} 款性能型号</strong>
           <p>{catalogFamilies.length} 个拍系 · {deepRackets.length} 份六维深度档案 · {catalogBrands.length} 个品牌。</p>
           <span className="sidebar-version">拍库 v{appVersion}</span>
         </div>
@@ -4210,7 +4255,7 @@ export default function RacketApp() {
                 <p className="m-large-title">发现</p>
                 <span className="m-discover-head__badge" aria-hidden="true">拍</span>
               </div>
-              <p className="m-discover-head__meta">{catalogModelCount} 款现行型号 · {catalogFamilies.length} 个拍系 · 核验 {catalogVerifiedAt}</p>
+              <p className="m-discover-head__meta">{catalogModelCount} 款性能型号 · {catalogEditionCount} 个限定版本 · 核验 {catalogVerifiedAt}</p>
               <div className="m-discover-search">
                 <span aria-hidden="true">⌕</span>
                 <input
@@ -4758,9 +4803,10 @@ export default function RacketApp() {
               <dl>
                 <div><dt>品牌</dt><dd>{catalogBrands.length}</dd></div>
                 <div><dt>拍系</dt><dd>{catalogFamilies.length}</dd></div>
-                <div><dt>型号</dt><dd>{deepRackets.length}</dd></div>
+                <div><dt>性能型号</dt><dd>{deepRackets.length}</dd></div>
+                <div><dt>外观版本</dt><dd>{catalogVisualVersionCount}</dd></div>
               </dl>
-              <small>核验于 {catalogVerifiedAt} · 排除儿童拍、握把尺寸与纯配色重复 SKU</small>
+              <small>核验于 {catalogVerifiedAt} · 含 {catalogHistoricalFamilyCount} 个历代拍系、{catalogEditionCount} 个限定 / 纪念版本；握把尺寸不重复建档</small>
             </section>
 
             <section className={`brand-index${catalogSearch.trim() ? " brand-index--m-searching" : ""}`} aria-labelledby="brand-index-title">
@@ -4795,7 +4841,7 @@ export default function RacketApp() {
                     <div className="catalog-filter-panel__header"><div><span>精确筛选</span><b>{catalogBrand === "全部" ? "全部品牌" : catalogBrand}</b></div><button onClick={() => setCatalogFiltersOpen(false)} aria-label="收起筛选面板">完成</button></div>
                     <div className="catalog-filter-panel__grid">
                       <fieldset><legend>球拍类型</legend><div className="catalog-type-options">{catalogTypes.map((item) => <button key={item} type="button" aria-pressed={catalogType === item} onClick={() => commitArmoryFilters({ type: item })}>{item === "全部" ? "全部" : `${item}型`}</button>)}</div></fieldset>
-                      <label><span>产品代际</span><select value={catalogGeneration} onChange={(event) => commitArmoryFilters({ generation: event.target.value as CatalogGeneration })}>{catalogGenerationsForBrand.map((item) => <option key={item}>{item}</option>)}</select><small>{catalogBrand === "全部" ? "选择品牌后仅显示该品牌代际" : `${catalogBrand} 的现行拍系代际`}</small></label>
+                      <label><span>产品代际</span><select value={catalogGeneration} onChange={(event) => commitArmoryFilters({ generation: event.target.value as CatalogGeneration })}>{catalogGenerationsForBrand.map((item) => <option key={item}>{item}</option>)}</select><small>{catalogBrand === "全部" ? "选择品牌后仅显示该品牌代际" : `${catalogBrand} 的现行与历代拍系`}</small></label>
                       <label><span>发行时间</span><select value={catalogReleaseYear} onChange={(event) => commitArmoryFilters({ releaseYear: event.target.value as CatalogReleaseYear })}>{catalogReleaseYearOptions.map((item) => <option key={item}>{item}</option>)}</select><small>{catalogScope === "families" ? "按拍系公开发行时间" : "按具体型号发行时间"}</small></label>
                     </div>
                     <div className="catalog-filter-panel__mgroups m-only">
@@ -4805,7 +4851,7 @@ export default function RacketApp() {
                       <div>{catalogTypes.map((item) => <button type="button" key={item} className={`m-chip${catalogType === item ? " m-chip--active" : ""}`} aria-pressed={catalogType === item} onClick={() => commitArmoryFilters({ type: item })}>{item === "全部" ? "全部" : `${item}型`}</button>)}</div>
                       {catalogBrand !== "全部" && (
                         <>
-                          <p>产品代际 <small>· {catalogBrand} 现行拍系</small></p>
+                          <p>产品代际 <small>· {catalogBrand} 现行与历代</small></p>
                           <div>{catalogGenerationsForBrand.map((item) => <button type="button" key={item} className={`m-chip${catalogGeneration === item ? " m-chip--active" : ""}`} aria-pressed={catalogGeneration === item} onClick={() => commitArmoryFilters({ generation: item })}>{item}</button>)}</div>
                         </>
                       )}
@@ -4837,7 +4883,7 @@ export default function RacketApp() {
                   <article className="catalog-model-result" key={racket.id}>
                     <button className="catalog-model-result__main" data-focus-key={`catalog-model-open-${racket.id}`} onClick={() => openRacket(racket.id)} aria-label={`查看 ${racket.model} 深度档案`}>
                       <RacketPhoto racket={racket} variant="thumb" />
-                      <span><small>{racket.brand} · {racket.familyName} · {racket.generation}</small><strong>{racket.model}</strong><em>{racket.stages.join(" · ")} / {racket.styles.join(" · ")}</em><i>打开深度档案 <span aria-hidden="true">›</span></i></span>
+                      <span><small>{racket.brand} · {racket.familyName} · {racket.generation}</small><strong>{racket.model}</strong>{racket.editions?.length ? <mark>{racket.editions.length + 1} 个外观版本</mark> : null}<em>{racket.stages.join(" · ")} / {racket.styles.join(" · ")}</em><i>打开深度档案 <span aria-hidden="true">›</span></i></span>
                       <MiniRadar racket={racket} />
                     </button>
                     <dl className="catalog-model-result__facts">
@@ -5265,17 +5311,17 @@ export default function RacketApp() {
                 accent={familyTypeAccent[selectedFamily.type]}
               />
               <header className="family-inspector__title">
-                <div><span>{selectedFamily.type}型</span><span>{selectedFamily.status === "预告" ? "即将上市" : "现行拍系"}</span></div>
+                <div><span>{selectedFamily.type}型</span><span>{selectedFamily.status === "预告" ? "即将上市" : selectedFamily.status === "历史" ? "历代档案" : selectedFamily.status === "在售" ? "在售旧代" : "现行拍系"}</span></div>
                 <p>{selectedFamily.brand} · {selectedFamily.generation}</p>
                 <h2 id="family-inspector-title">{selectedFamily.family}</h2>
                 <strong>发行 {familyReleaseLabel(selectedFamily)}</strong>
                 <p>{selectedFamily.summary}</p>
               </header>
               <dl className="family-inspector__overview">
-                <div><dt>当前型号</dt><dd>{selectedFamily.models.length} 款</dd></div>
+                <div><dt>性能型号</dt><dd>{selectedFamily.models.length} 款</dd></div>
+                <div><dt>外观版本</dt><dd>{selectedFamily.models.length + selectedFamily.models.reduce((total, model) => total + (model.editions?.length ?? 0), 0)} 个</dd></div>
                 <div><dt>定位 Type</dt><dd>{selectedFamily.type}</dd></div>
                 <div><dt>代际</dt><dd>{selectedFamily.generation}</dd></div>
-                <div><dt>数据核验</dt><dd>{catalogVerifiedAt}</dd></div>
               </dl>
               <section className="model-matrix" aria-labelledby="model-matrix-title">
                 <div className="model-matrix__heading"><div><p>Variant matrix</p><h3 id="model-matrix-title">全系参数与六维雷达</h3></div><span>每项 = 官网数值 · 参数特点 · 本系中位差</span></div>
@@ -5293,6 +5339,7 @@ export default function RacketApp() {
                                 <strong>{model.name}</strong><span>查看深度档案 <span aria-hidden="true">›</span></span>
                               </button>
                               <p className="model-matrix__overview">{modelMatrixOverview(racketProfile)}</p>
+                              {model.editions?.length ? <p className="model-matrix__editions">{model.editions.length + 1} 个配色 / 纪念版本</p> : null}
                             </th>
                             <td className="model-matrix__radar-cell" data-label="六维雷达"><button className="model-matrix__radar-button" data-focus-key={`family-radar-${racketProfile.id}`} onClick={() => openRacket(racketProfile.id)} aria-label={`打开 ${model.name} 完整六维雷达`}><MiniRadar racket={racketProfile} /></button></td>
                             <td data-label="发行">{modelReleaseLabel(selectedFamily, model.releaseDate)}</td>
@@ -5317,7 +5364,7 @@ export default function RacketApp() {
               {selectedFamily.note && <p className="family-inspector__note"><b>数据说明</b>{selectedFamily.note}</p>}
               <p className="family-inspector__source">规格与发行信息来自品牌官网；参数特点是基于公开硬规格的导向归纳，静态平衡不等于挥重，也不替代实际试打。表内六维雷达为拍库相对评估；不同国家/地区在售款可能不同。</p>
             </div>
-            <footer className="family-inspector__actions"><span><b>{selectedFamily.models.length} 款</b><small>官网现行成人型号</small></span>{compareIds.length > 0 && <button className="app-button app-button--soft" onClick={() => goToView("compare")}>查看对比 {compareIds.length}/3</button>}<a className="app-button app-button--primary" href={selectedFamily.familyUrl} target="_blank" rel="noreferrer" aria-label={`打开 ${selectedFamily.brand} ${selectedFamily.family} 官网，新标签页打开`}>打开 {selectedFamily.brand} 官网 <span aria-hidden="true">↗</span></a></footer>
+            <footer className="family-inspector__actions"><span><b>{selectedFamily.models.length} 款</b><small>{selectedFamily.status === "历史" ? "品牌历代成人型号" : "官网现行成人型号"}</small></span>{compareIds.length > 0 && <button className="app-button app-button--soft" onClick={() => goToView("compare")}>查看对比 {compareIds.length}/3</button>}<a className="app-button app-button--primary" href={selectedFamily.familyUrl} target="_blank" rel="noreferrer" aria-label={`打开 ${selectedFamily.brand} ${selectedFamily.family} 官网，新标签页打开`}>{selectedFamily.status === "历史" ? "查看品牌历史资料" : `打开 ${selectedFamily.brand} 官网`} <span aria-hidden="true">↗</span></a></footer>
           </section>
         </div>
       )}
@@ -5339,6 +5386,7 @@ export default function RacketApp() {
               <p className="racket-inspector__summary">{selected.summary}</p>
               <p className="racket-inspector__verdict">{selected.verdict}</p>
               {selected.familyId && <button className="racket-inspector__family-path" data-focus-key={`dossier-family-${selected.id}`} onClick={() => openFamily(selected.familyId as string, selected.id)}>查看 {selected.familyName} 拍系全部型号 <span aria-hidden="true">›</span></button>}
+              <RacketEditionArchive racket={selected} />
               <section className="dossier-decision-strip" aria-label="从这把球拍开始决策"><div><span>和朋友比一把</span><b>用 {selected.model} 守擂</b><small>生成链接，朋友打开后直接选拍应战</small></div><button data-focus-key={`dossier-duel-${selected.id}`} onClick={() => startDuel(selected.id)} aria-label={`发起 ${selected.model} 球拍对决`}>发起好友对决 <span aria-hidden="true">↗</span></button><PurchaseLinkBadge racketId={selected.id} /></section>
               <dl className="inspector-specs" id="dossier-specs" tabIndex={-1} aria-label={`${selected.model} 完整规格`}>
                 <div><dt>裸拍重量</dt><dd>{formatNumberSpec(officialWeight(selected), "g")}</dd></div><div><dt>拍面</dt><dd>{formatNumberSpec(officialHead(selected), "in²")}</dd></div><div><dt>线床</dt><dd>{officialPattern(selected) ?? "—"}</dd></div><div><dt>平衡点</dt><dd>{officialBalance(selected)}</dd></div><div><dt>框厚</dt><dd>{officialBeam(selected)}</dd></div><div><dt>长度</dt><dd>{officialLength(selected)}</dd></div><div><dt>阶段</dt><dd>{selected.stages.join(" / ")}</dd></div><div><dt>打法</dt><dd>{selected.styles.join(" / ")}</dd></div><div><dt>资料完整度</dt><dd>{selected.specCoverage ?? "—"}</dd></div>
@@ -5387,7 +5435,7 @@ export default function RacketApp() {
             <button data-dialog-close className="duel-share-sheet__close" onClick={dismissDuelShare} aria-label="关闭好友对决分享">×</button>
             <span className="duel-share-sheet__eyebrow">FRIEND DUEL</span>
             <h2 id="duel-share-title">用 {duelShare.racketName} 守擂</h2>
-            <p>朋友打开链接后，会先看到你的战拍，再从 259 款拍库中选一把应战。</p>
+            <p>朋友打开链接后，会先看到你的战拍，再从 {catalogModelCount} 款拍库中选一把应战。</p>
             <div className="duel-share-sheet__versus"><span><small>你的战拍</small><b>{duelShare.racketName}</b></span><i>VS</i><span><small>朋友选择</small><b>等待应战</b></span></div>
             <label><span>挑战链接</span><input ref={duelLinkInputRef} value={duelShare.url} readOnly onFocus={(event) => event.currentTarget.select()} /></label>
             <div className="duel-share-sheet__actions"><button className="app-button app-button--primary" onClick={shareDuelLink}>分享给朋友</button><button className="app-button app-button--soft" onClick={copyDuelLink}>复制链接</button></div>

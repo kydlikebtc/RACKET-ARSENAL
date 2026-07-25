@@ -1,4 +1,4 @@
-import { catalogFamilies, type CatalogFamily, type CatalogModel, type RacketFamilyType } from "./catalog-data";
+import { catalogFamilies, type CatalogEdition, type CatalogFamily, type CatalogModel, type RacketFamilyType } from "./catalog-data";
 import { catalogModelImages } from "./catalog-model-images";
 
 export type Stage = "入门" | "进阶" | "高阶";
@@ -25,6 +25,12 @@ export type RacketSpecInsights = {
   mainstreamKnown: boolean;
 };
 
+export type RacketEdition = CatalogEdition & {
+  image?: string;
+  images?: string[];
+  imageVerifiedAt?: string;
+};
+
 export type DeepRacket = {
   id: string;
   brand: string;
@@ -48,6 +54,7 @@ export type DeepRacket = {
   images?: string[];
   imageSourceUrl?: string;
   imageVerifiedAt?: string;
+  editions?: RacketEdition[];
   familyId?: string;
   familyName?: string;
   familyType?: RacketFamilyType;
@@ -509,6 +516,17 @@ export function catalogRacketId(family: CatalogFamily, modelIndex: number) {
 export function buildDeepRacket(family: CatalogFamily, model: CatalogModel, modelIndex: number): DeepRacket {
   const id = catalogRacketId(family, modelIndex);
   const modelImages = catalogModelImages[id];
+  const editions = model.editions?.map((item) => {
+    const editionImages = catalogModelImages[item.id];
+    return {
+      ...item,
+      ...(editionImages ? {
+        image: editionImages.images[0],
+        images: [...editionImages.images],
+        imageVerifiedAt: editionImages.verifiedAt,
+      } : {}),
+    };
+  });
   const scores = buildProfileScores(family, model);
   const stages = buildStages(family, model);
   const styles = buildStyles(family, scores);
@@ -542,13 +560,14 @@ export function buildDeepRacket(family: CatalogFamily, model: CatalogModel, mode
     verdict: `更适合${stages.join("至")}阶段、以${styles.join("或")}为主要赢分方式，并优先看重${strongest.map((key) => scoreLabels[key]).join("与")}的球员。`,
     scores,
     buyUrl: model.url,
-    buyLabel: `${family.brand} 官网`,
+    buyLabel: family.status === "历史" ? `${family.brand} 历史资料 / 外部渠道` : `${family.brand} 官网`,
     image: modelImages?.images[0] ?? family.image,
     ...(modelImages ? {
       images: [...modelImages.images],
       imageSourceUrl: modelImages.sourceUrl,
       imageVerifiedAt: modelImages.verifiedAt,
     } : {}),
+    ...(editions?.length ? { editions } : {}),
     familyId: family.id,
     familyName: family.family,
     familyType: family.type,

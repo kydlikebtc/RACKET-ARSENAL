@@ -35,8 +35,8 @@ test("server-renders the app experience", async () => {
   assert.match(html, /控制型进阶拍/);
   assert.match(html, /为什么它们入选/);
   assert.match(html, /拍库相对评估/);
-  assert.match(html, /259(?:<!-- -->)? 款现行型号/);
-  assert.match(html, /259(?:<!-- -->)? 份六维深度档案/);
+  assert.match(html, /297(?:<!-- -->)? 款性能型号/);
+  assert.match(html, /297(?:<!-- -->)? 份六维深度档案/);
   const { version } = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
   assert.match(html, new RegExp(`拍库 v(?:<!-- -->)?${version.replaceAll(".", "\\.")}`));
   assert.doesNotMatch(html, /Codex is working|Your site is taking shape|codex-preview/i);
@@ -225,8 +225,8 @@ test("keeps racket imagery and app interactions wired", async () => {
   const familyIds = catalog.match(/id: "[^"]+", brand:/g) ?? [];
   const catalogModels = catalog.match(/\bspec\("/g) ?? [];
   const catalogImagePaths = [...catalog.matchAll(/^\s+image: "(\/rackets\/[^"]+)"/gm)].map((match) => match[1]);
-  assert.equal(familyIds.length, 49);
-  assert.equal(catalogModels.length, 259);
+  assert.equal(familyIds.length, 54);
+  assert.equal(catalogModels.length, 297);
   assert.equal(catalogImagePaths.length, familyIds.length);
   await Promise.all(catalogImagePaths.map((path) => access(new URL(`../public${path}`, import.meta.url))));
   assert.match(catalog, /export const catalogModelCount/);

@@ -23,7 +23,7 @@ function findProfile(familyId, model) {
 
 test("creates one deterministic deep dossier for every catalog model", () => {
   const sourceModels = catalogFamilies.flatMap((family) => family.models.map((model) => ({ family, model })));
-  assert.equal(catalogModelCount, 259);
+  assert.equal(catalogModelCount, 297);
   assert.equal(sourceModels.length, catalogModelCount);
   assert.equal(deepRackets.length, catalogModelCount);
   assert.deepEqual(buildDeepRackets(), deepRackets);

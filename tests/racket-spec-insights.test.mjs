@@ -11,9 +11,9 @@ function findProfile(model) {
   return profile;
 }
 
-test("gives all 259 rackets one complete, null-safe specification presentation", () => {
+test("gives all 297 rackets one complete, null-safe specification presentation", () => {
   assert.equal(deepRackets.length, catalogModelCount);
-  assert.equal(catalogModelCount, 259);
+  assert.equal(catalogModelCount, 297);
   let specCellCount = 0;
 
   for (const family of catalogFamilies) {

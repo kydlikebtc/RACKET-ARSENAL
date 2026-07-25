@@ -12,7 +12,7 @@ import {
 const radarKeys = ["control", "power", "spin", "agility", "forgiveness", "feel"];
 
 test("every yearbook model has one complete six-axis radar profile", () => {
-  assert.equal(catalogModelCount, 259);
+  assert.equal(catalogModelCount, 297);
   assert.equal(deepRackets.length, catalogModelCount);
 
   const profiles = new Map(deepRackets.map((racket) => [racket.id, racket]));
@@ -32,7 +32,9 @@ test("every yearbook model has one complete six-axis radar profile", () => {
       }
       assert.match(model.url, /^https:\/\//, `${profile.model} must have an external official or purchase URL`);
       assert.doesNotMatch(model.url, /\/help\/product\/stringing-instructions/i, `${profile.model} must link to racket information, not generic stringing help`);
-      assert.notEqual(model.url, family.familyUrl, `${profile.model} must link to its model page rather than reuse the family landing page`);
+      if (family.status !== "历史") {
+        assert.notEqual(model.url, family.familyUrl, `${profile.model} must link to its model page rather than reuse the family landing page`);
+      }
       assert.doesNotMatch(model.url, /^https:\/\/b2b\./i, `${profile.model} must use a consumer-facing product page`);
     });
   }

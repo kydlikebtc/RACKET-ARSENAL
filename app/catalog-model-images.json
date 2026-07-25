@@ -1,4 +1,45 @@
 {
+  "catalog-babolat-pure-aero-gen8-pure-aero-98-gen8": {
+    "images": [
+      "/rackets/models/babolat/catalog-babolat-pure-aero-gen8-pure-aero-98-gen8-1.webp",
+      "/rackets/models/babolat/catalog-babolat-pure-aero-gen8-pure-aero-98-gen8-2.webp"
+    ],
+    "sourceUrl": "https://www.babolat.com/us/news-articles-blog-pure-aero-98/pure-aero-98.html",
+    "verifiedAt": "2026-07-25",
+    "sourceKind": "official-product"
+  },
+  "catalog-babolat-pure-aero-gen8-pure-aero-gen8": {
+    "images": [
+      "/rackets/models/babolat/catalog-babolat-pure-aero-gen8-pure-aero-gen8-1.webp"
+    ],
+    "sourceUrl": "https://www.babolat.com/us/news-articles-blog-pure-aero-2022/pure-aero-2022.html?section=news",
+    "verifiedAt": "2026-07-25",
+    "sourceKind": "official-product"
+  },
+  "catalog-babolat-pure-aero-gen8-pure-aero-lite-gen8": {
+    "images": [
+      "/rackets/models/babolat/catalog-babolat-pure-aero-gen8-pure-aero-lite-gen8-1.webp"
+    ],
+    "sourceUrl": "https://www.babolat.com/us/news-articles-blog-pure-aero-2022/pure-aero-2022.html?section=news",
+    "verifiedAt": "2026-07-25",
+    "sourceKind": "official-product"
+  },
+  "catalog-babolat-pure-aero-gen8-pure-aero-plus-gen8": {
+    "images": [
+      "/rackets/models/babolat/catalog-babolat-pure-aero-gen8-pure-aero-plus-gen8-1.webp"
+    ],
+    "sourceUrl": "https://www.babolat.com/us/news-articles-blog-pure-aero-2022/pure-aero-2022.html?section=news",
+    "verifiedAt": "2026-07-25",
+    "sourceKind": "official-product"
+  },
+  "catalog-babolat-pure-aero-gen8-pure-aero-team-gen8": {
+    "images": [
+      "/rackets/models/babolat/catalog-babolat-pure-aero-gen8-pure-aero-team-gen8-1.webp"
+    ],
+    "sourceUrl": "https://www.babolat.com/us/news-articles-blog-pure-aero-2022/pure-aero-2022.html?section=news",
+    "verifiedAt": "2026-07-25",
+    "sourceKind": "official-product"
+  },
   "catalog-babolat-pure-aero-gen9-pure-aero-98-gen9": {
     "images": [
       "/rackets/models/babolat/catalog-babolat-pure-aero-gen9-pure-aero-98-gen9-1.webp",
@@ -542,6 +583,51 @@
     ],
     "sourceUrl": "https://us.dunlopsports.com/dunlop/tennis/rackets/sx-series/sx-300-tour-tennis-racket/10361521.html",
     "verifiedAt": "2026-07-17",
+    "sourceKind": "official-product"
+  },
+  "catalog-head-boom-2024-boom-mp-2024": {
+    "images": [
+      "/rackets/models/head/catalog-head-boom-2024-boom-mp-2024-1.webp",
+      "/rackets/models/head/catalog-head-boom-2024-boom-mp-2024-2.webp"
+    ],
+    "sourceUrl": "https://www.head.com/en_US/product/boom-mp-2024-230114",
+    "verifiedAt": "2026-07-25",
+    "sourceKind": "official-product"
+  },
+  "catalog-head-boom-2024-boom-mp-l-2024": {
+    "images": [
+      "/rackets/models/head/catalog-head-boom-2024-boom-mp-l-2024-1.webp",
+      "/rackets/models/head/catalog-head-boom-2024-boom-mp-l-2024-2.webp"
+    ],
+    "sourceUrl": "https://www.head.com/en_US/product/boom-mp-l-2024-230124",
+    "verifiedAt": "2026-07-25",
+    "sourceKind": "official-product"
+  },
+  "catalog-head-boom-2024-boom-pro-2024": {
+    "images": [
+      "/rackets/models/head/catalog-head-boom-2024-boom-pro-2024-1.webp",
+      "/rackets/models/head/catalog-head-boom-2024-boom-pro-2024-2.webp"
+    ],
+    "sourceUrl": "https://www.head.com/en_US/product/boom-pro-2024-230104",
+    "verifiedAt": "2026-07-25",
+    "sourceKind": "official-product"
+  },
+  "catalog-head-boom-2024-boom-team-2024": {
+    "images": [
+      "/rackets/models/head/catalog-head-boom-2024-boom-team-2024-1.webp",
+      "/rackets/models/head/catalog-head-boom-2024-boom-team-2024-2.webp"
+    ],
+    "sourceUrl": "https://www.head.com/en_US/product/boom-team-2024-230134",
+    "verifiedAt": "2026-07-25",
+    "sourceKind": "official-product"
+  },
+  "catalog-head-boom-2024-boom-team-l-2024": {
+    "images": [
+      "/rackets/models/head/catalog-head-boom-2024-boom-team-l-2024-1.webp",
+      "/rackets/models/head/catalog-head-boom-2024-boom-team-l-2024-2.webp"
+    ],
+    "sourceUrl": "https://www.head.com/en_US/product/boom-team-l-2024-230144",
+    "verifiedAt": "2026-07-25",
     "sourceKind": "official-product"
   },
   "catalog-head-boom-2026-boom-mp": {
@@ -2002,6 +2088,96 @@
     "verifiedAt": "2026-07-17",
     "sourceKind": "official-product"
   },
+  "catalog-wilson-blade-v9-blade-100-v9": {
+    "images": [
+      "/rackets/models/wilson/catalog-wilson-blade-v9-blade-100-v9-1.webp",
+      "/rackets/models/wilson/catalog-wilson-blade-v9-blade-100-v9-2.webp"
+    ],
+    "sourceUrl": "https://jp.wilson.com/pages/tennis-rackets-blade-v9",
+    "verifiedAt": "2026-07-25",
+    "sourceKind": "official-product"
+  },
+  "catalog-wilson-blade-v9-blade-100l-v9": {
+    "images": [
+      "/rackets/models/wilson/catalog-wilson-blade-v9-blade-100l-v9-1.webp",
+      "/rackets/models/wilson/catalog-wilson-blade-v9-blade-100l-v9-2.webp"
+    ],
+    "sourceUrl": "https://jp.wilson.com/pages/tennis-rackets-blade-v9",
+    "verifiedAt": "2026-07-25",
+    "sourceKind": "official-product"
+  },
+  "catalog-wilson-blade-v9-blade-100ul-v9": {
+    "images": [
+      "/rackets/models/wilson/catalog-wilson-blade-v9-blade-100ul-v9-1.webp",
+      "/rackets/models/wilson/catalog-wilson-blade-v9-blade-100ul-v9-2.webp"
+    ],
+    "sourceUrl": "https://jp.wilson.com/pages/tennis-rackets-blade-v9",
+    "verifiedAt": "2026-07-25",
+    "sourceKind": "official-product"
+  },
+  "catalog-wilson-blade-v9-blade-101l-v9": {
+    "images": [
+      "/rackets/models/wilson/catalog-wilson-blade-v9-blade-101l-v9-1.webp",
+      "/rackets/models/wilson/catalog-wilson-blade-v9-blade-101l-v9-2.webp"
+    ],
+    "sourceUrl": "https://jp.wilson.com/pages/tennis-rackets-blade-v9",
+    "verifiedAt": "2026-07-25",
+    "sourceKind": "official-product"
+  },
+  "catalog-wilson-blade-v9-blade-104-v9": {
+    "images": [
+      "/rackets/models/wilson/catalog-wilson-blade-v9-blade-104-v9-1.webp",
+      "/rackets/models/wilson/catalog-wilson-blade-v9-blade-104-v9-2.webp"
+    ],
+    "sourceUrl": "https://jp.wilson.com/pages/tennis-rackets-blade-v9",
+    "verifiedAt": "2026-07-25",
+    "sourceKind": "official-product"
+  },
+  "catalog-wilson-blade-v9-blade-98-16x19-v9": {
+    "images": [
+      "/rackets/models/wilson/catalog-wilson-blade-v9-blade-98-16x19-v9-1.webp",
+      "/rackets/models/wilson/catalog-wilson-blade-v9-blade-98-16x19-v9-2.webp"
+    ],
+    "sourceUrl": "https://jp.wilson.com/pages/tennis-rackets-blade-v9",
+    "verifiedAt": "2026-07-25",
+    "sourceKind": "official-product"
+  },
+  "catalog-wilson-blade-v9-blade-98-18x20-v9": {
+    "images": [
+      "/rackets/models/wilson/catalog-wilson-blade-v9-blade-98-18x20-v9-1.webp",
+      "/rackets/models/wilson/catalog-wilson-blade-v9-blade-98-18x20-v9-2.webp"
+    ],
+    "sourceUrl": "https://jp.wilson.com/pages/tennis-rackets-blade-v9",
+    "verifiedAt": "2026-07-25",
+    "sourceKind": "official-product"
+  },
+  "catalog-wilson-blade-v9-blade-98s-v9": {
+    "images": [
+      "/rackets/models/wilson/catalog-wilson-blade-v9-blade-98s-v9-1.webp",
+      "/rackets/models/wilson/catalog-wilson-blade-v9-blade-98s-v9-2.webp"
+    ],
+    "sourceUrl": "https://jp.wilson.com/pages/tennis-rackets-blade-v9",
+    "verifiedAt": "2026-07-25",
+    "sourceKind": "official-product"
+  },
+  "catalog-wilson-blade-v9-blade-pro-98-16x19-v9": {
+    "images": [
+      "/rackets/models/wilson/catalog-wilson-blade-v9-blade-pro-98-16x19-v9-1.webp",
+      "/rackets/models/wilson/catalog-wilson-blade-v9-blade-pro-98-16x19-v9-2.webp"
+    ],
+    "sourceUrl": "https://jp.wilson.com/pages/tennis-rackets-blade-v9",
+    "verifiedAt": "2026-07-25",
+    "sourceKind": "official-product"
+  },
+  "catalog-wilson-blade-v9-blade-pro-98-18x20-v9": {
+    "images": [
+      "/rackets/models/wilson/catalog-wilson-blade-v9-blade-pro-98-18x20-v9-1.webp",
+      "/rackets/models/wilson/catalog-wilson-blade-v9-blade-pro-98-18x20-v9-2.webp"
+    ],
+    "sourceUrl": "https://jp.wilson.com/pages/tennis-rackets-blade-v9",
+    "verifiedAt": "2026-07-25",
+    "sourceKind": "official-product"
+  },
   "catalog-wilson-clash-v3-clash-100-pro-v3": {
     "images": [
       "/rackets/models/wilson/catalog-wilson-clash-v3-clash-100-pro-v3-1.webp",
@@ -2239,6 +2415,96 @@
     ],
     "sourceUrl": "https://us.yonex.com/products/astrel-120",
     "verifiedAt": "2026-07-17",
+    "sourceKind": "official-product"
+  },
+  "catalog-yonex-ezone-7-ezone-100-7th": {
+    "images": [
+      "/rackets/models/yonex/catalog-yonex-ezone-7-ezone-100-7th-1.webp",
+      "/rackets/models/yonex/catalog-yonex-ezone-7-ezone-100-7th-2.webp"
+    ],
+    "sourceUrl": "https://www.yonex.com/news/tennis/the-7th-generation-ezone-the-easy-one/",
+    "verifiedAt": "2026-07-25",
+    "sourceKind": "official-product"
+  },
+  "catalog-yonex-ezone-7-ezone-100-plus-7th": {
+    "images": [
+      "/rackets/models/yonex/catalog-yonex-ezone-7-ezone-100-plus-7th-1.webp",
+      "/rackets/models/yonex/catalog-yonex-ezone-7-ezone-100-plus-7th-2.webp"
+    ],
+    "sourceUrl": "https://www.yonex.com/news/tennis/the-7th-generation-ezone-the-easy-one/",
+    "verifiedAt": "2026-07-25",
+    "sourceKind": "official-product"
+  },
+  "catalog-yonex-ezone-7-ezone-100l-7th": {
+    "images": [
+      "/rackets/models/yonex/catalog-yonex-ezone-7-ezone-100l-7th-1.webp",
+      "/rackets/models/yonex/catalog-yonex-ezone-7-ezone-100l-7th-2.webp"
+    ],
+    "sourceUrl": "https://www.yonex.com/news/tennis/the-7th-generation-ezone-the-easy-one/",
+    "verifiedAt": "2026-07-25",
+    "sourceKind": "official-product"
+  },
+  "catalog-yonex-ezone-7-ezone-100sl-7th": {
+    "images": [
+      "/rackets/models/yonex/catalog-yonex-ezone-7-ezone-100sl-7th-1.webp",
+      "/rackets/models/yonex/catalog-yonex-ezone-7-ezone-100sl-7th-2.webp"
+    ],
+    "sourceUrl": "https://www.yonex.com/news/tennis/the-7th-generation-ezone-the-easy-one/",
+    "verifiedAt": "2026-07-25",
+    "sourceKind": "official-product"
+  },
+  "catalog-yonex-ezone-7-ezone-105-7th": {
+    "images": [
+      "/rackets/models/yonex/catalog-yonex-ezone-7-ezone-105-7th-1.webp",
+      "/rackets/models/yonex/catalog-yonex-ezone-7-ezone-105-7th-2.webp"
+    ],
+    "sourceUrl": "https://www.yonex.com/news/tennis/the-7th-generation-ezone-the-easy-one/",
+    "verifiedAt": "2026-07-25",
+    "sourceKind": "official-product"
+  },
+  "catalog-yonex-ezone-7-ezone-110-7th": {
+    "images": [
+      "/rackets/models/yonex/catalog-yonex-ezone-7-ezone-110-7th-1.webp",
+      "/rackets/models/yonex/catalog-yonex-ezone-7-ezone-110-7th-2.webp"
+    ],
+    "sourceUrl": "https://www.yonex.com/news/tennis/the-7th-generation-ezone-the-easy-one/",
+    "verifiedAt": "2026-07-25",
+    "sourceKind": "official-product"
+  },
+  "catalog-yonex-ezone-7-ezone-98-7th": {
+    "images": [
+      "/rackets/models/yonex/catalog-yonex-ezone-7-ezone-98-7th-1.webp",
+      "/rackets/models/yonex/catalog-yonex-ezone-7-ezone-98-7th-2.webp"
+    ],
+    "sourceUrl": "https://www.yonex.com/news/tennis/the-7th-generation-ezone-the-easy-one/",
+    "verifiedAt": "2026-07-25",
+    "sourceKind": "official-product"
+  },
+  "catalog-yonex-ezone-7-ezone-98-plus-7th": {
+    "images": [
+      "/rackets/models/yonex/catalog-yonex-ezone-7-ezone-98-plus-7th-1.webp",
+      "/rackets/models/yonex/catalog-yonex-ezone-7-ezone-98-plus-7th-2.webp"
+    ],
+    "sourceUrl": "https://www.yonex.com/news/tennis/the-7th-generation-ezone-the-easy-one/",
+    "verifiedAt": "2026-07-25",
+    "sourceKind": "official-product"
+  },
+  "catalog-yonex-ezone-7-ezone-98-tour-7th": {
+    "images": [
+      "/rackets/models/yonex/catalog-yonex-ezone-7-ezone-98-tour-7th-1.webp",
+      "/rackets/models/yonex/catalog-yonex-ezone-7-ezone-98-tour-7th-2.webp"
+    ],
+    "sourceUrl": "https://www.yonex.com/news/tennis/the-7th-generation-ezone-the-easy-one/",
+    "verifiedAt": "2026-07-25",
+    "sourceKind": "official-product"
+  },
+  "catalog-yonex-ezone-7-ezone-98l-7th": {
+    "images": [
+      "/rackets/models/yonex/catalog-yonex-ezone-7-ezone-98l-7th-1.webp",
+      "/rackets/models/yonex/catalog-yonex-ezone-7-ezone-98l-7th-2.webp"
+    ],
+    "sourceUrl": "https://www.yonex.com/news/tennis/the-7th-generation-ezone-the-easy-one/",
+    "verifiedAt": "2026-07-25",
     "sourceKind": "official-product"
   },
   "catalog-yonex-ezone-8-ezone-100": {
@@ -2481,6 +2747,70 @@
     "verifiedAt": "2026-07-17",
     "sourceKind": "official-product"
   },
+  "catalog-yonex-vcore-7-vcore-100-7th": {
+    "images": [
+      "/rackets/models/yonex/catalog-yonex-vcore-7-vcore-100-7th-1.webp"
+    ],
+    "sourceUrl": "https://www.yonex.com/news/tennis/the-7th-generation-vcore-the-art-of-spin/",
+    "verifiedAt": "2026-07-25",
+    "sourceKind": "official-product"
+  },
+  "catalog-yonex-vcore-7-vcore-100-plus-7th": {
+    "images": [
+      "/rackets/models/yonex/catalog-yonex-vcore-7-vcore-100-plus-7th-1.webp"
+    ],
+    "sourceUrl": "https://www.yonex.com/news/tennis/the-7th-generation-vcore-the-art-of-spin/",
+    "verifiedAt": "2026-07-25",
+    "sourceKind": "official-product"
+  },
+  "catalog-yonex-vcore-7-vcore-100l-7th": {
+    "images": [
+      "/rackets/models/yonex/catalog-yonex-vcore-7-vcore-100l-7th-1.webp"
+    ],
+    "sourceUrl": "https://www.yonex.com/news/tennis/the-7th-generation-vcore-the-art-of-spin/",
+    "verifiedAt": "2026-07-25",
+    "sourceKind": "official-product"
+  },
+  "catalog-yonex-vcore-7-vcore-95-7th": {
+    "images": [
+      "/rackets/models/yonex/catalog-yonex-vcore-7-vcore-95-7th-1.webp"
+    ],
+    "sourceUrl": "https://www.yonex.com/news/tennis/the-7th-generation-vcore-the-art-of-spin/",
+    "verifiedAt": "2026-07-25",
+    "sourceKind": "official-product"
+  },
+  "catalog-yonex-vcore-7-vcore-98-7th": {
+    "images": [
+      "/rackets/models/yonex/catalog-yonex-vcore-7-vcore-98-7th-1.webp"
+    ],
+    "sourceUrl": "https://www.yonex.com/news/tennis/the-7th-generation-vcore-the-art-of-spin/",
+    "verifiedAt": "2026-07-25",
+    "sourceKind": "official-product"
+  },
+  "catalog-yonex-vcore-7-vcore-98l-7th": {
+    "images": [
+      "/rackets/models/yonex/catalog-yonex-vcore-7-vcore-98l-7th-1.webp"
+    ],
+    "sourceUrl": "https://www.yonex.com/news/tennis/the-7th-generation-vcore-the-art-of-spin/",
+    "verifiedAt": "2026-07-25",
+    "sourceKind": "official-product"
+  },
+  "catalog-yonex-vcore-7-vcore-feel-7th": {
+    "images": [
+      "/rackets/models/yonex/catalog-yonex-vcore-7-vcore-feel-7th-1.webp"
+    ],
+    "sourceUrl": "https://www.yonex.com/news/tennis/the-7th-generation-vcore-the-art-of-spin/",
+    "verifiedAt": "2026-07-25",
+    "sourceKind": "official-product"
+  },
+  "catalog-yonex-vcore-7-vcore-game-7th": {
+    "images": [
+      "/rackets/models/yonex/catalog-yonex-vcore-7-vcore-game-7th-1.webp"
+    ],
+    "sourceUrl": "https://www.yonex.com/news/tennis/the-7th-generation-vcore-the-art-of-spin/",
+    "verifiedAt": "2026-07-25",
+    "sourceKind": "official-product"
+  },
   "catalog-yonex-vcore-8-vcore-100": {
     "images": [
       "/rackets/models/yonex/catalog-yonex-vcore-8-vcore-100-1.webp",
@@ -2569,6 +2899,154 @@
     ],
     "sourceUrl": "https://www.yonex.com/tennis/racquets/08vc98l",
     "verifiedAt": "2026-07-17",
+    "sourceKind": "official-product"
+  },
+  "edition-babolat-pure-drive-gen11-wimbledon-2026": {
+    "images": [
+      "/rackets/models/babolat/edition-babolat-pure-drive-gen11-wimbledon-2026-1.webp",
+      "/rackets/models/babolat/edition-babolat-pure-drive-gen11-wimbledon-2026-2.webp"
+    ],
+    "sourceUrl": "https://www.babolat.com/fr/pure-drive-wimbledon-2026-non-cordee/101566.html",
+    "verifiedAt": "2026-07-25",
+    "sourceKind": "official-product"
+  },
+  "edition-head-boom-mp-arthur-ashe-2025": {
+    "images": [
+      "/rackets/models/head/edition-head-boom-mp-arthur-ashe-2025-1.webp",
+      "/rackets/models/head/edition-head-boom-mp-arthur-ashe-2025-2.webp"
+    ],
+    "sourceUrl": "https://www.head.com/es_ES/product/arthur-ashe-competition-2025-231605",
+    "verifiedAt": "2026-07-25",
+    "sourceKind": "official-product"
+  },
+  "edition-head-boom-mp-neon-2025": {
+    "images": [
+      "/rackets/models/head/edition-head-boom-mp-neon-2025-1.webp",
+      "/rackets/models/head/edition-head-boom-mp-neon-2025-2.webp"
+    ],
+    "sourceUrl": "https://www.head.com/en/product/boom-mp-neon-2025-231625",
+    "verifiedAt": "2026-07-25",
+    "sourceKind": "official-product"
+  },
+  "edition-head-boom-mpl-neon-2025": {
+    "images": [
+      "/rackets/models/head/edition-head-boom-mpl-neon-2025-1.webp",
+      "/rackets/models/head/edition-head-boom-mpl-neon-2025-2.webp"
+    ],
+    "sourceUrl": "https://www.head.com/en_FI/product/boom-mp-l-neon-2025-231655",
+    "verifiedAt": "2026-07-25",
+    "sourceKind": "official-product"
+  },
+  "edition-wilson-rf01-laver-cup-2025": {
+    "images": [
+      "/rackets/models/wilson/edition-wilson-rf01-laver-cup-2025-1.webp",
+      "/rackets/models/wilson/edition-wilson-rf01-laver-cup-2025-2.webp"
+    ],
+    "sourceUrl": "https://jp.wilson.com/products/tennis-racket-rf-01-laver-cup-2025-black",
+    "verifiedAt": "2026-07-25",
+    "sourceKind": "official-product"
+  },
+  "edition-wilson-rf01-pro-laver-cup-2025": {
+    "images": [
+      "/rackets/models/wilson/edition-wilson-rf01-pro-laver-cup-2025-1.webp"
+    ],
+    "sourceUrl": "https://jp.wilson.com/collections/tennis-laver-cup-2025",
+    "verifiedAt": "2026-07-25",
+    "sourceKind": "official-product"
+  },
+  "edition-yonex-ezone-100-7-aqua-night-black": {
+    "images": [
+      "/rackets/models/yonex/edition-yonex-ezone-100-7-aqua-night-black-1.webp",
+      "/rackets/models/yonex/edition-yonex-ezone-100-7-aqua-night-black-2.webp"
+    ],
+    "sourceUrl": "https://www.yonex.com/news/tennis/ezone-aqua-night-black-new-design-inspired-by-the-night-sea/",
+    "verifiedAt": "2026-07-25",
+    "sourceKind": "official-product"
+  },
+  "edition-yonex-ezone-100-7-osaka": {
+    "images": [
+      "/rackets/models/yonex/edition-yonex-ezone-100-7-osaka-1.webp",
+      "/rackets/models/yonex/edition-yonex-ezone-100-7-osaka-2.webp"
+    ],
+    "sourceUrl": "https://www.yonex.com/news/osaka-ezone-an-osaka-sister-original/",
+    "verifiedAt": "2026-07-25",
+    "sourceKind": "official-product"
+  },
+  "edition-yonex-ezone-100l-7-aqua-night-black": {
+    "images": [
+      "/rackets/models/yonex/edition-yonex-ezone-100l-7-aqua-night-black-1.webp",
+      "/rackets/models/yonex/edition-yonex-ezone-100l-7-aqua-night-black-2.webp"
+    ],
+    "sourceUrl": "https://www.yonex.com/news/tennis/ezone-aqua-night-black-new-design-inspired-by-the-night-sea/",
+    "verifiedAt": "2026-07-25",
+    "sourceKind": "official-product"
+  },
+  "edition-yonex-ezone-100l-7-osaka": {
+    "images": [
+      "/rackets/models/yonex/edition-yonex-ezone-100l-7-osaka-1.webp",
+      "/rackets/models/yonex/edition-yonex-ezone-100l-7-osaka-2.webp"
+    ],
+    "sourceUrl": "https://www.yonex.com/news/osaka-ezone-an-osaka-sister-original/",
+    "verifiedAt": "2026-07-25",
+    "sourceKind": "official-product"
+  },
+  "edition-yonex-ezone-100sl-7-osaka": {
+    "images": [
+      "/rackets/models/yonex/edition-yonex-ezone-100sl-7-osaka-1.webp",
+      "/rackets/models/yonex/edition-yonex-ezone-100sl-7-osaka-2.webp"
+    ],
+    "sourceUrl": "https://www.yonex.com/news/osaka-ezone-an-osaka-sister-original/",
+    "verifiedAt": "2026-07-25",
+    "sourceKind": "official-product"
+  },
+  "edition-yonex-ezone-98-7-aqua-night-black": {
+    "images": [
+      "/rackets/models/yonex/edition-yonex-ezone-98-7-aqua-night-black-1.webp",
+      "/rackets/models/yonex/edition-yonex-ezone-98-7-aqua-night-black-2.webp"
+    ],
+    "sourceUrl": "https://www.yonex.com/news/tennis/ezone-aqua-night-black-new-design-inspired-by-the-night-sea/",
+    "verifiedAt": "2026-07-25",
+    "sourceKind": "official-product"
+  },
+  "edition-yonex-ezone-98-7-osaka": {
+    "images": [
+      "/rackets/models/yonex/edition-yonex-ezone-98-7-osaka-1.webp",
+      "/rackets/models/yonex/edition-yonex-ezone-98-7-osaka-2.webp"
+    ],
+    "sourceUrl": "https://www.yonex.com/news/osaka-ezone-an-osaka-sister-original/",
+    "verifiedAt": "2026-07-25",
+    "sourceKind": "official-product"
+  },
+  "edition-yonex-vcore-100-7-sand-beige": {
+    "images": [
+      "/rackets/models/yonex/edition-yonex-vcore-100-7-sand-beige-1.webp"
+    ],
+    "sourceUrl": "https://www.yonex.com/news/vcore-sand-beige-put-your-spin-on-it/",
+    "verifiedAt": "2026-07-25",
+    "sourceKind": "official-product"
+  },
+  "edition-yonex-vcore-100l-7-sand-beige": {
+    "images": [
+      "/rackets/models/yonex/edition-yonex-vcore-100l-7-sand-beige-1.webp"
+    ],
+    "sourceUrl": "https://www.yonex.com/news/vcore-sand-beige-put-your-spin-on-it/",
+    "verifiedAt": "2026-07-25",
+    "sourceKind": "official-product"
+  },
+  "edition-yonex-vcore-98-7-sand-beige": {
+    "images": [
+      "/rackets/models/yonex/edition-yonex-vcore-98-7-sand-beige-1.webp"
+    ],
+    "sourceUrl": "https://www.yonex.com/news/vcore-sand-beige-put-your-spin-on-it/",
+    "verifiedAt": "2026-07-25",
+    "sourceKind": "official-product"
+  },
+  "edition-yonex-vcore-98l-7-sand-beige": {
+    "images": [
+      "/rackets/models/yonex/edition-yonex-vcore-98l-7-sand-beige-1.webp"
+    ],
+    "sourceUrl": "https://www.yonex.com/news/vcore-sand-beige-put-your-spin-on-it/",
+    "verifiedAt": "2026-07-25",
     "sourceKind": "official-product"
   }
 }

@@ -3,7 +3,10 @@ export type CatalogFamilySearchItem = {
   family: string;
   generation: string;
   type: string;
-  models: readonly { name: string }[];
+  models: readonly {
+    name: string;
+    editions?: readonly { name: string; color: string; kind: string }[];
+  }[];
 };
 
 export type CatalogRacketSearchItem = {
@@ -13,6 +16,7 @@ export type CatalogRacketSearchItem = {
   series?: string | null;
   generation?: string | null;
   familyType?: string | null;
+  editions?: readonly { name: string; color: string; kind: string }[];
 };
 
 const combiningMarksPattern = /\p{M}+/gu;
@@ -58,6 +62,7 @@ export function matchesCatalogFamilySearch(family: CatalogFamilySearchItem, quer
     family.generation,
     family.type,
     ...family.models.map((model) => model.name),
+    ...family.models.flatMap((model) => model.editions?.flatMap((item) => [item.name, item.color, item.kind]) ?? []),
   ], query);
 }
 
@@ -69,6 +74,7 @@ export function matchesCatalogRacketSearch(racket: CatalogRacketSearchItem, quer
     racket.generation,
     racket.familyType,
     racket.model,
+    ...(racket.editions?.flatMap((item) => [item.name, item.color, item.kind]) ?? []),
   ], query);
 }
 

@@ -21,13 +21,22 @@ const maxImages = Math.max(1, Math.min(4, Number(args.get("max-images") ?? 3)));
 const verifiedAt = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Shanghai" }).format(new Date());
 
 const models = catalogFamilies
-  .flatMap((family) => family.models.map((model, modelIndex) => ({
-    id: catalogRacketId(family, modelIndex),
-    brand: family.brand,
-    family: family.family,
-    model: model.name,
-    sourceUrl: model.url,
-  })))
+  .flatMap((family) => family.models.flatMap((model, modelIndex) => [
+    {
+      id: catalogRacketId(family, modelIndex),
+      brand: family.brand,
+      family: family.family,
+      model: model.name,
+      sourceUrl: model.url,
+    },
+    ...(model.editions ?? []).map((item) => ({
+      id: item.id,
+      brand: family.brand,
+      family: family.family,
+      model: `${model.name} ${item.name}`,
+      sourceUrl: item.url,
+    })),
+  ]))
   .filter((item) => !brandFilter || item.brand.toLowerCase() === brandFilter)
   .slice(0, limit);
 

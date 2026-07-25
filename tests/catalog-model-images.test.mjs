@@ -4,7 +4,7 @@ import { readdir, readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
 import sharp from "sharp";
-import { catalogFamilies, catalogModelCount } from "../app/catalog-data.ts";
+import { catalogEditionCount, catalogFamilies, catalogModelCount } from "../app/catalog-data.ts";
 import { catalogModelImages } from "../app/catalog-model-images.ts";
 import { catalogRacketId, deepRackets } from "../app/racket-profiles.ts";
 
@@ -34,7 +34,7 @@ async function listFiles(directory) {
   return nested.flat();
 }
 
-test("every yearbook model has a traced local official-product gallery", async () => {
+test("every yearbook model and every available edition image has traced local provenance", async () => {
   const models = catalogFamilies.flatMap((family) => family.models.map((model, modelIndex) => ({
     id: catalogRacketId(family, modelIndex),
     brand: family.brand,
@@ -42,35 +42,46 @@ test("every yearbook model has a traced local official-product gallery", async (
     name: model.name,
     sourceUrl: model.url,
   })));
+  const editions = catalogFamilies.flatMap((family) => family.models.flatMap((model) => (
+    (model.editions ?? []).map((edition) => ({
+      id: edition.id,
+      brand: family.brand,
+      familyId: family.id,
+      name: `${model.name} / ${edition.name}`,
+      sourceUrl: edition.url,
+    }))
+  )));
 
   assert.equal(models.length, catalogModelCount);
-  assert.equal(Object.keys(catalogModelImages).length, catalogModelCount);
+  assert.equal(editions.length, catalogEditionCount);
+  models.forEach((model) => assert.ok(catalogModelImages[model.id], `${model.name} is missing its required model gallery`));
+  const tracedAssets = [...models, ...editions.filter((edition) => catalogModelImages[edition.id])];
   assert.deepEqual(
     Object.keys(catalogModelImages).sort(),
-    models.map((model) => model.id).sort(),
-    "the image manifest must contain exactly the live catalog models",
+    tracedAssets.map((item) => item.id).sort(),
+    "the image manifest must contain only live models and successfully synchronized editions",
   );
 
   const localPaths = new Set();
   const contentOwners = new Map();
-  for (const model of models) {
-    const record = catalogModelImages[model.id];
-    assert.ok(record, `${model.brand} ${model.name} is missing its model gallery`);
-    assert.equal(record.sourceKind, "official-product", `${model.name} must be traced to an official product page`);
-    assert.equal(record.sourceUrl, model.sourceUrl, `${model.name} image provenance must match its catalog product link`);
-    assert.match(record.sourceUrl, /^https:\/\//, `${model.name} image source must use HTTPS`);
-    const officialDomain = officialDomains.get(model.brand);
-    assert.ok(officialDomain, `${model.brand} needs an official image-domain rule`);
+  for (const item of tracedAssets) {
+    const record = catalogModelImages[item.id];
+    assert.ok(record, `${item.brand} ${item.name} is missing its image record`);
+    assert.equal(record.sourceKind, "official-product", `${item.name} must be traced to an official source page`);
+    assert.equal(record.sourceUrl, item.sourceUrl, `${item.name} image provenance must match its catalog source link`);
+    assert.match(record.sourceUrl, /^https:\/\//, `${item.name} image source must use HTTPS`);
+    const officialDomain = officialDomains.get(item.brand);
+    assert.ok(officialDomain, `${item.brand} needs an official image-domain rule`);
     const sourceHost = new URL(record.sourceUrl).hostname.toLowerCase();
-    assert.ok(sourceHost === officialDomain || sourceHost.endsWith(`.${officialDomain}`), `${model.name} image source must be on the ${model.brand} official domain`);
-    assert.match(record.verifiedAt, /^\d{4}-\d{2}-\d{2}$/, `${model.name} must have a verification date`);
+    assert.ok(sourceHost === officialDomain || sourceHost.endsWith(`.${officialDomain}`), `${item.name} image source must be on the ${item.brand} official domain`);
+    assert.match(record.verifiedAt, /^\d{4}-\d{2}-\d{2}$/, `${item.name} must have a verification date`);
     const verifiedAt = Date.parse(`${record.verifiedAt}T00:00:00Z`);
-    assert.ok(Number.isFinite(verifiedAt) && verifiedAt <= Date.now() + 86_400_000, `${model.name} verification date cannot be in the future`);
-    assert.ok(record.images.length >= 1 && record.images.length <= 4, `${model.name} must have a compact local gallery`);
+    assert.ok(Number.isFinite(verifiedAt) && verifiedAt <= Date.now() + 86_400_000, `${item.name} verification date cannot be in the future`);
+    assert.ok(record.images.length >= 1 && record.images.length <= 4, `${item.name} must have a compact local gallery`);
 
     for (const imagePath of record.images) {
-      assert.match(imagePath, /^\/rackets\/models\/[a-z0-9-]+\/[a-z0-9-]+-\d+\.webp$/, `${model.name} must use a local WebP asset`);
-      assert.ok(imagePath.includes(`/${model.id}-`), `${model.name} image filename must retain its stable model id`);
+      assert.match(imagePath, /^\/rackets\/models\/[a-z0-9-]+\/[a-z0-9-]+-\d+\.webp$/, `${item.name} must use a local WebP asset`);
+      assert.ok(imagePath.includes(`/${item.id}-`), `${item.name} image filename must retain its stable id`);
       assert.ok(!localPaths.has(imagePath), `${imagePath} must not be assigned to two model records`);
       localPaths.add(imagePath);
 
@@ -87,11 +98,11 @@ test("every yearbook model has a traced local official-product gallery", async (
       const hash = createHash("sha256").update(await readFile(absolutePath)).digest("hex");
       const previousOwner = contentOwners.get(hash);
       if (previousOwner) {
-        assert.notEqual(previousOwner.id, model.id, `${model.name} must not repeat the same image inside its own gallery`);
-        assert.equal(previousOwner.brand, model.brand, `${model.name} must not share image bytes across brands`);
-        assert.equal(previousOwner.familyId, model.familyId, `${model.name} must not share image bytes across racket families`);
+        assert.notEqual(previousOwner.id, item.id, `${item.name} must not repeat the same image inside its own gallery`);
+        assert.equal(previousOwner.brand, item.brand, `${item.name} must not share image bytes across brands`);
+        assert.equal(previousOwner.familyId, item.familyId, `${item.name} must not share image bytes across racket families`);
       } else {
-        contentOwners.set(hash, { id: model.id, brand: model.brand, familyId: model.familyId });
+        contentOwners.set(hash, { id: item.id, brand: item.brand, familyId: item.familyId });
       }
     }
   }

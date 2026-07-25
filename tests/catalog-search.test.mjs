@@ -65,7 +65,7 @@ test("counts release-year results at model level instead of inflating whole fami
   const releaseValues = catalogFamilies.flatMap((item) => item.models.map((model) => (
     model.releaseDate ?? item.releaseDate ?? item.releaseYear
   )));
-  const expected = { "2026": 78, "2025": 76, "2024": 38, "2023及更早": 29, "官网未注明": 38 };
+  const expected = { "2026": 78, "2025": 76, "2024": 53, "2023及更早": 52, "官网未注明": 38 };
   for (const [filter, count] of Object.entries(expected)) {
     assert.equal(countCatalogReleaseYearMatches(releaseValues, filter), count, filter);
   }
