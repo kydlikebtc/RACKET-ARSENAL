@@ -3408,52 +3408,6 @@ a:active {
   -webkit-backdrop-filter: blur(22px) saturate(1.4);
 }
 
-.app-toast {
-  align-items: center;
-  backdrop-filter: blur(20px) saturate(1.4);
-  background: rgba(28, 28, 30, 0.9);
-  border-radius: 999px;
-  bottom: calc(26px + env(safe-area-inset-bottom));
-  color: #ffffff;
-  display: flex;
-  font-size: 12px;
-  gap: 12px;
-  justify-content: center;
-  left: calc(236px + env(safe-area-inset-left) + ((100vw - 236px - env(safe-area-inset-left) - env(safe-area-inset-right)) / 2));
-  max-width: min(420px, calc(100vw - 40px - env(safe-area-inset-left) - env(safe-area-inset-right)));
-  opacity: 0;
-  padding: 11px 17px;
-  pointer-events: none;
-  position: fixed;
-  text-align: center;
-  transform: translate(-50%, 12px);
-  transition: opacity 180ms ease, transform 180ms ease;
-  z-index: 120;
-}
-
-.app-toast--actionable {
-  pointer-events: auto;
-}
-
-.app-toast > button {
-  border-left: 1px solid rgba(255, 255, 255, 0.22);
-  color: var(--acid);
-  flex: none;
-  font-size: 12px;
-  font-weight: 700;
-  min-height: 44px;
-  padding: 0 2px 0 14px;
-}
-
-.app-toast.is-visible {
-  opacity: 1;
-  transform: translate(-50%, 0);
-}
-
-.app-toast--with-tray {
-  bottom: calc(112px + env(safe-area-inset-bottom));
-}
-
 .racket-photo {
   background: var(--photo-bg);
   border-radius: 20px;
@@ -6474,8 +6428,7 @@ a:active {
     grid-template-columns: calc(200px + env(safe-area-inset-left)) minmax(0, 1fr);
   }
 
-  .compare-tray,
-  .app-toast {
+  .compare-tray {
     left: calc(200px + env(safe-area-inset-left) + ((100vw - 200px - env(safe-area-inset-left) - env(safe-area-inset-right)) / 2));
   }
 
@@ -7037,16 +6990,6 @@ a:active {
 
   .compare-tray:active {
     transform: scale(0.985);
-  }
-
-  .app-toast {
-    bottom: calc(92px + env(safe-area-inset-bottom));
-    left: calc(env(safe-area-inset-left) + ((100vw - env(safe-area-inset-left) - env(safe-area-inset-right)) / 2));
-    max-width: min(420px, calc(100vw - 24px - env(safe-area-inset-left) - env(safe-area-inset-right)));
-  }
-
-  .app-toast.app-toast--with-tray {
-    bottom: calc(174px + env(safe-area-inset-bottom));
   }
 
   .filter-sheet,
@@ -14084,9 +14027,6 @@ a:active {
     padding-bottom: calc(144px + env(safe-area-inset-bottom));
   }
 
-  .app-toast.app-toast--with-tray {
-    bottom: calc(92px + env(safe-area-inset-bottom));
-  }
 }
 
 @media (min-width: 760.02px) {

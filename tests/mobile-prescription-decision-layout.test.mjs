@@ -84,11 +84,9 @@ test("keeps the 320px prescription result readable", () => {
 test("avoids competing floating and inline decision calls to action on the result screen", () => {
   assert.match(page, /const showCompareTray = decisionStorageStatus !== "loading"[\s\S]*?&& compareIds\.length > 0[\s\S]*?&& !finalDecisionRacket[\s\S]*?&& activeView !== "compare"[\s\S]*?&& !\(activeView === "match" && matchStep === 3\)/);
   assert.match(page, /!selected && !selectedFamily && showCompareTray/);
-  assert.match(page, /showCompareTray \? " app-toast--with-tray" : ""/);
   assert.match(page, /finalDecisionRacket \? "✓" : String\(compareIds\.length\)/);
   assert.match(css, /\/\* 决策数量已经在 Tab 徽标中常驻[\s\S]*?\.compare-tray\s*{\s*display:\s*none;/);
   assert.match(css, /\.racket-app--with-compare-tray \.app-content\s*{\s*padding-bottom:\s*calc\(144px \+ env\(safe-area-inset-bottom\)\)/);
-  assert.match(css, /\.app-toast\.app-toast--with-tray\s*{\s*bottom:\s*calc\(92px \+ env\(safe-area-inset-bottom\)\)/);
 });
 
 test("keeps the mobile decision workflow readable on its light surface", () => {
@@ -115,15 +113,16 @@ test("uses a compact mobile prescription header and a secondary decision action 
   assert.match(css, /\.compare-title-more\[open\] > div[\s\S]*?display:\s*grid/);
 });
 
-test("expires compare undo affordances without attaching them to later messages", () => {
+test("keeps status announcements accessible without rendering a black toast", () => {
   assert.match(page, /liveMessage === actionableCompareUndo\.message/);
-  assert.match(page, /const showToast = Boolean\(liveMessage && !toastBlockedByOverlay\)/);
   assert.match(page, /const undoToken = actionableCompareUndo\?\.token \?\? null/);
   assert.match(page, /showCompareUndo \? 6000 : 2800/);
   assert.match(page, /setCompareUndo\(\(current\) => current\?\.token === undoToken \? null : current\)/);
   assert.match(page, /if \(!showCompareUndo\) return;[\s\S]*?handleUndoShortcut/);
-  assert.match(page, /app-toast\$\{showToast \? " is-visible" : ""\}/);
-  assert.match(page, /\$\{showCompareUndo \? " app-toast--actionable" : ""\}/);
+  assert.match(page, /className="app-live-region sr-only" role="status" aria-live="polite"/);
+  assert.match(page, /可按 Command 或 Control 加 Z 撤销/);
+  assert.doesNotMatch(page, /className=\{`app-toast/);
+  assert.doesNotMatch(css, /\.app-toast\s*\{/);
 });
 
 test("does not leak one saved final decision into another candidate roster", () => {

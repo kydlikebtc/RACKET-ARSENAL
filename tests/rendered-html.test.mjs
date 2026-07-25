@@ -142,7 +142,8 @@ test("keeps racket imagery and app interactions wired", async () => {
   assert.match(page, /pendingCompareId/);
   assert.match(page, /replacePendingCompare/);
   assert.match(page, /undoCompareChange/);
-  assert.match(page, />撤销</);
+  assert.match(page, /className="app-live-region sr-only"/);
+  assert.doesNotMatch(page, /className=\{`app-toast/);
   assert.match(page, /seriesSlots/);
   assert.match(page, /serializeMatchFlow/);
   assert.match(page, /restoreMatchScreen/);

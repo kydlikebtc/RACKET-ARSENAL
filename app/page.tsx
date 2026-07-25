@@ -1173,7 +1173,6 @@ export default function RacketApp() {
   const [tourFilter, setTourFilter] = useState<Tour>("ATP");
   const [matchRouteNotice, setMatchRouteNotice] = useState<"missing-result" | null>(null);
   const [liveMessage, setLiveMessage] = useState("");
-  const [toastPaused, setToastPaused] = useState(false);
   const [wideModelMatrix, setWideModelMatrix] = useState(false);
   const [compareTableScrollable, setCompareTableScrollable] = useState(false);
   const lastFocusRef = useRef<HTMLElement | null>(null);
@@ -1212,7 +1211,6 @@ export default function RacketApp() {
   const pendingMatchFocusRef = useRef(false);
   const pendingViewFocusRef = useRef<AppView | null>(null);
   const pendingHistoryFocusRef = useRef<FocusIdentity | null>(null);
-  const undoButtonRef = useRef<HTMLButtonElement | null>(null);
   const undoCompareChangeRef = useRef<() => void>(() => undefined);
   const pendingCompareFocusRef = useRef<string | "undo" | "browse" | null>(null);
   const pendingCompareOriginRef = useRef<{ element: HTMLElement | null; identity: FocusIdentity | null } | null>(null);
@@ -1409,10 +1407,8 @@ export default function RacketApp() {
   const savedDecisionSlotIds = savedDecisionRoom?.slots.map((slot) => slot.racketId).filter((id) => deepRacketById.has(id)) ?? [];
   const currentDecisionFeedback = decisionFeedback.filter((item) => compareIds.includes(item.racketId));
   const finalDecisionRacket = compared.find((racket) => decisionCandidates[racket.id]?.status === "final") ?? null;
-  const toastBlockedByOverlay = Boolean(selected || selectedFamily || duelShare || catalogFiltersOpen);
-  const showToast = Boolean(liveMessage && !toastBlockedByOverlay);
   const showCompareUndo = Boolean(
-    showToast
+    liveMessage
     && actionableCompareUndo
     && liveMessage === actionableCompareUndo.message
   );
@@ -2895,11 +2891,7 @@ export default function RacketApp() {
     const frame = window.requestAnimationFrame(() => {
       const target = pendingCompareFocusRef.current;
       pendingCompareFocusRef.current = null;
-      if (target === "undo") {
-        undoButtonRef.current?.focus({ preventScroll: true });
-        return;
-      }
-      if (target === "browse") {
+      if (target === "undo" || target === "browse") {
         document.querySelector<HTMLElement>("[data-compare-browse]")?.focus({ preventScroll: true });
         return;
       }
@@ -2911,7 +2903,7 @@ export default function RacketApp() {
   }, [activeView, selected, selectedFamily, compareSlots, compareUndo]);
 
   useEffect(() => {
-    if (!liveMessage || toastPaused) return;
+    if (!liveMessage) return;
     const undoToken = actionableCompareUndo?.token ?? null;
     const timer = window.setTimeout(() => {
       setLiveMessage((current) => current === liveMessage ? "" : current);
@@ -2920,7 +2912,7 @@ export default function RacketApp() {
       }
     }, showCompareUndo ? 6000 : 2800);
     return () => window.clearTimeout(timer);
-  }, [liveMessage, actionableCompareUndo, showCompareUndo, toastPaused]);
+  }, [liveMessage, actionableCompareUndo, showCompareUndo]);
 
   const goToView = (view: AppView, scrollMode: "top" | "restore" = "top", historyMode: "push" | "replace" = "push") => {
     setPreviewPriority(null);
@@ -5406,10 +5398,9 @@ export default function RacketApp() {
         </div>
       )}
 
-      <div className={`app-toast${showToast ? " is-visible" : ""}${showCompareUndo ? " app-toast--actionable" : ""}${showCompareTray ? " app-toast--with-tray" : ""}`} onMouseEnter={() => setToastPaused(true)} onMouseLeave={() => setToastPaused(false)} onFocusCapture={() => setToastPaused(true)} onBlurCapture={() => setToastPaused(false)}>
-        <span role="status" aria-live="polite" aria-atomic="true">{liveMessage}</span>
-        {showCompareUndo && <button ref={undoButtonRef} onClick={undoCompareChange} aria-label="撤销上一项对比操作，亦可按 Command 或 Control 加 Z" title="撤销（⌘/Ctrl + Z）">撤销</button>}
-      </div>
+      <span className="app-live-region sr-only" role="status" aria-live="polite" aria-atomic="true">
+        {showCompareUndo ? `${liveMessage}。可按 Command 或 Control 加 Z 撤销` : liveMessage}
+      </span>
       </div>
     </div>
   );
