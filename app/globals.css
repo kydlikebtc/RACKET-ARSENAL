@@ -1070,6 +1070,20 @@ a:active {
   margin: 0;
 }
 
+.match-result-hero__summary {
+  display: grid;
+  gap: 4px;
+}
+
+.match-result-hero__summary strong {
+  color: #ffffff;
+  font-size: 13px;
+}
+
+.match-result-hero__summary span {
+  display: block;
+}
+
 .match-result-hero button {
   color: #ffffff;
   font-size: 13px;
@@ -1406,6 +1420,19 @@ a:active {
 .prescription-baseline > span {
   display: grid;
   gap: 3px;
+}
+
+.prescription-baseline__copy {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.prescription-baseline__thumb,
+.prescription-baseline__mobile-eyebrow,
+.prescription-baseline__model,
+.prescription-baseline__context {
+  display: none;
 }
 
 .prescription-baseline small {
@@ -10855,7 +10882,7 @@ a:active {
     color: var(--m-text-3);
     display: flex;
     gap: 8px;
-    min-height: 38px;
+    min-height: 44px;
     padding: 0 12px;
   }
 
@@ -10911,7 +10938,13 @@ a:active {
 
   .armory-mheader__chips {
     gap: 7px;
-    margin-top: 9px;
+    margin-top: 6px;
+  }
+
+  .armory-mheader__chips .m-chip {
+    min-height: 44px;
+    padding-bottom: 0;
+    padding-top: 0;
   }
 
   .armory-mheader__filter svg {
@@ -11358,7 +11391,11 @@ a:active {
   }
 
   .catalog-filter-panel__mgroups .m-chip {
-    padding: 7px 13px;
+    align-items: center;
+    display: inline-flex;
+    justify-content: center;
+    min-height: 44px;
+    padding: 0 13px;
   }
 
   .armory-view .catalog-filter-panel__clear {
@@ -11426,7 +11463,7 @@ a:active {
     border-radius: 8px;
     flex-direction: row;
     gap: 5px;
-    min-height: 34px;
+    min-height: 44px;
   }
 
   .tour-view .tour-switch b {
@@ -13407,6 +13444,10 @@ a:active {
 
 /* === mobile ux consistency pass === */
 @media (max-width: 760px) {
+  body {
+    min-width: 0;
+  }
+
   body.catalog-filter-locked {
     overflow: hidden;
   }
@@ -13414,6 +13455,12 @@ a:active {
   .m-header {
     padding-left: calc(16px + env(safe-area-inset-left));
     padding-right: calc(16px + env(safe-area-inset-right));
+  }
+
+  /* 路由切换仍把焦点交给标题供读屏器播报，但不显示桌面式编辑焦点框。 */
+  .view-title h1[tabindex="-1"]:focus,
+  .m-header h1[tabindex="-1"]:focus {
+    outline: none;
   }
 
   /* 处方页头只保留任务、当前步骤和退出；隐私说明下沉到内容说明。 */
@@ -13491,6 +13538,175 @@ a:active {
     margin-top: 0;
   }
 
+  /* 结果页把当前球拍变成独立原生选择行，不再用桌面表单压缩进卡片。 */
+  .match-view .prescription-baseline {
+    background: var(--surface);
+    border: 1px solid var(--m-hairline);
+    border-radius: 16px;
+    cursor: pointer;
+    display: block;
+    min-height: 72px;
+    padding: 10px 46px 10px 10px;
+    position: relative;
+  }
+
+  .match-view > .prescription-baseline:not(.prescription-baseline--compact) {
+    margin-bottom: 10px;
+  }
+
+  .match-view .prescription-baseline__summary {
+    align-items: center;
+    display: flex;
+    gap: 10px;
+    min-width: 0;
+  }
+
+  .match-view .prescription-baseline__thumb {
+    align-items: center;
+    background: var(--surface-soft);
+    border-radius: 12px;
+    color: var(--m-text-3);
+    display: flex;
+    flex: 0 0 44px;
+    font-size: 13px;
+    font-weight: 700;
+    height: 44px;
+    justify-content: center;
+    overflow: hidden;
+  }
+
+  .match-view .prescription-baseline__thumb .brand-logo {
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    grid-column: auto;
+    height: 38px;
+    padding: 4px;
+    width: 42px;
+  }
+
+  .match-view .prescription-baseline__thumb > span:not(.brand-logo) {
+    line-height: 1;
+  }
+
+  .match-view .prescription-baseline__copy {
+    display: grid;
+    gap: 1px;
+    min-width: 0;
+  }
+
+  .match-view .prescription-baseline__desktop-eyebrow,
+  .match-view .prescription-baseline__desktop-title {
+    display: none;
+  }
+
+  .match-view .prescription-baseline__mobile-eyebrow {
+    color: var(--m-accent);
+    display: block;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    line-height: 1.25;
+    text-transform: uppercase;
+  }
+
+  .match-view .prescription-baseline__model {
+    display: block;
+    font-size: 14px;
+    font-weight: 650;
+    line-height: 1.35;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .match-view .prescription-baseline__context {
+    color: var(--m-text-3);
+    display: block;
+    font-size: 10.5px;
+    font-style: normal;
+    line-height: 1.35;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .match-view .prescription-baseline select {
+    cursor: pointer;
+    height: 100%;
+    inset: 0;
+    min-height: 0;
+    opacity: 0;
+    position: absolute;
+    width: 100%;
+    z-index: 2;
+  }
+
+  .match-view .prescription-baseline > i {
+    color: var(--m-text-3);
+    right: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 3;
+  }
+
+  .match-view .prescription-baseline:focus-within {
+    border-color: var(--m-accent);
+    box-shadow: 0 0 0 3px var(--m-accent-soft);
+  }
+
+  /* 当前处方是一张紧凑状态卡：先读答案，再按需修改。 */
+  .match-view .match-result-hero {
+    min-width: 0;
+    padding: 13px 14px 14px;
+  }
+
+  .match-view .match-result-hero__eyebrow {
+    background: transparent;
+    color: var(--m-accent);
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    padding: 0;
+    text-transform: uppercase;
+  }
+
+  .match-view .match-result-hero__title {
+    font-size: 21px;
+    line-height: 1.25;
+    margin: 5px 54px 7px 0;
+  }
+
+  .match-view .match-result-hero__title:focus,
+  .match-view .match-result-hero__title:focus-visible {
+    outline: none;
+  }
+
+  .match-view .match-result-hero__summary {
+    align-items: baseline;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px 8px;
+    line-height: 1.4;
+  }
+
+  .match-view .match-result-hero__summary strong {
+    color: var(--text);
+    font-size: 11.5px;
+  }
+
+  .match-view .match-result-hero__summary span {
+    color: var(--m-text-3);
+    font-size: 11px;
+  }
+
+  .match-view .match-result-hero .match-result-hero__edit {
+    inset: 4px 4px auto auto;
+    margin: 0;
+    min-height: 44px;
+    padding: 0 10px;
+    position: absolute;
+  }
+
   /* 当前筛选随结果一起可见，可逐项撤销，不必重新打开 Sheet 猜测状态。 */
   .armory-mactive-filters {
     gap: 7px;
@@ -13522,6 +13738,10 @@ a:active {
     background: transparent;
     border-color: var(--m-hairline);
     color: var(--m-text-3);
+  }
+
+  .armory-view .catalog-result-summary .library-summary__actions {
+    display: none;
   }
 
   .armory-view .catalog-model-result__facts {
@@ -13558,23 +13778,62 @@ a:active {
   }
 
   .armory-view .catalog-model-result__actions {
-    display: flex;
-    justify-content: flex-end;
-    padding: 0 12px 10px;
+    display: none;
   }
 
-  .armory-view .catalog-model-result__actions button {
-    background: transparent;
-    color: var(--m-text-3);
-    font-size: 11px;
-    min-height: 44px;
-    padding: 0;
+  /* 球星首屏只保留巡回赛切换与一行快速定位，去掉重复榜单摘要和标题。 */
+  .tour-view .tour-commandbar__summary,
+  .tour-view .tour-ranking__heading {
+    display: none;
   }
 
-  /* 一级球星卡以人物和关联拍为主；球拍缩略图本身成为浏览入口。 */
-  .tour-view .tour-player-card__racket-peek {
+  .tour-view .tour-commandbar {
+    margin-bottom: 8px;
+  }
+
+  .tour-view .tour-rank-nav {
+    gap: 0;
+    margin-bottom: 12px;
+    padding: 8px 10px;
+  }
+
+  .tour-view .tour-rank-nav > p {
+    display: none;
+  }
+
+  .tour-view .tour-rank-nav > div {
+    grid-template-columns: repeat(8, 64px);
+  }
+
+  .tour-view .tour-rank-nav button {
+    min-height: 48px;
+    padding: 4px;
+  }
+
+  /* 一级球星卡以人物和关联拍为主；关联拍是带文字的整行浏览入口。 */
+  .tour-view .tour-player-card__visual,
+  .tour-view .tour-player-card--leader .tour-player-card__visual {
+    grid-template-columns: 52px minmax(0, 1fr) auto;
+    grid-template-rows: auto auto;
+  }
+
+  .tour-view .tour-player-card__racket-peek,
+  .tour-view .tour-player-card--leader .tour-player-card__racket-peek {
+    align-items: center;
+    background: var(--surface-soft);
+    border-radius: 12px;
     cursor: pointer;
+    display: flex;
+    gap: 10px;
+    grid-column: 1 / -1;
+    grid-row: 2;
+    height: auto;
+    justify-content: flex-start;
+    margin-top: 8px;
+    min-height: 56px;
+    padding: 6px 10px;
     position: relative;
+    width: 100%;
   }
 
   .tour-view .tour-player-card__racket-peek::after {
@@ -13583,8 +13842,53 @@ a:active {
     position: absolute;
   }
 
-  .tour-view .tour-commandbar__summary > div {
+  .tour-view .tour-player-card__racket-peek > img,
+  .tour-view .tour-player-card__racket-peek > span[role="img"] {
+    flex: none;
+    height: 44px;
+    width: 44px;
+  }
+
+  .tour-view .tour-player-card__racket-peek > span:last-child {
+    display: grid;
+    flex: 1;
+    gap: 2px;
+    min-width: 0;
+    text-align: left;
+  }
+
+  .tour-view .tour-player-card__racket-peek > span:last-child small {
+    color: var(--m-text-3);
+    font-size: 9.5px;
+  }
+
+  .tour-view .tour-player-card__racket-peek > span:last-child b {
+    font-size: 12.5px;
+    line-height: 1.3;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* 关联拍入口已经承担下一步；重复 CTA 与分享不再逐卡占据一级浏览空间。 */
+  .tour-view .tour-player-card__mapping dl,
+  .tour-view .tour-player-card__journey,
+  .tour-view .tour-player-card__share {
     display: none;
+  }
+
+  .tour-view .tour-player-card__evidence-share {
+    align-items: center;
+    color: var(--m-accent);
+    font-size: 11px;
+    font-weight: 650;
+    justify-content: space-between;
+    min-height: 44px;
+    width: 100%;
+  }
+
+  .tour-view .tour-player-card__evidence-share.m-only {
+    display: flex;
   }
 
   .tour-method__actions {
@@ -13703,6 +14007,85 @@ a:active {
 
   .compare-title-more > div button.is-danger {
     color: var(--m-danger);
+  }
+
+  /* 决策进度在移动端是浅色卡，完整重置桌面深色组件的前景色。 */
+  .compare-view > .decision-workflow--mobile {
+    border: 1px solid var(--m-hairline);
+    box-shadow: none;
+    color: var(--text);
+  }
+
+  .compare-view .decision-workflow__heading > small {
+    color: var(--m-text-3);
+  }
+
+  .compare-view .decision-workflow li {
+    background: var(--surface-soft);
+    border-color: var(--m-hairline);
+    color: var(--text);
+  }
+
+  .compare-view .decision-workflow li > i {
+    background: var(--surface);
+    color: var(--m-text-2);
+  }
+
+  .compare-view .decision-workflow li small {
+    color: var(--m-text-3);
+  }
+
+  .compare-view .decision-workflow li.is-complete {
+    background: var(--m-accent-soft);
+    border-color: color-mix(in srgb, var(--m-accent) 28%, var(--m-hairline));
+  }
+
+  .compare-view .decision-workflow li.is-complete > i {
+    background: var(--m-accent);
+    color: var(--accent-ink);
+  }
+
+  .compare-view .decision-workflow .prescription-baseline {
+    background: var(--surface-soft);
+    border-color: var(--m-hairline);
+  }
+
+  .compare-view .decision-workflow .prescription-baseline small {
+    color: var(--m-accent);
+  }
+
+  .compare-view .decision-workflow .prescription-baseline select {
+    background: var(--surface);
+    border-color: var(--m-hairline);
+    color: var(--text);
+  }
+
+  .compare-view .decision-workflow .prescription-baseline option,
+  .compare-view .decision-workflow .prescription-baseline optgroup {
+    background: var(--surface);
+    color: var(--text);
+  }
+
+  .compare-view .decision-workflow .prescription-baseline > i {
+    color: var(--m-text-3);
+  }
+
+  .compare-view .decision-workflow__restore {
+    background: var(--m-accent-soft);
+    color: var(--m-accent);
+  }
+
+  /* 决策数量已经在 Tab 徽标中常驻，避免第二条固定控件遮挡一级浏览内容。 */
+  .compare-tray {
+    display: none;
+  }
+
+  .racket-app--with-compare-tray .app-content {
+    padding-bottom: calc(144px + env(safe-area-inset-bottom));
+  }
+
+  .app-toast.app-toast--with-tray {
+    bottom: calc(92px + env(safe-area-inset-bottom));
   }
 }
 

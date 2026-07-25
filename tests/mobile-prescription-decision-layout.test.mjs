@@ -86,12 +86,25 @@ test("avoids competing floating and inline decision calls to action on the resul
   assert.match(page, /!selected && !selectedFamily && showCompareTray/);
   assert.match(page, /showCompareTray \? " app-toast--with-tray" : ""/);
   assert.match(page, /finalDecisionRacket \? "✓" : String\(compareIds\.length\)/);
+  assert.match(css, /\/\* 决策数量已经在 Tab 徽标中常驻[\s\S]*?\.compare-tray\s*{\s*display:\s*none;/);
+  assert.match(css, /\.racket-app--with-compare-tray \.app-content\s*{\s*padding-bottom:\s*calc\(144px \+ env\(safe-area-inset-bottom\)\)/);
+  assert.match(css, /\.app-toast\.app-toast--with-tray\s*{\s*bottom:\s*calc\(92px \+ env\(safe-area-inset-bottom\)\)/);
+});
+
+test("keeps the mobile decision workflow readable on its light surface", () => {
+  assert.match(css, /\.compare-view > \.decision-workflow--mobile\s*{[\s\S]*?color:\s*var\(--text\)/);
+  assert.match(css, /\.compare-view \.decision-workflow__heading > small\s*{[\s\S]*?color:\s*var\(--m-text-3\)/);
+  assert.match(css, /\.compare-view \.decision-workflow li\s*{[\s\S]*?background:\s*var\(--surface-soft\)[\s\S]*?color:\s*var\(--text\)/);
+  assert.match(css, /\.compare-view \.decision-workflow li\.is-complete > i\s*{[\s\S]*?color:\s*var\(--accent-ink\)/);
+  assert.match(css, /\.compare-view \.decision-workflow \.prescription-baseline select\s*{[\s\S]*?background:\s*var\(--surface\)[\s\S]*?color:\s*var\(--text\)/);
+  assert.match(css, /\.compare-view \.decision-workflow \.prescription-baseline option,[\s\S]*?background:\s*var\(--surface\);[\s\S]*?color:\s*var\(--text\)/);
 });
 
 test("uses a compact mobile prescription header and a secondary decision action menu", () => {
   assert.match(page, /className="m-match-head__step"/);
   assert.match(page, /matchStep >= 3 \? "你的推荐" : "回答当前问题"/);
   assert.match(page, /className="m-only m-match-privacy">答案只存当前浏览器/);
+  assert.match(css, /\.view-title h1\[tabindex="-1"\]:focus,[\s\S]*?outline:\s*none/);
   assert.match(css, /\.m-match-head__meta,[\s\S]*?\.m-match-progress__label[\s\S]*?display:\s*none/);
   assert.match(css, /\.m-match-head \.m-large-title[\s\S]*?font-size:\s*20px/);
   assert.match(page, /className="compare-title-actions__desktop"/);

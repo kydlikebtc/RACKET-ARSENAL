@@ -819,7 +819,20 @@ function PrescriptionBaselinePicker({
   const selectedRacket = value ? deepRacketById.get(value) : null;
   return (
     <label className={`prescription-baseline${compact ? " prescription-baseline--compact" : ""}`}>
-      <span><small>处方基准</small><b>{selectedRacket ? "从当前球拍开始" : "还没有当前球拍也可以"}</b></span>
+      <span className="prescription-baseline__summary">
+        <span className="prescription-baseline__thumb" aria-hidden="true">
+          {selectedRacket ? <BrandLogo brand={selectedRacket.brand} /> : <span>拍</span>}
+        </span>
+        <span className="prescription-baseline__copy">
+          <small className="prescription-baseline__desktop-eyebrow">处方基准</small>
+          <small className="prescription-baseline__mobile-eyebrow">当前球拍</small>
+          <b className="prescription-baseline__desktop-title">{selectedRacket ? "从当前球拍开始" : "还没有当前球拍也可以"}</b>
+          <b className="prescription-baseline__model">{selectedRacket?.model ?? "我还没有 / 暂不确定"}</b>
+          <em className="prescription-baseline__context">
+            {selectedRacket ? `${selectedRacket.brand} · 作为迁移差异基准` : "可直接生成处方，之后再补充"}
+          </em>
+        </span>
+      </span>
       <select value={value} onChange={(event) => onChange(event.target.value)} aria-label="选择当前使用的球拍">
         <option value="">我还没有 / 暂不确定</option>
         {catalogBrands.map((brand) => (
@@ -1109,6 +1122,7 @@ function TourPlayerCard({
             <a href={player.gearUrl} target="_blank" rel="noreferrer" aria-label={`${player.nameZh} 零售映射来源，新标签页打开`}>零售映射 ↗</a>
             <a href={player.portrait.sourceUrl} target="_blank" rel="noreferrer" aria-label={`${player.nameZh} 照片来源与许可，新标签页打开`}>照片：{player.portrait.credit} · {player.portrait.license} ↗</a>
           </div>
+          <button className="tour-player-card__evidence-share m-only" onClick={() => onShare(player)} aria-label={`复制 ${player.nameZh} 球星档案链接`}>分享球星档案 <span aria-hidden="true">↗</span></button>
         </details>
         <button className="tour-player-card__share" onClick={() => onShare(player)} aria-label={`复制 ${player.nameZh} 球星档案链接`}>分享这位球员 <span aria-hidden="true">↗</span></button>
       </div>
@@ -4584,10 +4598,13 @@ export default function RacketApp() {
             ) : (
               <section className="match-results-app">
                 <div className="match-result-hero">
-                  <span>{prescriptionBaseline ? `从 ${prescriptionBaseline.model} 出发` : "换拍处方已生成"}</span>
-                  <h2 ref={matchHeadingRef} tabIndex={-1}>{profileStage} · {profileStyle}</h2>
-                  <p>优先方向：{displayPriority}。{prescriptionBaseline ? "每个候选都会说明相对当前球拍的收益、取舍与适应成本。" : "选择你当前使用的球拍，可查看更具体的迁移差异。"}</p>
-                  <button onClick={restartMatchProfile}>修改答案</button>
+                  <span className="match-result-hero__eyebrow">当前处方</span>
+                  <h2 className="match-result-hero__title" ref={matchHeadingRef} tabIndex={-1}>{profileStage} · {profileStyle}</h2>
+                  <p className="match-result-hero__summary">
+                    <strong>优先方向 · {displayPriority}</strong>
+                    <span>{prescriptionBaseline ? `基于 ${prescriptionBaseline.model} 计算迁移差异` : "补充当前球拍后，可查看迁移差异"}</span>
+                  </p>
+                  <button className="match-result-hero__edit" onClick={restartMatchProfile} aria-label="修改处方答案">修改</button>
                 </div>
                 <section className="match-priority-preview" aria-labelledby="match-priority-preview-title">
                   <div className="match-priority-preview__head">
