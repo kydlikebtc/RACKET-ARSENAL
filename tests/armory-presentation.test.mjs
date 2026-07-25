@@ -37,13 +37,23 @@ test("presents one stable search, filter, and sort control bar", () => {
   assert.doesNotMatch(page, /className="catalog-filter-axis"|catalog-generation-scroller/);
 });
 
-test("keeps model cards scannable while preserving deep dossier and comparison flows", () => {
+test("keeps model cards scannable and moves comparison into the deep dossier", () => {
   assert.match(page, /className="catalog-model-result__facts"/);
   assert.match(page, /<RacketSpecTags racket=\{racket\} compact showSpecs=\{false\} \/>/);
   assert.match(page, /打开深度档案/);
-  assert.match(page, /catalog-model-compare-/);
+  assert.doesNotMatch(page, /catalog-model-compare-/);
+  assert.match(page, /打开深档查看完整规格与对比操作/);
+  assert.match(page, /dossier-footer-compare-/);
   assert.match(page, /查看所属拍系/);
   assert.match(page, /matchingCatalogRackets\.slice\(0, catalogResultLimit\)/);
+});
+
+test("keeps mobile search and active filters on the visible interaction surface", () => {
+  assert.match(page, /ref=\{catalogMobileSearchRef\} id="catalog-search-m"/);
+  assert.match(page, /\[catalogMobileSearchRef\.current, catalogSearchRef\.current\][\s\S]*?getClientRects\(\)\.length/);
+  assert.match(page, /className="armory-mactive-filters m-only m-hscroll"/);
+  assert.match(css, /\.armory-view \.catalog-model-result__facts[\s\S]*?display:\s*grid/);
+  assert.match(css, /@media \(max-width:\s*430px\)[\s\S]*?\.armory-mheader[\s\S]*?margin-left:\s*calc\(-12px/);
 });
 
 test("keeps the workspace compact, touchable, and responsive", () => {

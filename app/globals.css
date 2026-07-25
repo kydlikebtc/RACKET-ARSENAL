@@ -7574,7 +7574,7 @@ a:active {
 
   .model-matrix__actions {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .model-matrix__actions button,
@@ -13404,3 +13404,366 @@ a:active {
   }
 }
 /* === prescription + decision layout refinement end === */
+
+/* === mobile ux consistency pass === */
+@media (max-width: 760px) {
+  body.catalog-filter-locked {
+    overflow: hidden;
+  }
+
+  .m-header {
+    padding-left: calc(16px + env(safe-area-inset-left));
+    padding-right: calc(16px + env(safe-area-inset-right));
+  }
+
+  /* 处方页头只保留任务、当前步骤和退出；隐私说明下沉到内容说明。 */
+  .m-match-head {
+    margin-bottom: 10px;
+    padding:
+      calc(env(safe-area-inset-top) + 7px)
+      calc(12px + env(safe-area-inset-right))
+      7px
+      calc(12px + env(safe-area-inset-left));
+  }
+
+  .m-match-head__row {
+    gap: 8px;
+  }
+
+  .m-match-head__row > div {
+    display: grid;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .m-match-head__row > div > small {
+    color: var(--m-accent);
+    font-size: 9.5px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    line-height: 1.2;
+    text-transform: uppercase;
+  }
+
+  .m-match-head .m-large-title {
+    font-size: 20px;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .m-match-head__step {
+    background: var(--m-accent-soft);
+    border-radius: 999px;
+    color: var(--m-accent);
+    flex: none;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 5px 9px;
+  }
+
+  .m-match-head__row button {
+    background: transparent;
+    height: 44px;
+    width: 44px;
+  }
+
+  .m-match-head__meta,
+  .m-match-progress__label {
+    display: none;
+  }
+
+  .m-match-privacy {
+    color: var(--m-text-4);
+    font-size: 10px;
+    line-height: 1.5;
+    margin: 6px 2px 0;
+    order: 3;
+  }
+
+  .match-view .match-question {
+    padding-top: 0;
+  }
+
+  .match-view .match-question h2 {
+    margin-top: 0;
+  }
+
+  /* 当前筛选随结果一起可见，可逐项撤销，不必重新打开 Sheet 猜测状态。 */
+  .armory-mactive-filters {
+    gap: 7px;
+    margin: -3px 0 10px;
+    padding: 3px 0;
+  }
+
+  .armory-mactive-filters button {
+    align-items: center;
+    background: var(--m-accent-soft);
+    border: 1px solid color-mix(in srgb, var(--m-accent) 24%, transparent);
+    border-radius: 999px;
+    color: var(--m-accent);
+    display: inline-flex;
+    font-size: 11px;
+    font-weight: 650;
+    gap: 6px;
+    min-height: 44px;
+    padding: 0 11px;
+  }
+
+  .armory-mactive-filters button i {
+    font-size: 14px;
+    font-style: normal;
+    line-height: 1;
+  }
+
+  .armory-mactive-filters .armory-mactive-filters__clear {
+    background: transparent;
+    border-color: var(--m-hairline);
+    color: var(--m-text-3);
+  }
+
+  .armory-view .catalog-model-result__facts {
+    border-top: 0.5px solid var(--m-hairline);
+    display: grid;
+  }
+
+  .armory-view .catalog-model-result__facts > div {
+    padding: 8px 12px;
+  }
+
+  .armory-view .catalog-model-result__facts dt {
+    font-size: 9px;
+  }
+
+  .armory-view .catalog-model-result__facts dd {
+    font-size: 10.5px;
+  }
+
+  .armory-view .catalog-model-result__tags {
+    border-top: 0;
+    display: block;
+    padding: 0 12px 10px;
+  }
+
+  .armory-view .catalog-model-result__tags .racket-spec-tags__traits {
+    flex-wrap: nowrap;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .armory-view .catalog-model-result__tags .racket-spec-tags__traits > span:nth-child(n + 4) {
+    display: none;
+  }
+
+  .armory-view .catalog-model-result__actions {
+    display: flex;
+    justify-content: flex-end;
+    padding: 0 12px 10px;
+  }
+
+  .armory-view .catalog-model-result__actions button {
+    background: transparent;
+    color: var(--m-text-3);
+    font-size: 11px;
+    min-height: 44px;
+    padding: 0;
+  }
+
+  /* 一级球星卡以人物和关联拍为主；球拍缩略图本身成为浏览入口。 */
+  .tour-view .tour-player-card__racket-peek {
+    cursor: pointer;
+    position: relative;
+  }
+
+  .tour-view .tour-player-card__racket-peek::after {
+    content: "";
+    inset: -2px;
+    position: absolute;
+  }
+
+  .tour-view .tour-commandbar__summary > div {
+    display: none;
+  }
+
+  .tour-method__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 12px;
+  }
+
+  .tour-method__actions button,
+  .tour-method__actions a {
+    align-items: center;
+    background: var(--surface);
+    border: 1px solid var(--separator);
+    border-radius: 10px;
+    color: var(--accent);
+    display: inline-flex;
+    font-size: 11px;
+    font-weight: 650;
+    min-height: 44px;
+    padding: 0 12px;
+  }
+
+  /* 具体球拍详情保留型号和分享；重复的头部对比操作下沉到安全区底栏。 */
+  .racket-inspector__header .inspector-header-actions .is-primary {
+    display: none;
+  }
+
+  .racket-inspector__header {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+
+  .racket-inspector__header > span {
+    font-size: 14px;
+  }
+
+  .family-inspector__actions {
+    gap: 8px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .family-inspector__actions > span {
+    display: none;
+  }
+
+  .family-inspector__actions .app-button {
+    min-width: 0;
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+
+  .app-empty {
+    min-height: min(360px, 45dvh);
+    padding-bottom: max(24px, env(safe-area-inset-bottom));
+    padding-top: 24px;
+  }
+
+  .armory-view .catalog-filter-panel__mgroups {
+    overscroll-behavior: contain;
+  }
+
+  /* 移动决策头只显示一个低强调更多入口，避免保存/分享/清空挤压标题。 */
+  .compare-view .compare-title-actions__desktop {
+    display: none;
+  }
+
+  .compare-title-more {
+    position: relative;
+  }
+
+  .compare-title-more > summary {
+    align-items: center;
+    border-radius: 12px;
+    color: var(--m-accent);
+    cursor: pointer;
+    display: flex;
+    font-size: 15px;
+    font-weight: 700;
+    height: 44px;
+    justify-content: center;
+    list-style: none;
+    min-width: 44px;
+  }
+
+  .compare-title-more > summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .compare-title-more > div {
+    background: var(--surface);
+    border: 1px solid var(--separator);
+    border-radius: 12px;
+    box-shadow: var(--shadow-float);
+    display: none;
+    min-width: 150px;
+    overflow: hidden;
+    padding: 4px;
+    position: absolute;
+    right: 0;
+    top: calc(100% + 4px);
+    z-index: 8;
+  }
+
+  .compare-title-more[open] > div {
+    display: grid;
+  }
+
+  .compare-title-more > div button {
+    border-radius: 9px;
+    color: var(--text);
+    font-size: 12px;
+    min-height: 44px;
+    padding: 0 12px;
+    text-align: left;
+  }
+
+  .compare-title-more > div button.is-danger {
+    color: var(--m-danger);
+  }
+}
+
+@media (min-width: 760.02px) {
+  .compare-title-actions__desktop {
+    align-items: center;
+    display: flex;
+    gap: 7px;
+  }
+
+  .tour-method__actions {
+    display: none;
+  }
+}
+
+@media (max-width: 430px) {
+  /* ≤430px 页面 gutter 为 12px，拍库 sticky 头必须使用相同负边距。 */
+  .armory-mheader {
+    margin-left: calc(-12px - env(safe-area-inset-left));
+    margin-right: calc(-12px - env(safe-area-inset-right));
+  }
+
+  /* 常见 393px 手机也使用两行结果卡，避免长型号被四列布局压扁。 */
+  .match-view .match-result-card {
+    grid-template-columns: minmax(0, 1fr) 48px 44px;
+    position: relative;
+  }
+
+  .match-view .match-result-card__rank {
+    box-shadow: 0 0 0 2px var(--surface);
+    left: 17px;
+    position: absolute;
+    top: 17px;
+    z-index: 2;
+  }
+
+  .match-view .match-result-card__main {
+    grid-column: 1 / -1;
+    grid-row: 1;
+  }
+
+  .match-view .match-result-card__score {
+    grid-column: 2;
+    grid-row: 2;
+  }
+
+  .match-view .match-result-card__add {
+    grid-column: 3;
+    grid-row: 2;
+  }
+
+  .match-view .match-result-breakdown {
+    grid-row: 3;
+  }
+
+  .compare-view > .view-title h1 {
+    font-size: 28px;
+  }
+
+  .family-inspector__actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+/* === mobile ux consistency pass end === */

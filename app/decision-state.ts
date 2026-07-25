@@ -21,6 +21,15 @@ export type DecisionRoomState = {
   slots: DecisionCandidate[];
 };
 
+export function decisionRoomMatchesRacketIds(
+  room: DecisionRoomState,
+  racketIds: readonly string[],
+) {
+  if (room.slots.length !== racketIds.length) return false;
+  const currentIds = new Set(racketIds);
+  return room.slots.every((slot) => currentIds.has(slot.racketId));
+}
+
 export type TrialFeedback = {
   id?: number;
   racketId: string;

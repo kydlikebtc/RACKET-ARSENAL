@@ -75,7 +75,7 @@ test("keeps racket imagery and app interactions wired", async () => {
   assert.match(page, /\{scoreLabels\[key\]\}<\/text>/);
   assert.doesNotMatch(page, /scoreLabels\[key\]\.slice/);
   assert.match(page, /公开硬规格的导向归纳/);
-  assert.match(page, /className="model-matrix__actions"[\s\S]*?aria-pressed=\{compareIds\.includes\(racketProfile\.id\)\}/);
+  assert.match(page, /className="model-matrix__actions"[\s\S]*?href=\{model\.url\}/);
   const familyModelSource = page.slice(page.indexOf("{selectedFamily.models.map"), page.indexOf("</tbody>", page.indexOf("{selectedFamily.models.map")));
   const identityIndex = familyModelSource.indexOf('className="model-matrix__identity"');
   const dossierIndex = familyModelSource.indexOf("family-dossier-${racketProfile.id}");
@@ -84,7 +84,7 @@ test("keeps racket imagery and app interactions wired", async () => {
   assert.ok(identityIndex >= 0 && dossierIndex > identityIndex && radarIndex > dossierIndex && actionsIndex > radarIndex, "the sticky identity column must expose the dossier before radar and trailing actions");
   const trailingActions = familyModelSource.slice(actionsIndex, familyModelSource.indexOf("</div>", actionsIndex));
   assert.doesNotMatch(trailingActions, /family-dossier-|\u6df1\u5ea6\u6863\u6848/);
-  assert.match(trailingActions, /family-compare-/);
+  assert.doesNotMatch(trailingActions, /family-compare-|aria-pressed/);
   assert.match(trailingActions, /\u5b98\u7f51\u8d44\u6599/);
   assert.match(page, /function RacketSpecTags/);
   assert.match(page, /function ModelSpecValue/);
@@ -249,7 +249,7 @@ test("keeps racket imagery and app interactions wired", async () => {
   assert.match(css, /\.mini-radar svg[\s\S]*?height:\s*106px[\s\S]*?width:\s*120px/);
   assert.match(css, /\.model-matrix tbody tr[\s\S]*?grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\) 124px/);
   assert.match(css, /\.model-matrix tbody \.model-matrix__radar-cell[\s\S]*?grid-column:\s*3[\s\S]*?grid-row:\s*2 \/ 6/);
-  assert.match(css, /\.model-matrix__actions[\s\S]*?grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/);
+  assert.match(css, /\.model-matrix__actions[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\)/);
   assert.match(css, /\.model-matrix__dossier[\s\S]*?min-height:\s*44px/);
   assert.match(css, /\.racket-spec-tag--mainstream/);
   assert.match(css, /\.racket-spec-tags__traits/);

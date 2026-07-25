@@ -23,7 +23,7 @@ test("keeps every deep-dossier entry in the sticky first column", async () => {
   const actionsEnd = source.indexOf("</div>", actions);
   const actionSource = source.slice(actions, actionsEnd);
   assert.doesNotMatch(actionSource, /family-dossier-|\u6df1\u5ea6\u6863\u6848/);
-  assert.match(actionSource, /family-compare-/);
+  assert.doesNotMatch(actionSource, /family-compare-|aria-pressed/);
   assert.match(actionSource, /\u5b98\u7f51\u8d44\u6599/);
 });
 
@@ -59,5 +59,5 @@ test("styles the dossier as a reachable sticky primary action on desktop and mob
   assert.match(dossier, /width:\s*100%/);
   assert.match(css, /\.model-matrix__dossier:focus-visible/);
   assert.match(css, /\.model-matrix tbody th[\s\S]*?grid-column:\s*1 \/ -1[\s\S]*?position:\s*static/);
-  assert.match(css, /\.model-matrix__actions[\s\S]*?grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/);
+  assert.match(css, /\.model-matrix__actions[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\)/);
 });

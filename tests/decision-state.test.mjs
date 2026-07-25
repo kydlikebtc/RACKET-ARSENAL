@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  decisionRoomMatchesRacketIds,
   DecisionValidationError,
   normalizeDecisionRoom,
   normalizeDecisionRoomRequest,
@@ -38,6 +39,21 @@ test("decision room normalizes a baseline, three active candidates, and history"
     room.slots.map((slot) => slot.status),
     ["candidate", "trial", "final", "eliminated"],
   );
+});
+
+test("decision status only restores into the same racket roster", () => {
+  const room = normalizeDecisionRoom({
+    baselineId: null,
+    slots: [
+      { racketId: racketIds[1], status: "final", note: "当前首选" },
+      { racketId: racketIds[2], status: "candidate", note: "" },
+    ],
+  });
+
+  assert.equal(decisionRoomMatchesRacketIds(room, [racketIds[1], racketIds[2]]), true);
+  assert.equal(decisionRoomMatchesRacketIds(room, [racketIds[2], racketIds[1]]), true);
+  assert.equal(decisionRoomMatchesRacketIds(room, [racketIds[1], racketIds[3]]), false);
+  assert.equal(decisionRoomMatchesRacketIds(room, [racketIds[1]]), false);
 });
 
 test("decision room enforces known rackets, uniqueness, and at most three active candidates", () => {

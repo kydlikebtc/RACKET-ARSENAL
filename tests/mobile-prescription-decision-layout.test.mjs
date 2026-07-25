@@ -82,8 +82,41 @@ test("keeps the 320px prescription result readable", () => {
 });
 
 test("avoids competing floating and inline decision calls to action on the result screen", () => {
-  assert.match(page, /const showCompareTray = compareIds\.length > 0 && activeView !== "compare" && !\(activeView === "match" && matchStep === 3\)/);
+  assert.match(page, /const showCompareTray = decisionStorageStatus !== "loading"[\s\S]*?&& compareIds\.length > 0[\s\S]*?&& !finalDecisionRacket[\s\S]*?&& activeView !== "compare"[\s\S]*?&& !\(activeView === "match" && matchStep === 3\)/);
   assert.match(page, /!selected && !selectedFamily && showCompareTray/);
+  assert.match(page, /showCompareTray \? " app-toast--with-tray" : ""/);
+  assert.match(page, /finalDecisionRacket \? "✓" : String\(compareIds\.length\)/);
+});
+
+test("uses a compact mobile prescription header and a secondary decision action menu", () => {
+  assert.match(page, /className="m-match-head__step"/);
+  assert.match(page, /matchStep >= 3 \? "你的推荐" : "回答当前问题"/);
+  assert.match(page, /className="m-only m-match-privacy">答案只存当前浏览器/);
+  assert.match(css, /\.m-match-head__meta,[\s\S]*?\.m-match-progress__label[\s\S]*?display:\s*none/);
+  assert.match(css, /\.m-match-head \.m-large-title[\s\S]*?font-size:\s*20px/);
+  assert.match(page, /className="compare-title-actions__desktop"/);
+  assert.match(page, /className="compare-title-more m-only"/);
+  assert.match(css, /\.compare-view \.compare-title-actions__desktop[\s\S]*?display:\s*none/);
+  assert.match(css, /\.compare-title-more > summary[\s\S]*?height:\s*44px[\s\S]*?min-width:\s*44px/);
+  assert.match(css, /\.compare-title-more > div[\s\S]*?display:\s*none/);
+  assert.match(css, /\.compare-title-more\[open\] > div[\s\S]*?display:\s*grid/);
+});
+
+test("expires compare undo affordances without attaching them to later messages", () => {
+  assert.match(page, /liveMessage === actionableCompareUndo\.message/);
+  assert.match(page, /const showToast = Boolean\(liveMessage && !toastBlockedByOverlay\)/);
+  assert.match(page, /const undoToken = actionableCompareUndo\?\.token \?\? null/);
+  assert.match(page, /showCompareUndo \? 6000 : 2800/);
+  assert.match(page, /setCompareUndo\(\(current\) => current\?\.token === undoToken \? null : current\)/);
+  assert.match(page, /if \(!showCompareUndo\) return;[\s\S]*?handleUndoShortcut/);
+  assert.match(page, /app-toast\$\{showToast \? " is-visible" : ""\}/);
+  assert.match(page, /\$\{showCompareUndo \? " app-toast--actionable" : ""\}/);
+});
+
+test("does not leak one saved final decision into another candidate roster", () => {
+  assert.match(page, /decisionRoomMatchesRacketIds\([\s\S]*?stored\.room,[\s\S]*?compareSlotIds\(compareSlotsRef\.current\)/);
+  assert.match(page, /event\.key === DECISION_STORAGE_KEY[\s\S]*?reconcileSharedDecision\(event\.newValue\)/);
+  assert.match(page, /rosterChanged[\s\S]*?status: "candidate" as const/);
 });
 
 test("only announces horizontal table controls when the desktop table actually scrolls", () => {
