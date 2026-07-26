@@ -76,5 +76,5 @@ test("maps editions into the base model dossier without duplicating radar profil
     ["Boom MP Alternate", "Arthur Ashe Competition 2025", "Boom RAW", "Boom MP Neon"],
   );
   assert.ok(boomMp.editions?.find((edition) => edition.name === "Arthur Ashe Competition 2025")?.image);
-  assert.equal(boomMp.editions?.find((edition) => edition.name === "Boom RAW")?.image, undefined);
+  assert.ok(boomMp.editions?.find((edition) => edition.name === "Boom RAW")?.image);
 });

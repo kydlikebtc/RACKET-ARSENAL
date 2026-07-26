@@ -1,8 +1,9 @@
 import { createHash } from "node:crypto";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import sharp from "sharp";
 import { catalogFamilies } from "../app/catalog-data.ts";
+import { catalogImageSources } from "../app/catalog-image-sources.ts";
 import { catalogRacketId } from "../app/racket-profiles.ts";
 
 const root = path.resolve(import.meta.dirname, "..");
@@ -15,6 +16,9 @@ const args = new Map(process.argv.slice(2).map((argument) => {
 const write = args.get("write") === "true";
 const force = args.get("force") === "true";
 const brandFilter = args.get("brand")?.toLowerCase();
+const familyFilter = args.get("family")?.toLowerCase();
+const idFilter = new Set((args.get("id") ?? "").split(",").filter(Boolean));
+const curatedOnly = args.get("curated-only") === "true";
 const limit = Math.max(1, Number(args.get("limit") ?? Number.MAX_SAFE_INTEGER));
 const concurrency = Math.max(1, Math.min(10, Number(args.get("concurrency") ?? 5)));
 const maxImages = Math.max(1, Math.min(4, Number(args.get("max-images") ?? 3)));
@@ -27,17 +31,30 @@ const models = catalogFamilies
       brand: family.brand,
       family: family.family,
       model: model.name,
-      sourceUrl: model.url,
+      sourceUrl: catalogImageSources[catalogRacketId(family, modelIndex)]?.sourceUrl ?? model.url,
+      sourceKind: catalogImageSources[catalogRacketId(family, modelIndex)]?.sourceKind ?? "official-product",
+      preferredImageUrls: catalogImageSources[catalogRacketId(family, modelIndex)]?.preferredImageUrls ?? [],
+      preferredOnly: catalogImageSources[catalogRacketId(family, modelIndex)]?.preferredOnly ?? false,
+      imageLimit: catalogImageSources[catalogRacketId(family, modelIndex)]?.imageLimit,
+      familyId: family.id,
     },
     ...(model.editions ?? []).map((item) => ({
       id: item.id,
       brand: family.brand,
       family: family.family,
       model: `${model.name} ${item.name}`,
-      sourceUrl: item.url,
+      sourceUrl: catalogImageSources[item.id]?.sourceUrl ?? item.url,
+      sourceKind: catalogImageSources[item.id]?.sourceKind ?? "official-product",
+      preferredImageUrls: catalogImageSources[item.id]?.preferredImageUrls ?? [],
+      preferredOnly: catalogImageSources[item.id]?.preferredOnly ?? false,
+      imageLimit: catalogImageSources[item.id]?.imageLimit,
+      familyId: family.id,
     })),
   ]))
   .filter((item) => !brandFilter || item.brand.toLowerCase() === brandFilter)
+  .filter((item) => !familyFilter || item.familyId.toLowerCase() === familyFilter)
+  .filter((item) => !idFilter.size || idFilter.has(item.id))
+  .filter((item) => !curatedOnly || catalogImageSources[item.id])
   .slice(0, limit);
 
 let manifest = {};
@@ -72,6 +89,15 @@ function normalizeImageUrl(value, pageUrl) {
     const url = new URL(candidate, pageUrl);
     if (!/^https?:$/.test(url.protocol)) return null;
     if (/\.(?:svg|gif)(?:$|\?)/i.test(url.href)) return null;
+    for (const parameter of ["width", "height", "w", "h", "quality", "q"]) {
+      url.searchParams.delete(parameter);
+    }
+    if (/(?:^|\.)cdn\.shopify\.com$/i.test(url.hostname)) {
+      url.pathname = url.pathname.replace(
+        /_(?:pico|icon|thumb|small|compact|medium|large|grande|original|\d+x\d*|x\d+)(?=\.(?:jpe?g|png|webp)$)/i,
+        "",
+      );
+    }
     url.hash = "";
     return url.href;
   } catch {
@@ -197,7 +223,7 @@ async function shopifyCandidates(pageUrl) {
 }
 
 function scoreCandidate(candidate, item) {
-  const weights = { head: 170, shopify: 150, jsonld: 140, og: 125, twitter: 110, img: 65, srcset: 55, raw: 30 };
+  const weights = { curated: 300, head: 170, shopify: 150, jsonld: 140, og: 125, twitter: 110, img: 65, srcset: 55, raw: 30 };
   let score = weights[candidate.source] ?? 0;
   const lower = decodeURIComponent(candidate.url).toLowerCase();
   const pageTail = new URL(item.sourceUrl).pathname.split("/").filter(Boolean).at(-1) ?? "";
@@ -214,10 +240,24 @@ function scoreCandidate(candidate, item) {
 }
 
 async function collectCandidates(item) {
-  const htmlResponse = await fetchResponse(item.sourceUrl);
-  const html = await htmlResponse.text();
-  const pageUrl = htmlResponse.url || item.sourceUrl;
-  const candidates = [...headCdnCandidates(item), ...await shopifyCandidates(pageUrl), ...extractHtmlCandidates(html, pageUrl)];
+  if (item.preferredOnly) {
+    return item.preferredImageUrls.map((url) => ({ url, source: "curated" }));
+  }
+  let html = "";
+  let pageUrl = item.sourceUrl;
+  try {
+    const htmlResponse = await fetchResponse(item.sourceUrl);
+    html = await htmlResponse.text();
+    pageUrl = htmlResponse.url || item.sourceUrl;
+  } catch (error) {
+    if (!item.preferredImageUrls.length) throw error;
+  }
+  const candidates = [
+    ...item.preferredImageUrls.map((url) => ({ url, source: "curated" })),
+    ...headCdnCandidates(item),
+    ...await shopifyCandidates(pageUrl),
+    ...(html ? extractHtmlCandidates(html, pageUrl) : []),
+  ];
   const unique = new Map();
   for (const candidate of candidates) {
     const key = candidate.url.replace(/([?&])(?:width|height|w|h|quality|q)=\d+/gi, "$1").replace(/[?&]$/, "");
@@ -235,6 +275,8 @@ async function downloadImage(candidate, item, imageIndex) {
   if (buffer.length > 24 * 1024 * 1024) throw new Error("image exceeds 24 MiB");
   const sourceMetadata = await sharp(buffer, { failOn: "error" }).metadata();
   if (Math.max(sourceMetadata.width ?? 0, sourceMetadata.height ?? 0) < 700) throw new Error("image is too small");
+  const aspectRatio = (sourceMetadata.width ?? 1) / (sourceMetadata.height ?? 1);
+  if (aspectRatio > 2.15) throw new Error("image has campaign-banner proportions");
   const encoded = await sharp(buffer, { failOn: "error" })
     .rotate()
     .resize({ width: 1200, height: 1200, fit: "inside", withoutEnlargement: true })
@@ -261,7 +303,7 @@ async function syncModel(item) {
     const images = [];
     const hashes = new Set();
     for (const candidate of candidates.slice(0, 18)) {
-      if (images.length >= maxImages) break;
+      if (images.length >= Math.min(maxImages, item.imageLimit ?? maxImages)) break;
       try {
         const image = await downloadImage(candidate, item, images.length);
         if (hashes.has(image.hash)) continue;
@@ -276,9 +318,18 @@ async function syncModel(item) {
       images: images.map((image) => image.path),
       sourceUrl: item.sourceUrl,
       verifiedAt,
-      sourceKind: "official-product",
+      sourceKind: item.sourceKind,
     };
-    if (write) manifest[item.id] = record;
+    if (write) {
+      manifest[item.id] = record;
+      const brandDirectory = path.join(outputRoot, slug(item.brand));
+      const keptFilenames = new Set(record.images.map((imagePath) => path.basename(imagePath)));
+      for (const filename of await readdir(brandDirectory)) {
+        if (filename.startsWith(`${item.id}-`) && filename.endsWith(".webp") && !keptFilenames.has(filename)) {
+          await unlink(path.join(brandDirectory, filename));
+        }
+      }
+    }
     return { id: item.id, status: "synced", images: record.images, bytes: images.reduce((sum, image) => sum + image.bytes, 0) };
   } catch (error) {
     return { id: item.id, status: "failed", error: error instanceof Error ? error.message : String(error) };

@@ -5,6 +5,7 @@ import path from "node:path";
 import test from "node:test";
 import sharp from "sharp";
 import { catalogEditionCount, catalogFamilies, catalogModelCount } from "../app/catalog-data.ts";
+import { catalogImageSources } from "../app/catalog-image-sources.ts";
 import { catalogModelImages } from "../app/catalog-model-images.ts";
 import { catalogRacketId, deepRackets } from "../app/racket-profiles.ts";
 
@@ -12,18 +13,23 @@ const projectRoot = path.resolve(import.meta.dirname, "..");
 const publicRoot = path.join(projectRoot, "public");
 const modelImageRoot = path.join(publicRoot, "rackets", "models");
 const officialDomains = new Map([
-  ["Wilson", "wilson.com"],
-  ["Yonex", "yonex.com"],
-  ["Babolat", "babolat.com"],
-  ["HEAD", "head.com"],
-  ["Tecnifibre", "tecnifibre.com"],
-  ["Dunlop", "dunlopsports.com"],
-  ["Völkl", "volkltennis.com"],
-  ["Prince", "princetennis.jp"],
-  ["Solinco", "solincosports.com"],
-  ["ProKennex", "prokennex.com"],
-  ["Diadem", "diademsports.com"],
+  ["Wilson", ["wilson.com", "wilson.co.il"]],
+  ["Yonex", ["yonex.com", "yonexmall.com", "yonex.com.hr"]],
+  ["Babolat", ["babolat.com"]],
+  ["HEAD", ["head.com"]],
+  ["Tecnifibre", ["tecnifibre.com"]],
+  ["Dunlop", ["dunlopsports.com"]],
+  ["Völkl", ["volkltennis.com"]],
+  ["Prince", ["princetennis.jp"]],
+  ["Solinco", ["solincosports.com"]],
+  ["ProKennex", ["prokennex.com"]],
+  ["Diadem", ["diademsports.com"]],
 ]);
+const retailerDomains = ["racquetguys.ca", "racquetguys.com", "tennis-warehouse.com", "tenniswarehouse-europe.com"];
+
+function hostMatches(sourceHost, domains) {
+  return domains.some((domain) => sourceHost === domain || sourceHost.endsWith(`.${domain}`));
+}
 
 async function listFiles(directory) {
   const entries = await readdir(directory, { withFileTypes: true });
@@ -40,7 +46,8 @@ test("every yearbook model and every available edition image has traced local pr
     brand: family.brand,
     familyId: family.id,
     name: model.name,
-    sourceUrl: model.url,
+    sourceUrl: catalogImageSources[catalogRacketId(family, modelIndex)]?.sourceUrl ?? model.url,
+    sourceKind: catalogImageSources[catalogRacketId(family, modelIndex)]?.sourceKind ?? "official-product",
   })));
   const editions = catalogFamilies.flatMap((family) => family.models.flatMap((model) => (
     (model.editions ?? []).map((edition) => ({
@@ -48,7 +55,8 @@ test("every yearbook model and every available edition image has traced local pr
       brand: family.brand,
       familyId: family.id,
       name: `${model.name} / ${edition.name}`,
-      sourceUrl: edition.url,
+      sourceUrl: catalogImageSources[edition.id]?.sourceUrl ?? edition.url,
+      sourceKind: catalogImageSources[edition.id]?.sourceKind ?? "official-product",
     }))
   )));
 
@@ -67,13 +75,17 @@ test("every yearbook model and every available edition image has traced local pr
   for (const item of tracedAssets) {
     const record = catalogModelImages[item.id];
     assert.ok(record, `${item.brand} ${item.name} is missing its image record`);
-    assert.equal(record.sourceKind, "official-product", `${item.name} must be traced to an official source page`);
+    assert.equal(record.sourceKind, item.sourceKind, `${item.name} must retain its curated provenance type`);
     assert.equal(record.sourceUrl, item.sourceUrl, `${item.name} image provenance must match its catalog source link`);
     assert.match(record.sourceUrl, /^https:\/\//, `${item.name} image source must use HTTPS`);
-    const officialDomain = officialDomains.get(item.brand);
-    assert.ok(officialDomain, `${item.brand} needs an official image-domain rule`);
     const sourceHost = new URL(record.sourceUrl).hostname.toLowerCase();
-    assert.ok(sourceHost === officialDomain || sourceHost.endsWith(`.${officialDomain}`), `${item.name} image source must be on the ${item.brand} official domain`);
+    if (record.sourceKind === "official-product") {
+      const domains = officialDomains.get(item.brand);
+      assert.ok(domains, `${item.brand} needs an official image-domain rule`);
+      assert.ok(hostMatches(sourceHost, domains), `${item.name} image source must be on a ${item.brand} official domain`);
+    } else {
+      assert.ok(hostMatches(sourceHost, retailerDomains), `${item.name} retailer source is not on the reviewed allowlist`);
+    }
     assert.match(record.verifiedAt, /^\d{4}-\d{2}-\d{2}$/, `${item.name} must have a verification date`);
     const verifiedAt = Date.parse(`${record.verifiedAt}T00:00:00Z`);
     assert.ok(Number.isFinite(verifiedAt) && verifiedAt <= Date.now() + 86_400_000, `${item.name} verification date cannot be in the future`);
@@ -94,6 +106,8 @@ test("every yearbook model and every available edition image has traced local pr
       assert.equal(metadata.format, "webp", `${imagePath} must decode as WebP`);
       assert.ok(Math.max(metadata.width ?? 0, metadata.height ?? 0) >= 700, `${imagePath} must retain product-detail resolution`);
       assert.ok(Math.max(metadata.width ?? 0, metadata.height ?? 0) <= 1200, `${imagePath} must stay within the delivery size budget`);
+      const aspectRatio = (metadata.width ?? 1) / (metadata.height ?? 1);
+      assert.ok(aspectRatio <= 2.15, `${imagePath} must not use a horizontal campaign-banner crop`);
 
       const hash = createHash("sha256").update(await readFile(absolutePath)).digest("hex");
       const previousOwner = contentOwners.get(hash);
